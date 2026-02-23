@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: collaborative_ide
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+
+  piston:
+    image: ghcr.io/engineer-man/piston
+    restart: always
+    ports:
+      - "2000:2000"
+    tmpfs:
+      - /piston/jobs:exec,uid=1000,gid=1000
+    privileged: true

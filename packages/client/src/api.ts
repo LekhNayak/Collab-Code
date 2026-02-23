@@ -1,0 +1,368 @@
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+// ---- Git / File API ----
+
+export async function initWorkspace(workspaceId: string) {
+    const res = await fetch(`${API_BASE}/git/init`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceId }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function cloneRepository(repoUrl: string, workspaceId: string) {
+    const res = await fetch(`${API_BASE}/git/clone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repoUrl, workspaceId }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function getFileTree(workspaceId: string) {
+    const res = await fetch(`${API_BASE}/git/tree/${workspaceId}`);
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function readFile(workspaceId: string, filePath: string) {
+    // Remove leading slash
+    const cleanPath = filePath.replace(/^\//, '');
+    const res = await fetch(`${API_BASE}/git/file/${workspaceId}/${cleanPath}`);
+    if (!res.ok) throw new Error((await res.json()).error);
+    const data = await res.json();
+    return data.content as string;
+}
+
+export async function saveFile(workspaceId: string, filePath: string, content: string) {
+    const cleanPath = filePath.replace(/^\//, '');
+    const res = await fetch(`${API_BASE}/git/file/${workspaceId}/${cleanPath}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function createFile(workspaceId: string, filePath: string, isDirectory: boolean, content?: string) {
+    const cleanPath = filePath.replace(/^\//, '');
+    const res = await fetch(`${API_BASE}/git/file/${workspaceId}/${cleanPath}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isDirectory, content }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function deleteFile(workspaceId: string, filePath: string) {
+    const cleanPath = filePath.replace(/^\//, '');
+    const res = await fetch(`${API_BASE}/git/file/${workspaceId}/${cleanPath}`, {
+        method: 'DELETE',
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function moveFile(workspaceId: string, oldPath: string, newPath: string) {
+    const res = await fetch(`${API_BASE}/git/file/${workspaceId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            oldPath: oldPath.replace(/^\//, ''),
+            newPath: newPath.replace(/^\//, ''),
+        }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+// ---- Code Execution API ----
+
+export interface ExecutionResult {
+    jobId: string;
+    status: 'queued' | 'running' | 'completed' | 'failed';
+    stdout?: string;
+    stderr?: string;
+    exitCode?: number;
+    error?: string;
+    executionTime?: number;
+}
+
+export async function executeCode(code: string, language: string, stdin?: string): Promise<ExecutionResult> {
+    const res = await fetch(`${API_BASE}/execute/run/direct`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, language, stdin }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function executeCodeQueued(code: string, language: string, stdin?: string): Promise<string> {
+    const res = await fetch(`${API_BASE}/execute/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, language, stdin }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    const data = await res.json();
+    return data.jobId;
+}
+
+export async function getExecutionResult(jobId: string): Promise<ExecutionResult> {
+    const res = await fetch(`${API_BASE}/execute/result/${jobId}`);
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+// ---- Git Source Control API ----
+
+export interface GitStatusResult {
+    isRepo: boolean;
+    status: Array<{ file: string; status: string }>;
+    branch: string;
+    branches: string[];
+    remotes: Array<{ remote: string; url: string }>;
+}
+
+export interface GitCommitLog {
+    oid: string;
+    fullOid: string;
+    message: string;
+    author: string;
+    email: string;
+    timestamp: number;
+    date: string;
+}
+
+export async function gitInitRepo(workspaceId: string) {
+    const res = await fetch(`${API_BASE}/git/repo/init/${workspaceId}`, { method: 'POST' });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function gitStatus(workspaceId: string): Promise<GitStatusResult> {
+    const res = await fetch(`${API_BASE}/git/status/${workspaceId}`);
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function gitAdd(workspaceId: string, files: string[] | 'all') {
+    const res = await fetch(`${API_BASE}/git/add/${workspaceId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function gitUnstage(workspaceId: string, files: string[]) {
+    const res = await fetch(`${API_BASE}/git/unstage/${workspaceId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function gitCommit(workspaceId: string, message: string, authorName?: string, authorEmail?: string) {
+    const res = await fetch(`${API_BASE}/git/commit/${workspaceId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, authorName, authorEmail }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function gitPush(workspaceId: string, token?: string, remote?: string, branch?: string) {
+    const res = await fetch(`${API_BASE}/git/push/${workspaceId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, remote, branch }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function gitPull(workspaceId: string, token?: string, remote?: string, branch?: string) {
+    const res = await fetch(`${API_BASE}/git/pull/${workspaceId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, remote, branch }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function gitLog(workspaceId: string, depth: number = 20): Promise<GitCommitLog[]> {
+    const res = await fetch(`${API_BASE}/git/log/${workspaceId}?depth=${depth}`);
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function gitBranches(workspaceId: string): Promise<{ branches: string[]; current: string }> {
+    const res = await fetch(`${API_BASE}/git/branches/${workspaceId}`);
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function gitCheckout(workspaceId: string, branch: string) {
+    const res = await fetch(`${API_BASE}/git/checkout/${workspaceId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ branch }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function gitCreateBranch(workspaceId: string, branch: string, checkout: boolean = true) {
+    const res = await fetch(`${API_BASE}/git/branch/${workspaceId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ branch, checkout }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function gitAddRemote(workspaceId: string, name: string, url: string) {
+    const res = await fetch(`${API_BASE}/git/remote/${workspaceId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, url }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+// ---- Sessions & Extensions API ----
+
+export interface ExtensionInfo {
+    id: string;
+    name: string;
+    description: string;
+    category: 'theme' | 'snippets' | 'formatter' | 'keybindings' | 'visual' | 'tool';
+    icon: string;
+    author: string;
+    version: string;
+    config?: Record<string, any>;
+}
+
+export interface SessionExtension {
+    extensionId: string;
+    installedAt: string;
+    config?: Record<string, any>;
+}
+
+export interface SessionInfo {
+    id: string;
+    name: string;
+    roomId: string;
+    workspaceId: string;
+    owner: string;
+    openTabs: string[];
+    activeTab: string;
+    settings: Record<string, any>;
+    extensions: SessionExtension[];
+    createdAt: string;
+    updatedAt: string;
+}
+
+export async function getExtensions(): Promise<ExtensionInfo[]> {
+    const res = await fetch(`${API_BASE}/sessions/extensions`);
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function createSession(name: string, roomId: string, workspaceId: string, owner: string): Promise<SessionInfo> {
+    const res = await fetch(`${API_BASE}/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, roomId, workspaceId, owner }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function getSessions(owner?: string): Promise<SessionInfo[]> {
+    const url = owner ? `${API_BASE}/sessions?owner=${encodeURIComponent(owner)}` : `${API_BASE}/sessions`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function getSession(id: string): Promise<SessionInfo> {
+    const res = await fetch(`${API_BASE}/sessions/${id}`);
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function saveSession(id: string, data: Partial<Pick<SessionInfo, 'name' | 'openTabs' | 'activeTab' | 'settings' | 'extensions'>>): Promise<SessionInfo> {
+    const res = await fetch(`${API_BASE}/sessions/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function deleteSession(id: string) {
+    const res = await fetch(`${API_BASE}/sessions/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function installExtension(sessionId: string, extensionId: string): Promise<SessionInfo> {
+    const res = await fetch(`${API_BASE}/sessions/${sessionId}/extensions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ extensionId }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function uninstallExtension(sessionId: string, extensionId: string): Promise<SessionInfo> {
+    const res = await fetch(`${API_BASE}/sessions/${sessionId}/extensions/${extensionId}`, {
+        method: 'DELETE',
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+// ---- Custom Extensions ----
+
+export async function createCustomExtension(ext: Omit<ExtensionInfo, 'custom'>): Promise<ExtensionInfo> {
+    const res = await fetch(`${API_BASE}/sessions/extensions/custom`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ext),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function deleteCustomExtension(id: string) {
+    const res = await fetch(`${API_BASE}/sessions/extensions/custom/${id}`, {
+        method: 'DELETE',
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function importExtensionFromUrl(url: string): Promise<ExtensionInfo> {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to fetch extension from URL');
+    const ext = await res.json();
+    return createCustomExtension(ext);
+}

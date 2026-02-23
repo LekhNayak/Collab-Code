@@ -1,0 +1,797 @@
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { type WebsocketProvider } from 'y-websocket';
+import {
+    Files,
+    Search,
+    GitBranch,
+    Settings,
+    PanelBottomOpen,
+    PanelBottomClose,
+    Users,
+    Share2,
+    Copy,
+    FilePlus2,
+    FolderPlus,
+    Plus,
+    X,
+    Puzzle,
+} from 'lucide-react';
+import FileExplorer, { type FileNode } from './FileExplorer';
+import EditorTabs, { type TabInfo } from './EditorTabs';
+import CodeEditor, { getLanguageFromFilename } from './Editor';
+import StatusBar from './StatusBar';
+import Terminal from './Terminal';
+import GitPanel from './GitPanel';
+import ExtensionPanel from './ExtensionPanel';
+import UserPresence from './UserPresence';
+import { getFileTree, readFile, saveFile, initWorkspace, createFile as apiCreateFile, moveFile as apiMoveFile, deleteFile as apiDeleteFile, getSession, saveSession, createSession, getExtensions, type SessionInfo, type ExtensionInfo } from '../api';
+import '../ide.css';
+
+type SidebarPanel = 'explorer' | 'search' | 'git' | 'users' | 'extensions';
+
+// In-memory file content cache
+const fileContents = new Map<string, string>();
+
+export default function IDELayout() {
+    const { roomId } = useParams<{ roomId: string }>();
+    const navigate = useNavigate();
+    const username = localStorage.getItem('collab-username') || 'Anonymous';
+
+    // Use roomId as workspaceId for simplicity
+    const workspaceId = roomId || 'default';
+
+    const [activePanel, setActivePanel] = useState<SidebarPanel>('explorer');
+    const [sidebarVisible, setSidebarVisible] = useState(true);
+    const [tabs, setTabs] = useState<TabInfo[]>([]);
+    const [activeTab, setActiveTab] = useState<string>('');
+    const [panelOpen, setPanelOpen] = useState(false);
+    const [panelHeight, setPanelHeight] = useState(200);
+    const [cursorPos, setCursorPos] = useState({ line: 1, column: 1 });
+    const [provider, setProvider] = useState<WebsocketProvider | null>(null);
+    const [copied, setCopied] = useState(false);
+    const [files, setFiles] = useState<FileNode[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [creatingFile, setCreatingFile] = useState<'file' | 'folder' | null>(null);
+    const [newFileName, setNewFileName] = useState('');
+
+    // Session & Extensions state
+    const [sessionData, setSessionData] = useState<SessionInfo | null>(null);
+    const [allExtensions, setAllExtensions] = useState<ExtensionInfo[]>([]);
+    const sessionSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Multi-terminal state
+    const [terminals, setTerminals] = useState([{ id: 'term-1', label: 'Terminal 1' }]);
+    const [activeTerminal, setActiveTerminal] = useState('term-1');
+    const terminalCounter = useRef(1);
+
+    // Drag resize refs
+    const isDraggingPanel = useRef(false);
+    const dragStartY = useRef(0);
+    const dragStartHeight = useRef(0);
+
+    // Panel drag resize handlers
+    const handlePanelDragStart = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        isDraggingPanel.current = true;
+        dragStartY.current = e.clientY;
+        dragStartHeight.current = panelHeight;
+
+        const handleMouseMove = (ev: MouseEvent) => {
+            if (!isDraggingPanel.current) return;
+            const delta = dragStartY.current - ev.clientY;
+            const newHeight = Math.max(100, Math.min(600, dragStartHeight.current + delta));
+            setPanelHeight(newHeight);
+        };
+
+        const handleMouseUp = () => {
+            isDraggingPanel.current = false;
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.userSelect = '';
+            document.body.style.cursor = '';
+        };
+
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'ns-resize';
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    }, [panelHeight]);
+
+    const addTerminal = useCallback(() => {
+        terminalCounter.current += 1;
+        const id = `term-${terminalCounter.current}`;
+        setTerminals(prev => [...prev, { id, label: `Terminal ${terminalCounter.current}` }]);
+        setActiveTerminal(id);
+    }, []);
+
+    const closeTerminal = useCallback((id: string) => {
+        setTerminals(prev => {
+            const next = prev.filter(t => t.id !== id);
+            if (next.length === 0) {
+                setPanelOpen(false);
+                return prev;
+            }
+            if (activeTerminal === id) {
+                setActiveTerminal(next[next.length - 1].id);
+            }
+            return next;
+        });
+    }, [activeTerminal]);
+
+    // Load file tree from backend
+    useEffect(() => {
+        const loadFileTree = async () => {
+            setLoading(true);
+            setError('');
+            try {
+                // Initialize workspace if needed
+                await initWorkspace(workspaceId);
+                const tree = await getFileTree(workspaceId);
+                // Map backend format to FileNode format
+                const mapTree = (nodes: any[]): FileNode[] =>
+                    nodes.map((n: any) => ({
+                        name: n.name,
+                        path: n.path,
+                        type: n.type === 'directory' ? 'folder' : 'file',
+                        children: n.children ? mapTree(n.children) : undefined,
+                    }));
+                setFiles(mapTree(tree));
+            } catch (err: any) {
+                console.error('Failed to load file tree:', err);
+                setError(err.message || 'Failed to load files');
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadFileTree();
+    }, [workspaceId]);
+
+    // Load session data + extensions on mount
+    useEffect(() => {
+        const loadSession = async () => {
+            // Load extensions registry first
+            let extsList: ExtensionInfo[] = [];
+            try {
+                extsList = await getExtensions();
+                setAllExtensions(extsList);
+            } catch {
+                // extensions endpoint may not be ready yet
+            }
+
+            // Load or auto-create session
+            let session: SessionInfo | null = null;
+            try {
+                session = await getSession(workspaceId);
+            } catch {
+                // Session doesn't exist yet — auto-create one
+                try {
+                    session = await createSession(
+                        `Session ${new Date().toLocaleDateString()}`,
+                        workspaceId,
+                        workspaceId,
+                        username
+                    );
+                } catch {
+                    // silent
+                }
+            }
+
+            if (session) {
+                setSessionData(session);
+                // Apply installed theme using the freshly loaded extensions list
+                applyThemeFromSession(session, extsList);
+            }
+        };
+        loadSession();
+    }, [workspaceId, username]);
+
+    // Auto-save session state (tabs, active tab) every 10 seconds
+    useEffect(() => {
+        if (!sessionData) return;
+        if (sessionSaveTimer.current) clearTimeout(sessionSaveTimer.current);
+        sessionSaveTimer.current = setTimeout(async () => {
+            try {
+                await saveSession(workspaceId, {
+                    openTabs: tabs.map(t => t.path),
+                    activeTab,
+                });
+            } catch {
+                // silent
+            }
+        }, 10000);
+        return () => {
+            if (sessionSaveTimer.current) clearTimeout(sessionSaveTimer.current);
+        };
+    }, [tabs, activeTab, workspaceId, sessionData]);
+
+    // Apply theme from installed theme extensions — takes extensions list as param to avoid stale closure
+    const applyThemeFromSession = useCallback((session: SessionInfo, extsList?: ExtensionInfo[]) => {
+        const themeExt = session.extensions.find(e => e.extensionId.startsWith('theme-'));
+        if (!themeExt) {
+            // Reset to defaults when no theme is installed
+            const root = document.documentElement;
+            root.style.removeProperty('--bg-primary');
+            root.style.removeProperty('--bg-secondary');
+            root.style.removeProperty('--bg-elevated');
+            root.style.removeProperty('--bg-active');
+            root.style.removeProperty('--text-primary');
+            root.style.removeProperty('--text-secondary');
+            root.style.removeProperty('--text-muted');
+            root.style.removeProperty('--accent-primary');
+            root.style.removeProperty('--accent-secondary');
+            root.style.removeProperty('--accent-error');
+            root.style.removeProperty('--border-subtle');
+            return;
+        }
+        // Use passed list or fall back to state
+        const list = extsList || allExtensions;
+        const ext = list.find(e => e.id === themeExt.extensionId);
+        const config = ext?.config || themeExt.config;
+        if (!config) return;
+        const root = document.documentElement;
+        if (config.bgPrimary) root.style.setProperty('--bg-primary', config.bgPrimary);
+        if (config.bgSecondary) root.style.setProperty('--bg-secondary', config.bgSecondary);
+        if (config.bgElevated) root.style.setProperty('--bg-elevated', config.bgElevated);
+        if (config.bgActive) root.style.setProperty('--bg-active', config.bgActive);
+        if (config.textPrimary) root.style.setProperty('--text-primary', config.textPrimary);
+        if (config.textSecondary) root.style.setProperty('--text-secondary', config.textSecondary);
+        if (config.textMuted) root.style.setProperty('--text-muted', config.textMuted);
+        if (config.accentPrimary) root.style.setProperty('--accent-primary', config.accentPrimary);
+        if (config.accentSecondary) root.style.setProperty('--accent-secondary', config.accentSecondary);
+        if (config.accentError) root.style.setProperty('--accent-error', config.accentError);
+        if (config.borderSubtle) root.style.setProperty('--border-subtle', config.borderSubtle);
+    }, [allExtensions]);
+
+    // Handle extension install/uninstall callback
+    const handleExtensionChange = useCallback((updatedSession: SessionInfo) => {
+        setSessionData(updatedSession);
+        applyThemeFromSession(updatedSession);
+    }, [applyThemeFromSession]);
+
+    const refreshTree = useCallback(async () => {
+        try {
+            const tree = await getFileTree(workspaceId);
+            const mapTree = (nodes: any[]): FileNode[] =>
+                nodes.map((n: any) => ({
+                    name: n.name,
+                    path: n.path,
+                    type: n.type === 'directory' ? 'folder' : 'file',
+                    children: n.children ? mapTree(n.children) : undefined,
+                }));
+            setFiles(mapTree(tree));
+        } catch (err) {
+            console.error('Failed to refresh tree:', err);
+        }
+    }, [workspaceId]);
+
+    const handleCreateFile = useCallback(async (name: string, isFolder: boolean) => {
+        if (!name.trim()) return;
+        try {
+            const path = '/' + name.trim();
+            await apiCreateFile(workspaceId, path, isFolder);
+            await refreshTree();
+            setCreatingFile(null);
+            setNewFileName('');
+            // Auto-open the new file
+            if (!isFolder) {
+                const lang = getLanguageFromFilename(name);
+                setTabs(prev => [...prev, { path, name: name.trim(), language: lang }]);
+                setActiveTab(path);
+                fileContents.set(path, '');
+            }
+        } catch (err: any) {
+            console.error('Failed to create:', err);
+            setError(err.message);
+            setTimeout(() => setError(''), 3000);
+        }
+    }, [workspaceId, refreshTree]);
+
+    const handleNestedCreateFile = useCallback(async (parentPath: string, name: string, isFolder: boolean) => {
+        if (!name.trim()) return;
+        try {
+            const fullPath = parentPath === '/' ? `/${name.trim()}` : `${parentPath}/${name.trim()}`;
+            await apiCreateFile(workspaceId, fullPath, isFolder);
+            await refreshTree();
+            if (!isFolder) {
+                const lang = getLanguageFromFilename(name);
+                setTabs(prev => [...prev, { path: fullPath, name: name.trim(), language: lang }]);
+                setActiveTab(fullPath);
+                fileContents.set(fullPath, '');
+            }
+        } catch (err: any) {
+            console.error('Failed to create:', err);
+            setError(err.message);
+            setTimeout(() => setError(''), 3000);
+        }
+    }, [workspaceId, refreshTree]);
+
+    const handleMoveFile = useCallback(async (oldPath: string, newPath: string) => {
+        try {
+            await apiMoveFile(workspaceId, oldPath, newPath);
+            await refreshTree();
+            // Update tabs if the moved file was open
+            setTabs(prev => prev.map(t => {
+                if (t.path === oldPath || t.path.startsWith(oldPath + '/')) {
+                    const relativePart = t.path.slice(oldPath.length);
+                    const updatedPath = newPath + relativePart;
+                    const updatedName = updatedPath.split('/').pop() || t.name;
+                    // Move cached content
+                    const cached = fileContents.get(t.path);
+                    if (cached !== undefined) {
+                        fileContents.delete(t.path);
+                        fileContents.set(updatedPath, cached);
+                    }
+                    return { ...t, path: updatedPath, name: updatedName };
+                }
+                return t;
+            }));
+            setActiveTab(prev => {
+                if (prev === oldPath) return newPath;
+                if (prev.startsWith(oldPath + '/')) return newPath + prev.slice(oldPath.length);
+                return prev;
+            });
+        } catch (err: any) {
+            console.error('Failed to move:', err);
+            setError(err.message);
+            setTimeout(() => setError(''), 3000);
+        }
+    }, [workspaceId, refreshTree]);
+
+    const handleDeleteFile = useCallback(async (path: string) => {
+        try {
+            await apiDeleteFile(workspaceId, path);
+            await refreshTree();
+            // Close tab if open
+            setTabs(prev => prev.filter(t => t.path !== path && !t.path.startsWith(path + '/')));
+            fileContents.delete(path);
+        } catch (err: any) {
+            console.error('Failed to delete:', err);
+            setError(err.message);
+            setTimeout(() => setError(''), 3000);
+        }
+    }, [workspaceId, refreshTree]);
+
+    const handleRenameFile = useCallback(async (oldPath: string, newName: string) => {
+        const parentDir = oldPath.substring(0, oldPath.lastIndexOf('/'));
+        const newPath = parentDir ? `${parentDir}/${newName}` : `/${newName}`;
+        await handleMoveFile(oldPath, newPath);
+    }, [handleMoveFile]);
+
+    // ---- Terminal file-system callbacks ----
+    const flattenTree = useCallback((nodes: FileNode[], result: { name: string; path: string; type: string }[] = []) => {
+        for (const n of nodes) {
+            result.push({ name: n.name, path: n.path, type: n.type });
+            if (n.children) flattenTree(n.children, result);
+        }
+        return result;
+    }, []);
+
+    const terminalCreateFile = useCallback(async (path: string, isFolder: boolean) => {
+        await apiCreateFile(workspaceId, path, isFolder);
+        await refreshTree();
+    }, [workspaceId, refreshTree]);
+
+    const terminalDeleteFile = useCallback(async (path: string) => {
+        await apiDeleteFile(workspaceId, path);
+        await refreshTree();
+        setTabs(prev => prev.filter(t => t.path !== path && !t.path.startsWith(path + '/')));
+        fileContents.delete(path);
+    }, [workspaceId, refreshTree]);
+
+    const terminalMoveFile = useCallback(async (oldPath: string, newPath: string) => {
+        await apiMoveFile(workspaceId, oldPath, newPath);
+        await refreshTree();
+    }, [workspaceId, refreshTree]);
+
+    const terminalReadFile = useCallback(async (path: string): Promise<string> => {
+        const content = await readFile(workspaceId, path);
+        return content;
+    }, [workspaceId]);
+
+    const terminalListFiles = useCallback(() => {
+        return flattenTree(files);
+    }, [files, flattenTree]);
+
+    const handleFileSelect = useCallback(async (file: FileNode) => {
+        if (file.type !== 'file') return;
+
+        if (!tabs.find((t) => t.path === file.path)) {
+            const lang = getLanguageFromFilename(file.name);
+            setTabs((prev) => [...prev, { path: file.path, name: file.name, language: lang }]);
+        }
+        setActiveTab(file.path);
+
+        // Load file content from backend if not cached
+        if (!fileContents.has(file.path)) {
+            try {
+                const content = await readFile(workspaceId, file.path);
+                fileContents.set(file.path, content);
+            } catch (err: any) {
+                console.error('Failed to read file:', err);
+                fileContents.set(file.path, `// Error loading file: ${err.message}`);
+            }
+        }
+    }, [tabs, workspaceId]);
+
+    const handleTabClose = useCallback((path: string) => {
+        setTabs((prev) => {
+            const newTabs = prev.filter((t) => t.path !== path);
+            if (activeTab === path && newTabs.length > 0) {
+                setActiveTab(newTabs[newTabs.length - 1].path);
+            } else if (newTabs.length === 0) {
+                setActiveTab('');
+            }
+            return newTabs;
+        });
+    }, [activeTab]);
+
+    const handleEditorChange = useCallback((value: string | undefined) => {
+        if (activeTab && value !== undefined) {
+            fileContents.set(activeTab, value);
+            setTabs((prev) =>
+                prev.map((t) => (t.path === activeTab ? { ...t, isModified: true } : t))
+            );
+        }
+    }, [activeTab]);
+
+    // Save file to backend (Ctrl+S)
+    useEffect(() => {
+        const handleKeyDown = async (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                if (activeTab) {
+                    const content = fileContents.get(activeTab);
+                    if (content !== undefined) {
+                        try {
+                            await saveFile(workspaceId, activeTab, content);
+                            setTabs((prev) =>
+                                prev.map((t) => (t.path === activeTab ? { ...t, isModified: false } : t))
+                            );
+                        } catch (err: any) {
+                            console.error('Failed to save file:', err);
+                        }
+                    }
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [activeTab, workspaceId]);
+
+    const toggleSidebar = (panel: SidebarPanel) => {
+        if (activePanel === panel && sidebarVisible) {
+            setSidebarVisible(false);
+        } else {
+            setActivePanel(panel);
+            setSidebarVisible(true);
+        }
+    };
+
+    const handleCopyRoomLink = () => {
+        const link = `${window.location.origin}/room/${roomId}`;
+        navigator.clipboard.writeText(link);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    const activeFileContent = activeTab ? fileContents.get(activeTab) || '' : '';
+    const activeLanguage = tabs.find((t) => t.path === activeTab)?.language || 'plaintext';
+    const collabRoomId = roomId && activeTab ? `${roomId}:${activeTab}` : undefined;
+
+    return (
+        <div className={`ide-layout${!sidebarVisible ? ' sidebar-collapsed' : ''}`}>
+            {/* Activity Bar */}
+            <div className="activity-bar">
+                <div
+                    className={`activity-bar-icon${activePanel === 'explorer' && sidebarVisible ? ' active' : ''}`}
+                    onClick={() => toggleSidebar('explorer')}
+                    title="Explorer"
+                >
+                    <Files size={24} />
+                </div>
+                <div
+                    className={`activity-bar-icon${activePanel === 'search' && sidebarVisible ? ' active' : ''}`}
+                    onClick={() => toggleSidebar('search')}
+                    title="Search"
+                >
+                    <Search size={24} />
+                </div>
+                <div
+                    className={`activity-bar-icon${activePanel === 'git' && sidebarVisible ? ' active' : ''}`}
+                    onClick={() => toggleSidebar('git')}
+                    title="Source Control"
+                >
+                    <GitBranch size={24} />
+                </div>
+                <div
+                    className={`activity-bar-icon${activePanel === 'users' && sidebarVisible ? ' active' : ''}`}
+                    onClick={() => toggleSidebar('users')}
+                    title="Collaborators"
+                >
+                    <Users size={24} />
+                </div>
+                <div
+                    className={`activity-bar-icon${activePanel === 'extensions' && sidebarVisible ? ' active' : ''}`}
+                    onClick={() => toggleSidebar('extensions')}
+                    title="Extensions"
+                >
+                    <Puzzle size={24} />
+                </div>
+                <div className="activity-bar-bottom">
+                    <div className="activity-bar-icon" title="Settings">
+                        <Settings size={24} />
+                    </div>
+                </div>
+            </div>
+
+            {/* Sidebar */}
+            {sidebarVisible && (
+                <div className="sidebar">
+                    <div className="sidebar-header">
+                        {activePanel === 'explorer' && 'Explorer'}
+                        {activePanel === 'search' && 'Search'}
+                        {activePanel === 'git' && 'Source Control'}
+                        {activePanel === 'users' && 'Collaborators'}
+                        {activePanel === 'extensions' && 'Extensions'}
+                        {roomId && (
+                            <div className="sidebar-header-actions">
+                                <button onClick={handleCopyRoomLink} title="Copy room link">
+                                    {copied ? <span style={{ fontSize: 10 }}>Copied!</span> : <Share2 size={14} />}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    <div className="sidebar-content">
+                        {activePanel === 'explorer' && (
+                            loading ? (
+                                <div style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: 12 }}>
+                                    Loading files...
+                                </div>
+                            ) : error ? (
+                                <div style={{ padding: '12px', color: 'var(--accent-error)', fontSize: 12 }}>
+                                    {error}
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="explorer-actions">
+                                        <button
+                                            className="explorer-action-btn"
+                                            onClick={() => { setCreatingFile('file'); setNewFileName(''); }}
+                                            title="New File"
+                                        >
+                                            <FilePlus2 size={14} />
+                                        </button>
+                                        <button
+                                            className="explorer-action-btn"
+                                            onClick={() => { setCreatingFile('folder'); setNewFileName(''); }}
+                                            title="New Folder"
+                                        >
+                                            <FolderPlus size={14} />
+                                        </button>
+                                    </div>
+                                    {creatingFile && (
+                                        <form
+                                            className="new-file-form"
+                                            onSubmit={(e) => {
+                                                e.preventDefault();
+                                                handleCreateFile(newFileName, creatingFile === 'folder');
+                                            }}
+                                        >
+                                            <input
+                                                autoFocus
+                                                className="new-file-input"
+                                                placeholder={creatingFile === 'folder' ? 'folder name...' : 'filename.ext...'}
+                                                value={newFileName}
+                                                onChange={(e) => setNewFileName(e.target.value)}
+                                                onBlur={() => { setCreatingFile(null); setNewFileName(''); }}
+                                                onKeyDown={(e) => { if (e.key === 'Escape') { setCreatingFile(null); setNewFileName(''); } }}
+                                            />
+                                        </form>
+                                    )}
+                                    <FileExplorer
+                                        files={files}
+                                        onFileSelect={handleFileSelect}
+                                        selectedPath={activeTab}
+                                        onMoveFile={handleMoveFile}
+                                        onCreateFile={handleNestedCreateFile}
+                                        onDeleteFile={handleDeleteFile}
+                                        onRenameFile={handleRenameFile}
+                                    />
+                                </>
+                            )
+                        )}
+                        {activePanel === 'search' && (
+                            <div style={{ padding: '8px 12px', color: 'var(--text-secondary)' }}>
+                                Search coming soon...
+                            </div>
+                        )}
+                        {activePanel === 'git' && (
+                            <GitPanel
+                                workspaceId={workspaceId}
+                                username={username}
+                                onRefreshTree={refreshTree}
+                            />
+                        )}
+                        {activePanel === 'extensions' && (
+                            <ExtensionPanel
+                                sessionId={workspaceId}
+                                installedExtensions={sessionData?.extensions.map(e => e.extensionId) || []}
+                                onExtensionChange={handleExtensionChange}
+                            />
+                        )}
+                        {activePanel === 'users' && (
+                            <>
+                                {roomId && (
+                                    <div className="room-info-panel">
+                                        <div className="room-info-row">
+                                            <span className="room-info-label">Room ID</span>
+                                            <code className="room-info-value">{roomId}</code>
+                                            <button className="room-info-copy" onClick={handleCopyRoomLink}>
+                                                <Copy size={12} />
+                                            </button>
+                                        </div>
+                                        <div className="room-info-row">
+                                            <span className="room-info-label">You</span>
+                                            <span className="room-info-value">{username}</span>
+                                        </div>
+                                    </div>
+                                )}
+                                <UserPresence provider={provider} currentUser={username} />
+                                {!roomId && (
+                                    <div style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: 12 }}>
+                                        <p>Not in a room. <a href="#" onClick={(e) => { e.preventDefault(); navigate('/'); }} style={{ color: 'var(--accent-primary)' }}>Create or join a room</a> to collaborate.</p>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Main Editor Area */}
+            <div className="main-area">
+                <div className="editor-topbar">
+                    <EditorTabs
+                        tabs={tabs}
+                        activeTab={activeTab}
+                        onTabSelect={setActiveTab}
+                        onTabClose={handleTabClose}
+                    />
+                    <div className="user-badge">
+                        <div className="user-badge-avatar">
+                            {username.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="user-badge-name">{username}</span>
+                    </div>
+                </div>
+                <div className="editor-content">
+                    {activeTab ? (
+                        <CodeEditor
+                            content={activeFileContent}
+                            language={activeLanguage}
+                            roomId={collabRoomId}
+                            username={username}
+                            onChange={handleEditorChange}
+                            onCursorChange={(line, col) => setCursorPos({ line, column: col })}
+                            onProviderReady={setProvider}
+                        />
+                    ) : (
+                        <div className="editor-welcome">
+                            <h2>Colab Code Editor</h2>
+                            {roomId ? (
+                                <>
+                                    <p>Room: <code style={{ color: 'var(--accent-primary)' }}>{roomId}</code></p>
+                                    <p>Open a file from the Explorer to start editing</p>
+                                </>
+                            ) : (
+                                <p>Open a file from the Explorer to start editing</p>
+                            )}
+                            <p>
+                                <kbd>Ctrl</kbd> + <kbd>S</kbd> Save File
+                            </p>
+                            <p>
+                                <kbd>Ctrl</kbd> + <kbd>`</kbd> Toggle Terminal
+                            </p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Bottom Panel */}
+                {panelOpen && (
+                    <div className="bottom-panel" style={{ height: panelHeight }}>
+                        {/* Drag resize handle */}
+                        <div
+                            className="panel-resize-handle"
+                            onMouseDown={handlePanelDragStart}
+                        />
+                        <div className="panel-header">
+                            <div className="panel-terminal-tabs">
+                                {terminals.map(t => (
+                                    <div
+                                        key={t.id}
+                                        className={`panel-terminal-tab${t.id === activeTerminal ? ' active' : ''}`}
+                                        onClick={() => setActiveTerminal(t.id)}
+                                    >
+                                        <span>{t.label}</span>
+                                        <button
+                                            className="panel-terminal-tab-close"
+                                            onClick={(e) => { e.stopPropagation(); closeTerminal(t.id); }}
+                                            title="Close Terminal"
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+                                ))}
+                                <button
+                                    className="panel-terminal-add"
+                                    onClick={addTerminal}
+                                    title="New Terminal"
+                                >
+                                    <Plus size={14} />
+                                </button>
+                            </div>
+                            <button
+                                className="panel-toggle"
+                                onClick={() => setPanelOpen(false)}
+                                title="Close Panel"
+                            >
+                                <PanelBottomClose size={16} />
+                            </button>
+                        </div>
+                        <div className="panel-content">
+                            {terminals.map(t => (
+                                <div
+                                    key={t.id}
+                                    style={{ display: t.id === activeTerminal ? 'contents' : 'none' }}
+                                >
+                                    <Terminal
+                                        id={t.id}
+                                        activeFile={activeTab}
+                                        activeCode={activeFileContent}
+                                        activeLanguage={activeLanguage}
+                                        onCreateFile={terminalCreateFile}
+                                        onDeleteFile={terminalDeleteFile}
+                                        onMoveFile={terminalMoveFile}
+                                        onReadFile={terminalReadFile}
+                                        onListFiles={terminalListFiles}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {!panelOpen && (
+                    <div
+                        style={{
+                            position: 'absolute',
+                            bottom: 'var(--status-bar-height)',
+                            right: 8,
+                            zIndex: 5,
+                        }}
+                    >
+                        <button
+                            className="panel-toggle"
+                            onClick={() => setPanelOpen(true)}
+                            title="Open Terminal"
+                            style={{ background: 'var(--bg-tertiary)', padding: '4px 8px', borderRadius: 4, border: '1px solid var(--border-color)' }}
+                        >
+                            <PanelBottomOpen size={16} />
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* Status Bar */}
+            <StatusBar
+                language={activeLanguage}
+                line={cursorPos.line}
+                column={cursorPos.column}
+                branch="main"
+                connectedUsers={1}
+            />
+        </div>
+    );
+}
