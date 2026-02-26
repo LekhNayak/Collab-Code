@@ -1,0 +1,16 @@
+{
+  "id": "ma1z6lik",
+  "name": "Testing our project",
+  "roomId": "ma1z6lik",
+  "workspaceId": "ma1z6lik",
+  "owner": "Lekh Nayak",
+  "openTabs": [
+    "/main.py",
+    "/qwerty/hi.py"
+  ],
+  "activeTab": "/qwerty/hi.py",
+  "settings": {},
+  "extensions": [],
+  "createdAt": "2026-02-26T08:29:25.741Z",
+  "updatedAt": "2026-02-26T08:29:58.277Z"
+}
