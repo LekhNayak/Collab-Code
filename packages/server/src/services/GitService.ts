@@ -132,6 +132,16 @@ export class GitService {
         fs.writeFileSync(resolved, content, 'utf-8');
     }
 
+    // ---- Write File (raw buffer, binary-safe, auto-creates parents) ----
+    writeFileRaw(workspaceId: string, filePath: string, buffer: Buffer): void {
+        const resolved = this.resolveFilePath(workspaceId, filePath);
+        const parentDir = path.dirname(resolved);
+        if (!fs.existsSync(parentDir)) {
+            fs.mkdirSync(parentDir, { recursive: true });
+        }
+        fs.writeFileSync(resolved, buffer);
+    }
+
     // ---- Create File/Directory ----
     createFile(workspaceId: string, filePath: string, isDirectory: boolean, content?: string): void {
         const resolved = this.resolveFilePath(workspaceId, filePath);

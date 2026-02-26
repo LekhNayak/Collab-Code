@@ -1,5 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { GitService } from '../services/GitService';
+import multer from 'multer';
+import AdmZip from 'adm-zip';
+import path from 'path';
 
 const router = Router();
 const gitService = new GitService();
@@ -308,6 +311,103 @@ router.post('/remote/:workspaceId', async (req: Request, res: Response) => {
         res.json({ message: `Remote ${name} added` });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
+    }
+});
+
+// ============== Directory / ZIP Upload ================
+
+const storage = multer.memoryStorage();
+const upload = multer({
+    storage,
+    limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB per file
+});
+
+/**
+ * POST /upload/:workspaceId
+ * Multipart form fields:
+ *   mode  = 'zip' | 'folder'
+ *   file  (zip mode)    – single .zip file
+ *   files (folder mode) – multiple files
+ *   paths (folder mode) – parallel array of relative paths (webkitRelativePath)
+ */
+router.post('/upload/:workspaceId', upload.any(), async (req: Request, res: Response) => {
+    const { workspaceId } = req.params;
+    const mode = req.body.mode as string;
+
+    if (!mode) {
+        return res.status(400).json({ error: 'mode is required (zip or folder)' });
+    }
+
+    const files = (req as any).files as Array<{ fieldname: string; originalname: string; buffer: Buffer; mimetype: string; size: number }>;
+
+    try {
+        if (mode === 'zip') {
+            const zipFile = files?.find(f => f.fieldname === 'file');
+            if (!zipFile) {
+                return res.status(400).json({ error: 'No zip file uploaded' });
+            }
+
+            const zip = new AdmZip(zipFile.buffer);
+            const entries = zip.getEntries();
+            let uploaded = 0;
+
+            for (const entry of entries) {
+                // Skip directories, Mac hidden files, and dot-files
+                if (entry.isDirectory) continue;
+                const entryName = entry.entryName;
+                if (entryName.includes('__MACOSX') || path.basename(entryName).startsWith('.')) continue;
+
+                // Strip the top-level directory name from the entry path so files
+                // land at workspace root (e.g. "myproject/src/app.ts" → "src/app.ts")
+                const parts = entryName.split('/');
+                const relativePath = parts.length > 1 ? parts.slice(1).join('/') : entryName;
+                if (!relativePath) continue;
+
+                const buffer = entry.getData();
+                gitService.writeFileRaw(workspaceId, relativePath, buffer);
+                uploaded++;
+            }
+
+            res.json({ uploaded, message: `Extracted ${uploaded} files from zip` });
+
+        } else if (mode === 'folder') {
+            const folderFiles = files?.filter(f => f.fieldname === 'files') || [];
+            // paths[] is sent as a JSON array or repeated field values
+            let rawPaths = req.body.paths;
+            const relPaths: string[] = Array.isArray(rawPaths)
+                ? rawPaths
+                : rawPaths ? [rawPaths] : [];
+
+            if (folderFiles.length === 0) {
+                return res.status(400).json({ error: 'No files uploaded' });
+            }
+
+            let uploaded = 0;
+
+            for (let i = 0; i < folderFiles.length; i++) {
+                const file = folderFiles[i];
+                const relativePath = relPaths[i] || file.originalname;
+
+                // Strip top-level folder from webkitRelativePath (e.g. "myproject/src/app.ts" → "src/app.ts")
+                const parts = relativePath.replace(/\\/g, '/').split('/');
+                const strippedPath = parts.length > 1 ? parts.slice(1).join('/') : relativePath;
+                if (!strippedPath) continue;
+
+                // Skip hidden/system files
+                if (path.basename(strippedPath).startsWith('.')) continue;
+
+                gitService.writeFileRaw(workspaceId, strippedPath, file.buffer);
+                uploaded++;
+            }
+
+            res.json({ uploaded, message: `Uploaded ${uploaded} files` });
+
+        } else {
+            res.status(400).json({ error: 'Invalid mode. Use "zip" or "folder"' });
+        }
+    } catch (error: any) {
+        console.error('Upload error:', error);
+        res.status(500).json({ error: error.message || 'Upload failed' });
     }
 });
 

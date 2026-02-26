@@ -366,3 +366,40 @@ export async function importExtensionFromUrl(url: string): Promise<ExtensionInfo
     const ext = await res.json();
     return createCustomExtension(ext);
 }
+
+// ---- Directory / ZIP Upload ----
+
+export async function uploadZip(workspaceId: string, file: File): Promise<{ uploaded: number; message: string }> {
+    const formData = new FormData();
+    formData.append('mode', 'zip');
+    formData.append('file', file, file.name);
+    const res = await fetch(`${API_BASE}/git/upload/${workspaceId}`, {
+        method: 'POST',
+        body: formData,
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(err.error || 'Upload failed');
+    }
+    return res.json();
+}
+
+export async function uploadFolder(workspaceId: string, files: FileList): Promise<{ uploaded: number; message: string }> {
+    const formData = new FormData();
+    formData.append('mode', 'folder');
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        formData.append('files', file, file.name);
+        // send the relative path so the server can reconstruct the directory structure
+        formData.append('paths', (file as any).webkitRelativePath || file.name);
+    }
+    const res = await fetch(`${API_BASE}/git/upload/${workspaceId}`, {
+        method: 'POST',
+        body: formData,
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(err.error || 'Upload failed');
+    }
+    return res.json();
+}

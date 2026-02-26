@@ -16,6 +16,8 @@ import {
     Plus,
     X,
     Puzzle,
+    Upload,
+    FolderArchive,
 } from 'lucide-react';
 import FileExplorer, { type FileNode } from './FileExplorer';
 import EditorTabs, { type TabInfo } from './EditorTabs';
@@ -25,7 +27,7 @@ import Terminal from './Terminal';
 import GitPanel from './GitPanel';
 import ExtensionPanel from './ExtensionPanel';
 import UserPresence from './UserPresence';
-import { getFileTree, readFile, saveFile, initWorkspace, createFile as apiCreateFile, moveFile as apiMoveFile, deleteFile as apiDeleteFile, getSession, saveSession, createSession, getExtensions, type SessionInfo, type ExtensionInfo } from '../api';
+import { getFileTree, readFile, saveFile, initWorkspace, createFile as apiCreateFile, moveFile as apiMoveFile, deleteFile as apiDeleteFile, getSession, saveSession, createSession, getExtensions, uploadZip, uploadFolder, type SessionInfo, type ExtensionInfo } from '../api';
 import '../ide.css';
 
 type SidebarPanel = 'explorer' | 'search' | 'git' | 'users' | 'extensions';
@@ -65,6 +67,13 @@ export default function IDELayout() {
     const [terminals, setTerminals] = useState([{ id: 'term-1', label: 'Terminal 1' }]);
     const [activeTerminal, setActiveTerminal] = useState('term-1');
     const terminalCounter = useRef(1);
+
+    // Upload state
+    const [uploadMenuOpen, setUploadMenuOpen] = useState(false);
+    const [uploadStatus, setUploadStatus] = useState<{ type: 'uploading' | 'success' | 'error'; message: string } | null>(null);
+    const uploadMenuRef = useRef<HTMLDivElement>(null);
+    const zipInputRef = useRef<HTMLInputElement>(null);
+    const folderInputRef = useRef<HTMLInputElement>(null);
 
     // Drag resize refs
     const isDraggingPanel = useRef(false);
@@ -359,6 +368,53 @@ export default function IDELayout() {
         await handleMoveFile(oldPath, newPath);
     }, [handleMoveFile]);
 
+    // Close upload menu when clicking outside
+    useEffect(() => {
+        const handleClick = (e: MouseEvent) => {
+            if (uploadMenuRef.current && !uploadMenuRef.current.contains(e.target as Node)) {
+                setUploadMenuOpen(false);
+            }
+        };
+        if (uploadMenuOpen) {
+            document.addEventListener('mousedown', handleClick);
+            return () => document.removeEventListener('mousedown', handleClick);
+        }
+    }, [uploadMenuOpen]);
+
+    const handleUploadZip = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = '';
+        setUploadMenuOpen(false);
+        setUploadStatus({ type: 'uploading', message: 'Uploading ZIP...' });
+        try {
+            const result = await uploadZip(workspaceId, file);
+            setUploadStatus({ type: 'success', message: `✓ ${result.uploaded} files extracted` });
+            await refreshTree();
+        } catch (err: any) {
+            setUploadStatus({ type: 'error', message: `✗ ${err.message}` });
+        } finally {
+            setTimeout(() => setUploadStatus(null), 4000);
+        }
+    }, [workspaceId, refreshTree]);
+
+    const handleUploadFolder = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+        e.target.value = '';
+        setUploadMenuOpen(false);
+        setUploadStatus({ type: 'uploading', message: `Uploading ${files.length} files...` });
+        try {
+            const result = await uploadFolder(workspaceId, files);
+            setUploadStatus({ type: 'success', message: `✓ ${result.uploaded} files uploaded` });
+            await refreshTree();
+        } catch (err: any) {
+            setUploadStatus({ type: 'error', message: `✗ ${err.message}` });
+        } finally {
+            setTimeout(() => setUploadStatus(null), 4000);
+        }
+    }, [workspaceId, refreshTree]);
+
     // ---- Terminal file-system callbacks ----
     const flattenTree = useCallback((nodes: FileNode[], result: { name: string; path: string; type: string }[] = []) => {
         for (const n of nodes) {
@@ -570,7 +626,61 @@ export default function IDELayout() {
                                         >
                                             <FolderPlus size={14} />
                                         </button>
+                                        {/* Upload button */}
+                                        <div className="upload-menu-wrapper" ref={uploadMenuRef}>
+                                            <button
+                                                className="explorer-action-btn"
+                                                onClick={() => setUploadMenuOpen(v => !v)}
+                                                title="Upload Folder or ZIP"
+                                            >
+                                                <Upload size={14} />
+                                            </button>
+                                            {uploadMenuOpen && (
+                                                <div className="upload-dropdown">
+                                                    <button
+                                                        className="upload-dropdown-item"
+                                                        onClick={() => folderInputRef.current?.click()}
+                                                    >
+                                                        <FolderArchive size={13} />
+                                                        Upload Folder
+                                                    </button>
+                                                    <button
+                                                        className="upload-dropdown-item"
+                                                        onClick={() => zipInputRef.current?.click()}
+                                                    >
+                                                        <Upload size={13} />
+                                                        Upload ZIP
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                        {/* Hidden file inputs */}
+                                        <input
+                                            ref={zipInputRef}
+                                            type="file"
+                                            accept=".zip"
+                                            style={{ display: 'none' }}
+                                            onChange={handleUploadZip}
+                                        />
+                                        <input
+                                            ref={folderInputRef}
+                                            type="file"
+                                            style={{ display: 'none' }}
+                                            // @ts-ignore – webkitdirectory is non-standard but works in all modern browsers
+                                            webkitdirectory=""
+                                            multiple
+                                            onChange={handleUploadFolder}
+                                        />
                                     </div>
+                                    {/* Upload status bar */}
+                                    {uploadStatus && (
+                                        <div className={`upload-status upload-status--${uploadStatus.type}`}>
+                                            {uploadStatus.type === 'uploading' && (
+                                                <span className="upload-spinner" />
+                                            )}
+                                            {uploadStatus.message}
+                                        </div>
+                                    )}
                                     {creatingFile && (
                                         <form
                                             className="new-file-form"
