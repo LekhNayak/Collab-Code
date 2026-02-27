@@ -22,6 +22,16 @@ router.get('/github/callback',
     }
 );
 
+router.post('/guest', (req, res) => {
+    const guestId = 'guest-' + Math.random().toString(36).substring(7);
+    const token = jwt.sign(
+        { id: guestId, username: `Guest_${guestId.substring(6)}` },
+        process.env.JWT_SECRET || 'secret',
+        { expiresIn: '7d' }
+    );
+    res.json({ token, user: { id: guestId, username: `Guest_${guestId.substring(6)}` } });
+});
+
 router.get('/me', (req, res) => {
     // verify token from header and return user
     // To be implemented properly with middleware

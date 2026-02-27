@@ -13,7 +13,11 @@ import sessionRoutes from './routes/sessions';
 const app = express();
 const port = process.env.PORT || 3001;
 
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+app.use(cors({
+    origin: 'http://localhost:5173',
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '5mb' }));
 
 app.use(session({
@@ -40,6 +44,7 @@ import { setupWebSocket } from './socket/index';
 
 const server = app.listen(port, () => {
     console.log(`Server running on port ${port}`);
+    console.log(`[Init] API Gateway is ready`);
 });
 
 setupWebSocket(server);

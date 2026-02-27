@@ -27,7 +27,11 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction) => 
         // 3. Attach user to request
         req.user = decoded;
         next();
-    } catch (error) {
-        return res.status(401).json({ error: 'Invalid or expired token.' });
+    } catch (error: any) {
+        console.error('Auth verification failed:', error.message);
+        return res.status(401).json({
+            error: 'Invalid or expired token.',
+            details: error.message
+        });
     }
 };

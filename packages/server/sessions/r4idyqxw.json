@@ -1,0 +1,15 @@
+{
+  "id": "r4idyqxw",
+  "name": "Test Session",
+  "roomId": "r4idyqxw",
+  "workspaceId": "r4idyqxw",
+  "owner": "Guest_op172m",
+  "openTabs": [
+    "/main.py"
+  ],
+  "activeTab": "/main.py",
+  "settings": {},
+  "extensions": [],
+  "createdAt": "2026-02-27T18:06:44.738Z",
+  "updatedAt": "2026-02-27T18:09:19.375Z"
+}

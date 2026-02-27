@@ -51,6 +51,18 @@ The repo is an **npm workspaces** monorepo: `packages/client`, `packages/server`
 
 ---
 
+## Animation Architecture
+
+We use **Framer Motion** for React component animations and refined CSS transitions for basic interactions, delivering a seamless, professional UX similar to VS Code.
+
+- **Libraries Chosen**: `framer-motion`
+- **Why Chosen**: Framer Motion handles complex layout transitions (like moving and resizing editor tabs) flawlessly with `layout` props, and handles component unmounting seamlessly via `AnimatePresence`. 
+- **Strategy for Consistency**: We maintain global CSS motion tokens (`--transition-fast`, `--transition-normal`) in `index.css` with a standardized `cubic-bezier()` curve. Framer Motion overrides are kept strictly <= 300ms to preserve UI snappiness.
+- **Performance**: We rely on opacity, transform, and layout animations, which are heavily optimized and hardware-accelerated.
+- **Accessibility**: Framer Motion natively supports `prefers-reduced-motion` to tone down transitions for users requiring strict accessibility compliance.
+
+---
+
 ## Prerequisites
 
 - **Node.js** – v18+ (v20+ recommended). [Download](https://nodejs.org/)

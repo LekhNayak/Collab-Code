@@ -9,7 +9,13 @@ const redisConfig = {
 console.log(`[Execution] Redis config: ${redisConfig.host}:${redisConfig.port}`);
 
 // Piston API base URL
-const PISTON_URL = process.env.PISTON_URL || 'http://localhost:2000';
+const PISTON_URL = 'http://127.0.0.1:2358';
+console.log(`[Execution] Piston URL (HARDCODED): ${PISTON_URL}`);
+if (typeof fetch === 'undefined') {
+    console.error('[Execution] Global fetch is UNDEFINED! Node version may be too old.');
+} else {
+    console.log('[Execution] Global fetch is available');
+}
 
 // Language name mapping for Piston (must match installed runtime names)
 const LANG_MAP: Record<string, { language: string; version: string }> = {
@@ -163,6 +169,7 @@ export async function executeDirectly(request: ExecutionRequest): Promise<Execut
     const startTime = Date.now();
 
     try {
+        console.log(`[Execution] Calling Piston at ${PISTON_URL}/api/v2/execute`);
         const response = await fetch(`${PISTON_URL}/api/v2/execute`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -179,6 +186,7 @@ export async function executeDirectly(request: ExecutionRequest): Promise<Execut
 
         if (!response.ok) {
             const text = await response.text();
+            console.error(`[Execution] Piston returned error ${response.status}: ${text}`);
             return {
                 jobId: 'direct',
                 status: 'failed',
@@ -197,6 +205,7 @@ export async function executeDirectly(request: ExecutionRequest): Promise<Execut
             executionTime: Date.now() - startTime,
         };
     } catch (error: any) {
+        console.error(`[Execution] Fetch to Piston failed:`, error.message);
         return {
             jobId: 'direct',
             status: 'failed',
