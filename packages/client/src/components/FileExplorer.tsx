@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { ChevronRight, FilePlus2, FolderPlus, Trash2, Pencil } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import FileIcon from './FileIcon';
 
 export interface FileNode {
@@ -295,55 +296,63 @@ function TreeItem({
                 )}
             </div>
 
-            {node.type === 'folder' && isOpen && (
-                <>
-                    {/* Inline create form inside this folder */}
-                    {showInlineHere && (
-                        <form
-                            className="inline-create-form"
-                            onSubmit={onInlineSubmit}
-                            style={{ paddingLeft: (depth + 1) * 12 + 20 }}
-                        >
-                            <input
-                                autoFocus
-                                className="inline-create-input"
-                                value={inlineName}
-                                onChange={(e) => onInlineNameChange(e.target.value)}
-                                onBlur={onInlineCancel}
-                                onKeyDown={(e) => { if (e.key === 'Escape') onInlineCancel(); }}
-                                placeholder={inlineCreate!.type === 'folder' ? 'folder name...' : 'filename.ext...'}
-                            />
-                        </form>
-                    )}
+            <AnimatePresence initial={false}>
+                {node.type === 'folder' && isOpen && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        style={{ overflow: 'hidden' }}
+                    >
+                        {/* Inline create form inside this folder */}
+                        {showInlineHere && (
+                            <form
+                                className="inline-create-form"
+                                onSubmit={onInlineSubmit}
+                                style={{ paddingLeft: (depth + 1) * 12 + 20 }}
+                            >
+                                <input
+                                    autoFocus
+                                    className="inline-create-input"
+                                    value={inlineName}
+                                    onChange={(e) => onInlineNameChange(e.target.value)}
+                                    onBlur={onInlineCancel}
+                                    onKeyDown={(e) => { if (e.key === 'Escape') onInlineCancel(); }}
+                                    placeholder={inlineCreate!.type === 'folder' ? 'folder name...' : 'filename.ext...'}
+                                />
+                            </form>
+                        )}
 
-                    {node.children
-                        ?.sort((a, b) => {
-                            if (a.type === b.type) return a.name.localeCompare(b.name);
-                            return a.type === 'folder' ? -1 : 1;
-                        })
-                        .map((child) => (
-                            <TreeItem
-                                key={child.path}
-                                node={child}
-                                depth={depth + 1}
-                                onFileSelect={onFileSelect}
-                                selectedPath={selectedPath}
-                                onContextMenu={onContextMenu}
-                                onMoveFile={onMoveFile}
-                                inlineCreate={inlineCreate}
-                                inlineName={inlineName}
-                                onInlineNameChange={onInlineNameChange}
-                                onInlineSubmit={onInlineSubmit}
-                                onInlineCancel={onInlineCancel}
-                                renamingPath={renamingPath}
-                                renameValue={renameValue}
-                                onRenameValueChange={onRenameValueChange}
-                                onRenameSubmit={onRenameSubmit}
-                                onRenameCancel={onRenameCancel}
-                            />
-                        ))}
-                </>
-            )}
+                        {node.children
+                            ?.sort((a, b) => {
+                                if (a.type === b.type) return a.name.localeCompare(b.name);
+                                return a.type === 'folder' ? -1 : 1;
+                            })
+                            .map((child) => (
+                                <TreeItem
+                                    key={child.path}
+                                    node={child}
+                                    depth={depth + 1}
+                                    onFileSelect={onFileSelect}
+                                    selectedPath={selectedPath}
+                                    onContextMenu={onContextMenu}
+                                    onMoveFile={onMoveFile}
+                                    inlineCreate={inlineCreate}
+                                    inlineName={inlineName}
+                                    onInlineNameChange={onInlineNameChange}
+                                    onInlineSubmit={onInlineSubmit}
+                                    onInlineCancel={onInlineCancel}
+                                    renamingPath={renamingPath}
+                                    renameValue={renameValue}
+                                    onRenameValueChange={onRenameValueChange}
+                                    onRenameSubmit={onRenameSubmit}
+                                    onRenameCancel={onRenameCancel}
+                                />
+                            ))}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </>
     );
 }

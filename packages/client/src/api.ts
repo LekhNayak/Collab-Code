@@ -1,5 +1,26 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
+const fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const token = localStorage.getItem('token');
+    const headers: Record<string, string> = init?.headers ? { ...(init.headers as Record<string, string>) } : {};
+
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await window.fetch(input, { ...init, headers });
+
+    if (response.status === 401) {
+        // If we get an unauthorized error, the token is likely invalid or expired
+        console.warn('Unauthorized access - clearing token');
+        localStorage.removeItem('token');
+        if (!window.location.pathname.startsWith('/login')) {
+            window.location.href = '/login';
+        }
+    }
+
+    return response;
+};
 // ---- Git / File API ----
 
 export async function initWorkspace(workspaceId: string) {

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { type WebsocketProvider } from 'y-websocket';
+import { motion } from 'framer-motion';
 import {
     Files,
     Search,
@@ -602,8 +603,22 @@ export default function IDELayout() {
                     <div className="sidebar-content">
                         {activePanel === 'explorer' && (
                             loading ? (
-                                <div style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: 12 }}>
-                                    Loading files...
+                                <div style={{ padding: '12px' }}>
+                                    {[1, 2, 3, 4, 5].map((i) => (
+                                        <motion.div
+                                            key={i}
+                                            initial={{ opacity: 0.5 }}
+                                            animate={{ opacity: [0.5, 1, 0.5] }}
+                                            transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }}
+                                            style={{
+                                                height: 16,
+                                                marginBottom: 10,
+                                                borderRadius: 2,
+                                                background: 'var(--bg-active)',
+                                                width: `${Math.max(40, 100 - i * 10)}%`
+                                            }}
+                                        />
+                                    ))}
                                 </div>
                             ) : error ? (
                                 <div style={{ padding: '12px', color: 'var(--accent-error)', fontSize: 12 }}>

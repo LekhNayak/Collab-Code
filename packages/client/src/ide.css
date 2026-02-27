@@ -177,6 +177,7 @@
     height: 100vh;
     width: 100vw;
     overflow: hidden;
+    transition: grid-template-columns var(--transition-normal);
 }
 
 .ide-layout.sidebar-collapsed {
@@ -204,11 +205,13 @@
     cursor: pointer;
     color: var(--text-secondary);
     position: relative;
-    transition: color var(--transition-fast);
+    transition: color var(--transition-fast), background var(--transition-fast);
 }
 
 .activity-bar-icon:hover {
     color: var(--text-bright);
+    background: rgba(255, 255, 255, 0.05);
+    /* Subtle highlight like VS Code */
 }
 
 .activity-bar-icon.active {
@@ -292,6 +295,14 @@
     border-bottom: 1px solid var(--border-color);
 }
 
+.explorer-action-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-bright);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Base style */
 .explorer-action-btn {
     display: flex;
     align-items: center;
@@ -303,11 +314,7 @@
     color: var(--text-secondary);
     cursor: pointer;
     border-radius: 3px;
-}
-
-.explorer-action-btn:hover {
-    background: var(--bg-hover);
-    color: var(--text-bright);
+    transition: all var(--transition-fast);
 }
 
 .new-file-form {
@@ -335,11 +342,12 @@
     user-select: none;
     font-size: var(--font-size-base);
     white-space: nowrap;
-    transition: background var(--transition-fast);
+    transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .file-tree-item:hover {
     background: var(--bg-hover);
+    color: var(--text-bright);
 }
 
 .file-tree-item.selected {

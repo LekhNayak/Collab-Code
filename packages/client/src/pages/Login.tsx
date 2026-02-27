@@ -8,9 +8,21 @@ const Login: React.FC = () => {
         window.location.href = 'http://localhost:3001/auth/github';
     };
 
-    const handleGuestLogin = () => {
-        localStorage.setItem('token', 'guest-token-' + Math.random());
-        navigate('/');
+    const handleGuestLogin = async () => {
+        try {
+            const res = await fetch('http://localhost:3001/auth/guest', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await res.json();
+            if (data.token) {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('collab-username', data.user.username);
+                navigate('/');
+            }
+        } catch (err) {
+            console.error('Guest login failed', err);
+        }
     };
 
     return (

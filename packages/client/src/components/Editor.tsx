@@ -91,7 +91,10 @@ export default function CodeEditor({
                 docRef.current = doc;
 
                 const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3001';
-                const wsProvider = new WebsocketProvider(wsUrl, roomId, doc);
+                const token = localStorage.getItem('token') || '';
+                const wsProvider = new WebsocketProvider(wsUrl, roomId, doc, {
+                    params: token ? { token } : {}
+                });
                 providerRef.current = wsProvider;
 
                 const type = doc.getText('monaco');
