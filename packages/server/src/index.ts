@@ -25,10 +25,12 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
+import { requireAuth } from './middleware/auth';
+
 app.use('/auth', authRoutes);
-app.use('/git', gitRoutes);
-app.use('/execute', executionRoutes);
-app.use('/sessions', sessionRoutes);
+app.use('/git', requireAuth, gitRoutes);
+app.use('/execute', requireAuth, executionRoutes);
+app.use('/sessions', requireAuth, sessionRoutes);
 
 app.get('/', (req, res) => {
     res.send('Collaborative IDE API Gateway');
