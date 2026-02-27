@@ -322,14 +322,6 @@ const upload = multer({
     limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB per file
 });
 
-/**
- * POST /upload/:workspaceId
- * Multipart form fields:
- *   mode  = 'zip' | 'folder'
- *   file  (zip mode)    – single .zip file
- *   files (folder mode) – multiple files
- *   paths (folder mode) – parallel array of relative paths (webkitRelativePath)
- */
 router.post('/upload/:workspaceId', upload.any(), async (req: Request, res: Response) => {
     const { workspaceId } = req.params;
     const mode = req.body.mode as string;
@@ -339,6 +331,14 @@ router.post('/upload/:workspaceId', upload.any(), async (req: Request, res: Resp
     }
 
     const files = (req as any).files as Array<{ fieldname: string; originalname: string; buffer: Buffer; mimetype: string; size: number }>;
+
+    // Basic request diagnostics to help debug upload issues
+    console.log('[UPLOAD] Incoming request', {
+        workspaceId,
+        mode,
+        totalFiles: files?.length || 0,
+        fieldnames: files?.map(f => f.fieldname) || [],
+    });
 
     try {
         if (mode === 'zip') {
@@ -371,7 +371,17 @@ router.post('/upload/:workspaceId', upload.any(), async (req: Request, res: Resp
             res.json({ uploaded, message: `Extracted ${uploaded} files from zip` });
 
         } else if (mode === 'folder') {
-            const folderFiles = files?.filter(f => f.fieldname === 'files') || [];
+            let folderFiles = files?.filter(f => f.fieldname === 'files') || [];
+
+            // If nothing matched "files", fall back to all files so we don't silently drop them.
+            if ((!folderFiles || folderFiles.length === 0) && files && files.length > 0) {
+                console.warn('[UPLOAD][folder] No files with fieldname "files"; falling back to all files.', {
+                    totalFiles: files.length,
+                    fieldnames: files.map(f => f.fieldname),
+                });
+                folderFiles = files;
+            }
+
             // paths[] is sent as a JSON array or repeated field values
             let rawPaths = req.body.paths;
             const relPaths: string[] = Array.isArray(rawPaths)
@@ -379,6 +389,7 @@ router.post('/upload/:workspaceId', upload.any(), async (req: Request, res: Resp
                 : rawPaths ? [rawPaths] : [];
 
             if (folderFiles.length === 0) {
+                console.warn('[UPLOAD][folder] Request contained no files after processing.');
                 return res.status(400).json({ error: 'No files uploaded' });
             }
 
@@ -399,6 +410,11 @@ router.post('/upload/:workspaceId', upload.any(), async (req: Request, res: Resp
                 gitService.writeFileRaw(workspaceId, strippedPath, file.buffer);
                 uploaded++;
             }
+
+            console.log('[UPLOAD][folder] Completed upload', {
+                workspaceId,
+                uploaded,
+            });
 
             res.json({ uploaded, message: `Uploaded ${uploaded} files` });
 
