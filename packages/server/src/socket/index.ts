@@ -25,12 +25,25 @@ export const setupWebSocket = (server: Server) => {
     });
 
     server.on('upgrade', (request, socket, head) => {
-        // You can handle auth here
-        const handleAuth = (ws: any) => {
-            wss.emit('connection', ws, request);
-        };
+        try {
+            const urlParams = new URL(request.url || '', 'ws://localhost').searchParams;
+            const token = urlParams.get('token');
 
-        wss.handleUpgrade(request, socket, head, handleAuth);
+            // Reject if token is absent or invalid
+            if (!token) throw new Error("Unauthenticated WebSocket upgrade.");
+
+            // Note: We need to import jwt at the top if it isn't, but doing requires inside logic is messy.
+            // Better to handle it properly. 
+            const jwt = require('jsonwebtoken');
+            jwt.verify(token, process.env.JWT_SECRET || 'secret');
+
+            wss.handleUpgrade(request, socket, head, (ws) => {
+                wss.emit('connection', ws, request);
+            });
+        } catch (err) {
+            socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+            socket.destroy();
+        }
     });
 
     console.log('WebSocket Server Initialized for Collaboration');

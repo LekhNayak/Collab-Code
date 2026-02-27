@@ -31,9 +31,13 @@ export class GitService {
         const wsDir = this.getWorkspacePath(workspaceId);
         // Resolve and ensure the path stays within workspace
         const resolved = path.resolve(wsDir, filePath);
-        if (!resolved.startsWith(wsDir)) {
-            throw new Error('Path traversal detected');
+
+        // Strictly prevent traversal (fixes V02 prefix bypass)
+        const relative = path.relative(wsDir, resolved);
+        if (relative.startsWith('..') || path.isAbsolute(relative)) {
+            throw new Error('Path traversal detected. Sandbox breach blocked.');
         }
+
         return resolved;
     }
 

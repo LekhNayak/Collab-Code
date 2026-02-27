@@ -3,6 +3,7 @@ import { GitService } from '../services/GitService';
 import multer from 'multer';
 import AdmZip from 'adm-zip';
 import path from 'path';
+import fs from 'fs';
 
 const router = Router();
 const gitService = new GitService();
@@ -316,10 +317,24 @@ router.post('/remote/:workspaceId', async (req: Request, res: Response) => {
 
 // ============== Directory / ZIP Upload ================
 
-const storage = multer.memoryStorage();
+const multerAny: any = multer;
+
+const storage = multerAny.diskStorage({
+    destination: (req: any, file: any, cb: any) => {
+        const uploadDir = path.join(process.cwd(), 'uploads_tmp');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: (req: any, file: any, cb: any) => {
+        cb(null, `${Date.now()}-${file.originalname}`);
+    }
+});
+
 const upload = multer({
     storage,
-    limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB per file
+    limits: { fileSize: 10 * 1024 * 1024, files: 200 }, // 10 MB per file, max 200 files
 });
 
 router.post('/upload/:workspaceId', upload.any(), async (req: Request, res: Response) => {
@@ -347,7 +362,9 @@ router.post('/upload/:workspaceId', upload.any(), async (req: Request, res: Resp
                 return res.status(400).json({ error: 'No zip file uploaded' });
             }
 
-            const zip = new AdmZip(zipFile.buffer);
+            // diskStorage writes to 'path', not 'buffer'
+            const fileData = fs.readFileSync((zipFile as any).path);
+            const zip = new AdmZip(fileData);
             const entries = zip.getEntries();
             let uploaded = 0;
 
@@ -357,10 +374,8 @@ router.post('/upload/:workspaceId', upload.any(), async (req: Request, res: Resp
                 const entryName = entry.entryName;
                 if (entryName.includes('__MACOSX') || path.basename(entryName).startsWith('.')) continue;
 
-                // Strip the top-level directory name from the entry path so files
-                // land at workspace root (e.g. "myproject/src/app.ts" → "src/app.ts")
-                const parts = entryName.split('/');
-                const relativePath = parts.length > 1 ? parts.slice(1).join('/') : entryName;
+                // Zip Slip Prevention Check (Vulnerability V12)
+                const relativePath = path.normalize(entryName).replace(/^(\.\.(\/|\\|$))+/, '');
                 if (!relativePath) continue;
 
                 const buffer = entry.getData();
@@ -399,7 +414,7 @@ router.post('/upload/:workspaceId', upload.any(), async (req: Request, res: Resp
                 const file = folderFiles[i];
                 const relativePath = relPaths[i] || file.originalname;
 
-                // Strip top-level folder from webkitRelativePath (e.g. "myproject/src/app.ts" → "src/app.ts")
+                // Strip top-level folder from webkitRelativePath
                 const parts = relativePath.replace(/\\/g, '/').split('/');
                 const strippedPath = parts.length > 1 ? parts.slice(1).join('/') : relativePath;
                 if (!strippedPath) continue;
@@ -407,7 +422,13 @@ router.post('/upload/:workspaceId', upload.any(), async (req: Request, res: Resp
                 // Skip hidden/system files
                 if (path.basename(strippedPath).startsWith('.')) continue;
 
-                gitService.writeFileRaw(workspaceId, strippedPath, file.buffer);
+                // diskStorage means we must read from path
+                const fileData = fs.readFileSync((file as any).path);
+                gitService.writeFileRaw(workspaceId, strippedPath, fileData);
+
+                // Cleanup tmp file
+                fs.unlinkSync((file as any).path);
+
                 uploaded++;
             }
 
@@ -424,6 +445,14 @@ router.post('/upload/:workspaceId', upload.any(), async (req: Request, res: Resp
     } catch (error: any) {
         console.error('Upload error:', error);
         res.status(500).json({ error: error.message || 'Upload failed' });
+    } finally {
+        // Master cleanup of tmp zip
+        if (mode === 'zip') {
+            const zipFile = files?.find(f => f.fieldname === 'file');
+            if (zipFile && (zipFile as any).path && fs.existsSync((zipFile as any).path)) {
+                fs.unlinkSync((zipFile as any).path);
+            }
+        }
     }
 });
 
