@@ -7,6 +7,7 @@ import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { MonacoBinding } from 'y-monaco';
 import { ShieldAlert, Terminal, ArrowLeft, Filter, UserPlus } from 'lucide-react';
+import BrutalButton from '../components/ui/BrutalButton';
 
 const StudentPreview = ({ examId, studentName }: { examId: string, studentName: string }) => {
     const [connected, setConnected] = useState(false);
@@ -47,18 +48,18 @@ const StudentPreview = ({ examId, studentName }: { examId: string, studentName: 
     };
 
     return (
-        <div className="bg-[#252526] rounded-xl border border-[#333] overflow-hidden flex flex-col h-[300px]">
-            <div className={`px-4 py-2 border-b border-[#333] flex justify-between items-center text-sm ${connected ? 'bg-blue-900/20' : 'bg-red-900/20'}`}>
-                <span className="font-semibold text-gray-200">{studentName} (Live)</span>
-                <span className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`}></span>
+        <div className="bg-neo-bg border-4 border-neo-border shadow-brutal flex flex-col h-[350px]">
+            <div className={`px-4 py-3 border-b-4 border-neo-border flex justify-between items-center ${connected ? 'bg-neo-accent' : 'bg-neo-error'}`}>
+                <span className={`font-black uppercase tracking-wide ${connected ? 'text-neo-text' : 'text-white'}`}>{studentName} <span className="text-xs uppercase ml-2 bg-neo-bg px-2 py-1 text-neo-text border-2 border-neo-border">Live</span></span>
+                <span className={`w-4 h-4 rounded-full border-2 border-neo-border ${connected ? 'bg-neo-success' : 'bg-neo-error animate-pulse'}`}></span>
             </div>
-            <div className="flex-1">
+            <div className="flex-1 bg-[#1e1e1e] border-t-2 border-neo-border editor-root" data-theme="dark">
                 <Editor
                     height="100%"
                     language="javascript"
                     theme="vs-dark"
                     onMount={handleMount}
-                    options={{ minimap: { enabled: false }, fontSize: 12, scrollBeyondLastLine: false }}
+                    options={{ minimap: { enabled: false }, fontSize: 14, scrollBeyondLastLine: false }}
                 />
             </div>
         </div>
@@ -95,24 +96,24 @@ export default function AdminMonitor() {
     };
 
     return (
-        <div className="flex h-screen bg-[#1e1e1e] text-white overflow-hidden">
+        <div className="flex h-screen bg-neo-bg text-neo-text overflow-hidden font-sans">
             {/* Left Panel: Live Code Previews */}
-            <div className="flex-1 overflow-y-auto p-6 border-r border-[#333]">
-                <div className="flex items-center gap-4 mb-8">
-                    <button onClick={() => navigate('/admin')} className="text-[#969696] hover:text-white transition-colors">
+            <div className="flex-1 overflow-y-auto p-8 border-r-4 border-neo-border bg-neo-bg">
+                <div className="flex items-center gap-6 mb-8 bg-neo-surface p-4 border-4 border-neo-border shadow-brutal">
+                    <BrutalButton variant="secondary" onClick={() => navigate('/admin')}>
                         <ArrowLeft size={24} />
-                    </button>
-                    <h1 className="text-2xl font-bold flex items-center gap-3">
+                    </BrutalButton>
+                    <h1 className="text-3xl font-black uppercase tracking-tight">
                         Live Exam Monitoring
                     </h1>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-8">
                     {Array.from(students.entries()).map(([id, username]) => (
                         <StudentPreview key={id} examId={examId!} studentName={username} />
                     ))}
                     {students.size === 0 && (
-                        <div className="col-span-full h-40 flex items-center justify-center text-[#969696] border border-dashed border-[#555] rounded-xl">
+                        <div className="col-span-full h-40 flex items-center justify-center font-bold text-xl uppercase bg-neo-surface border-4 border-neo-border shadow-brutal-sm p-8 text-center border-dashed">
                             Waiting for students to join or execute code...
                         </div>
                     )}
@@ -120,49 +121,53 @@ export default function AdminMonitor() {
             </div>
 
             {/* Right Panel: Event Logs Feed */}
-            <div className="w-[450px] bg-[#252526] flex flex-col">
-                <div className="h-14 border-b border-[#333] flex items-center justify-between px-6">
-                    <h2 className="font-bold">Audit Event Log</h2>
-                    <div className="flex items-center gap-2">
-                        <Filter size={14} className="text-[#969696]" />
+            <div className="w-[450px] bg-neo-surface flex flex-col border-l-4 border-neo-border">
+                <div className="p-4 border-b-4 border-neo-border flex flex-col gap-4 bg-neo-accent">
+                    <h2 className="font-black text-2xl uppercase tracking-tighter">Event Log</h2>
+                    <div className="flex items-center gap-4 w-full">
+                        <div className="bg-neo-bg border-4 border-neo-border p-2">
+                            <Filter size={20} className="text-neo-text" />
+                        </div>
                         <select
                             value={filterType}
                             onChange={(e) => setFilterType(e.target.value)}
-                            className="bg-[#1e1e1e] border border-[#3c3c3c] text-sm text-[#d4d4d4] rounded px-2 py-1 outline-none"
+                            className="flex-1 bg-neo-bg border-4 border-neo-border text-lg font-bold text-neo-text px-4 py-2 outline-none shadow-brutal-sm appearance-none rounded-none cursor-pointer hover:-translate-y-0.5 transition-transform"
                         >
-                            <option value="ALL">All Events</option>
-                            <option value="EXECUTE">Executions</option>
-                            <option value="COPY_PASTE_ALERT">Paste Alerts</option>
-                            <option value="JOIN">Joins</option>
+                            <option value="ALL">ALL EVENTS</option>
+                            <option value="EXECUTE">EXECUTIONS</option>
+                            <option value="COPY_PASTE_ALERT">PASTE ALERTS</option>
+                            <option value="JOIN">JOINS</option>
                         </select>
                     </div>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-neo-bg">
                     {logs.filter(log => filterType === 'ALL' || log.eventType === filterType).map(log => {
                         const isAlert = log.eventType === 'COPY_PASTE_ALERT';
                         const isJoin = log.eventType === 'JOIN';
                         const details = log.details ? JSON.parse(log.details) : {};
 
                         return (
-                            <div key={log.id} className={`p-4 rounded-lg border ${isAlert ? 'bg-red-900/20 border-red-500/50' : isJoin ? 'bg-green-900/10 border-green-500/30' : 'bg-[#1e1e1e] border-[#333]'}`}>
-                                <div className="flex justify-between items-start mb-2">
-                                    <div className="flex items-center gap-2">
-                                        {isAlert ? <ShieldAlert size={16} className="text-red-500" /> : isJoin ? <UserPlus size={16} className="text-green-500" /> : <Terminal size={16} className="text-blue-500" />}
-                                        <span className={`font-semibold ${isAlert ? 'text-red-400' : isJoin ? 'text-green-400' : 'text-blue-400'}`}>
+                            <div key={log.id} className={`p-4 border-4 shadow-brutal-sm flex flex-col gap-2 transition-transform hover:-translate-y-1 ${isAlert ? 'bg-neo-error border-neo-border text-white' : isJoin ? 'bg-neo-success border-neo-border' : 'bg-neo-surface border-neo-border'}`}>
+                                <div className="flex justify-between items-start mb-2 border-b-2 border-neo-border pb-2">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-2 border-2 border-neo-border bg-neo-bg`}>
+                                            {isAlert ? <ShieldAlert size={20} className="text-neo-error" /> : isJoin ? <UserPlus size={20} className="text-neo-success" /> : <Terminal size={20} className="text-neo-text" />}
+                                        </div>
+                                        <span className={`font-black text-lg uppercase ${isAlert ? 'text-white' : 'text-neo-text'}`}>
                                             {log.user?.username || log.userId}
                                         </span>
                                     </div>
-                                    <span className="text-xs text-[#969696]">
+                                    <span className={`text-sm font-bold px-2 py-1 border-2 border-neo-border bg-neo-bg text-neo-text`}>
                                         {new Date(log.createdAt).toLocaleTimeString()}
                                     </span>
                                 </div>
-                                <div className="text-sm text-gray-300">
-                                    {isAlert && <span>🚨 Mass Paste Detected: <span className="font-mono text-red-300">{details.pastedLength}</span> chars</span>}
-                                    {log.eventType === 'EXECUTE' && <span>Executed code. <br /><span className="text-[#969696]">Exit Code: {details.exitCode ?? 'N/A'} | Time: {details.executionTime ?? '?'}ms</span></span>}
-                                    {isJoin && <span>{details.message || 'Joined the exam.'}</span>}
+                                <div className="font-semibold text-base leading-relaxed">
+                                    {isAlert && <span>🚨 <span className="font-black uppercase tracking-wide">Mass Paste Detected:</span> <span className="font-mono bg-neo-bg text-neo-text px-2 py-1 mx-1 border-2 border-neo-border">{details.pastedLength}</span> chars</span>}
+                                    {log.eventType === 'EXECUTE' && <span><span className="font-black uppercase">Executed code</span><br /><span className="inline-block mt-2 px-2 py-1 bg-neo-bg border-2 border-neo-border text-sm">EXIT: {details.exitCode ?? 'N/A'}</span> <span className="inline-block mt-2 px-2 py-1 bg-neo-bg border-2 border-neo-border text-sm ml-2">TIME: {details.executionTime ?? '?'}ms</span></span>}
+                                    {isJoin && <span className="font-black uppercase">{details.message || 'Joined the exam.'}</span>}
                                 </div>
                                 {isAlert && log.codeSnapshot && (
-                                    <div className="mt-2 bg-black py-2 px-3 rounded text-xs font-mono text-gray-400 truncate border border-red-900">
+                                    <div className="mt-4 bg-[#1e1e1e] border-2 border-neo-border p-3 text-sm font-mono text-neo-success whitespace-pre-wrap word-break">
                                         {log.codeSnapshot.substring(0, 100)}...
                                     </div>
                                 )}

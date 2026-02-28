@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Clock, ChevronRight, LogOut } from 'lucide-react';
+import { Plus, Users, Clock, ChevronRight, LogOut, Code2 } from 'lucide-react';
 import { getExams, createExam } from '../api';
 import type { ExamRoom } from '../api';
+import BrutalCard from '../components/ui/BrutalCard';
+import BrutalButton from '../components/ui/BrutalButton';
+import BrutalInput from '../components/ui/BrutalInput';
+import ThemeToggle from '../components/ThemeToggle';
 
 export default function AdminDashboard() {
     const [exams, setExams] = useState<ExamRoom[]>([]);
@@ -47,67 +51,95 @@ export default function AdminDashboard() {
     };
 
     return (
-        <div className="flex h-screen bg-[#1e1e1e] text-white p-8 overflow-y-auto">
-            <div className="max-w-5xl mx-auto w-full">
-                <div className="flex justify-between items-center mb-8">
-                    <h1 className="text-3xl font-bold flex items-center gap-3">
-                        <Users className="w-8 h-8 text-blue-400" />
-                        Exam Admin Dashboard
-                    </h1>
-                    <button onClick={handleLogout} className="text-[#969696] hover:text-white flex items-center gap-2 transition-colors text-sm">
-                        <LogOut size={18} /> Logout
-                    </button>
-                </div>
+        <div className="flex h-screen bg-neo-bg text-neo-text p-8 overflow-y-auto font-sans relative">
+            <div className="absolute top-6 right-6 flex items-center gap-4">
+                <ThemeToggle />
+            </div>
 
-                <div className="bg-[#252526] rounded-xl p-6 border border-[#333] shadow-lg mb-8 transition-transform hover:-translate-y-1">
-                    <h2 className="text-xl font-semibold mb-4 text-[#d4d4d4]">Create New Exam</h2>
-                    <div className="flex gap-4">
-                        <input
-                            type="text"
-                            value={newTitle}
-                            onChange={(e) => setNewTitle(e.target.value)}
-                            placeholder="Exam Title (e.g., Midterm Algorithms)"
-                            className="flex-1 bg-[#1e1e1e] border border-[#3c3c3c] rounded px-4 py-2 focus:border-blue-500 focus:outline-none transition-colors"
-                        />
-                        <button
-                            onClick={handleCreate}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded flex items-center gap-2 transition-colors font-medium"
-                        >
-                            <Plus size={18} /> Create Room
-                        </button>
+            <div className="max-w-6xl mx-auto w-full">
+                <div className="flex justify-between items-center mb-12 border-b-4 border-neo-border pb-6 mt-4">
+                    <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 bg-neo-accent border-4 border-neo-border flex items-center justify-center shadow-brutal-sm">
+                            <Users size={32} className="text-neo-text" />
+                        </div>
+                        <div>
+                            <h1 className="text-4xl font-black uppercase tracking-tighter shadow-sm text-neo-text">
+                                Proctor Dashboard
+                            </h1>
+                            <p className="font-bold text-lg uppercase">Exam Management</p>
+                        </div>
                     </div>
+                    <BrutalButton variant="danger" size="sm" onClick={handleLogout} className="flex gap-2">
+                        <LogOut size={18} /> LOGOUT
+                    </BrutalButton>
                 </div>
 
-                <h2 className="text-2xl font-bold mb-6 mt-12 border-b border-[#3c3c3c] pb-2">Your Exam Rooms</h2>
+                <BrutalCard className="mb-12">
+                    <h2 className="text-2xl font-black uppercase mb-4">Create New Exam</h2>
+                    <div className="flex flex-col md:flex-row gap-4 items-end">
+                        <div className="flex-1 w-full">
+                            <BrutalInput
+                                type="text"
+                                label="Exam Title"
+                                value={newTitle}
+                                onChange={(e) => setNewTitle(e.target.value)}
+                                placeholder="e.g., Midterm Algorithms"
+                            />
+                        </div>
+                        <BrutalButton
+                            variant="primary"
+                            size="lg"
+                            onClick={handleCreate}
+                            className="w-full md:w-auto h-[48px] flex items-center justify-center gap-2 mb-1"
+                        >
+                            <Plus size={20} /> CREATE ROOM
+                        </BrutalButton>
+                    </div>
+                </BrutalCard>
+
+                <h2 className="text-3xl font-black mb-8 uppercase border-b-4 border-neo-border pb-2 inline-block">Active Exam Rooms</h2>
 
                 {loading ? (
-                    <div className="text-[#969696] animate-pulse">Loading exams...</div>
+                    <div className="text-xl font-bold animate-pulse text-neo-text">Loading exams...</div>
                 ) : exams.length === 0 ? (
-                    <div className="text-[#969696] bg-[#252526] p-8 rounded-xl text-center border border-[#333]">
-                        No exams created yet.
-                    </div>
+                    <BrutalCard className="text-center py-12">
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="w-16 h-16 bg-neo-surface border-4 border-neo-border flex items-center justify-center shadow-brutal-sm">
+                                <Code2 size={32} className="text-neo-text opacity-50" />
+                            </div>
+                            <h3 className="text-2xl font-black uppercase">No Exams Created Yet</h3>
+                            <p className="font-bold">Create an exam room to get started.</p>
+                        </div>
+                    </BrutalCard>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {exams.map(exam => (
-                            <div
+                            <BrutalCard
                                 key={exam.id}
-                                className="bg-[#252526] rounded-xl p-6 border border-[#333] hover:border-[#666] transition-all cursor-pointer shadow-md hover:shadow-xl group"
+                                hoverable
+                                className="cursor-pointer flex flex-col h-full"
                                 onClick={() => navigate(`/exam/${exam.id}/monitor`)}
                             >
-                                <div className="flex justify-between items-start mb-4">
-                                    <h3 className="text-xl font-bold text-blue-400 group-hover:text-blue-300 transition-colors line-clamp-2">{exam.title}</h3>
-                                    <ChevronRight className="text-[#555] group-hover:text-white transition-colors" />
+                                <div className="flex justify-between items-start mb-6">
+                                    <h3 className="text-2xl font-black uppercase line-clamp-2">{exam.title}</h3>
+                                    <div className="bg-neo-accent p-2 border-2 border-neo-border shadow-brutal-sm">
+                                        <ChevronRight size={20} className="text-neo-text" />
+                                    </div>
                                 </div>
-                                <div className="space-y-2 text-[#969696] text-sm font-mono">
+                                <div className="space-y-4 font-bold text-sm mt-auto">
                                     <p className="flex items-center gap-2">
-                                        <Clock size={14} />
+                                        <div className="p-1 bg-neo-surface border-2 border-neo-border">
+                                            <Clock size={16} />
+                                        </div>
                                         {new Date(exam.startTime).toLocaleDateString()} {new Date(exam.startTime).toLocaleTimeString()}
                                     </p>
                                     <p className="flex items-center gap-2">
-                                        <span className="bg-[#3c3c3c] text-xs px-2 py-0.5 rounded text-gray-300">ID: {exam.id.split('-')[0]}</span>
+                                        <span className="bg-neo-border text-neo-bg px-2 py-1 border-2 border-neo-border shadow-brutal-sm uppercase">
+                                            ID: {exam.id.split('-')[0]}
+                                        </span>
                                     </p>
                                 </div>
-                            </div>
+                            </BrutalCard>
                         ))}
                     </div>
                 )}

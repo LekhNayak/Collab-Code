@@ -547,392 +547,394 @@ export default function IDELayout({ isExamMode }: { isExamMode?: boolean }) {
     const collabRoomId = isExamMode ? `/e/${examId}/s/${username}` : (roomId && activeTab ? `c/${roomId}:${activeTab}` : undefined);
 
     return (
-        <div className={`ide-layout${!sidebarVisible ? ' sidebar-collapsed' : ''}`}>
-            {/* Activity Bar */}
-            <div className="activity-bar">
-                <div
-                    className={`activity-bar-icon${activePanel === 'explorer' && sidebarVisible ? ' active' : ''}`}
-                    onClick={() => toggleSidebar('explorer')}
-                    title="Explorer"
-                >
-                    <Files size={24} />
-                </div>
-                <div
-                    className={`activity-bar-icon${activePanel === 'search' && sidebarVisible ? ' active' : ''}`}
-                    onClick={() => toggleSidebar('search')}
-                    title="Search"
-                >
-                    <Search size={24} />
-                </div>
-                <div
-                    className={`activity-bar-icon${activePanel === 'git' && sidebarVisible ? ' active' : ''}`}
-                    onClick={() => toggleSidebar('git')}
-                    title="Source Control"
-                >
-                    <GitBranch size={24} />
-                </div>
-                <div
-                    className={`activity-bar-icon${activePanel === 'users' && sidebarVisible ? ' active' : ''}`}
-                    onClick={() => toggleSidebar('users')}
-                    title="Collaborators"
-                >
-                    <Users size={24} />
-                </div>
-                <div
-                    className={`activity-bar-icon${activePanel === 'extensions' && sidebarVisible ? ' active' : ''}`}
-                    onClick={() => toggleSidebar('extensions')}
-                    title="Extensions"
-                >
-                    <Puzzle size={24} />
-                </div>
-                <div className="activity-bar-bottom">
-                    <div className="activity-bar-icon" title="Settings">
-                        <Settings size={24} />
+        <div className="editor-root" data-theme="dark" style={{ width: '100%', height: '100%' }}>
+            <div className={`ide-layout${!sidebarVisible ? ' sidebar-collapsed' : ''}`}>
+                {/* Activity Bar */}
+                <div className="activity-bar">
+                    <div
+                        className={`activity-bar-icon${activePanel === 'explorer' && sidebarVisible ? ' active' : ''}`}
+                        onClick={() => toggleSidebar('explorer')}
+                        title="Explorer"
+                    >
+                        <Files size={24} />
+                    </div>
+                    <div
+                        className={`activity-bar-icon${activePanel === 'search' && sidebarVisible ? ' active' : ''}`}
+                        onClick={() => toggleSidebar('search')}
+                        title="Search"
+                    >
+                        <Search size={24} />
+                    </div>
+                    <div
+                        className={`activity-bar-icon${activePanel === 'git' && sidebarVisible ? ' active' : ''}`}
+                        onClick={() => toggleSidebar('git')}
+                        title="Source Control"
+                    >
+                        <GitBranch size={24} />
+                    </div>
+                    <div
+                        className={`activity-bar-icon${activePanel === 'users' && sidebarVisible ? ' active' : ''}`}
+                        onClick={() => toggleSidebar('users')}
+                        title="Collaborators"
+                    >
+                        <Users size={24} />
+                    </div>
+                    <div
+                        className={`activity-bar-icon${activePanel === 'extensions' && sidebarVisible ? ' active' : ''}`}
+                        onClick={() => toggleSidebar('extensions')}
+                        title="Extensions"
+                    >
+                        <Puzzle size={24} />
+                    </div>
+                    <div className="activity-bar-bottom">
+                        <div className="activity-bar-icon" title="Settings">
+                            <Settings size={24} />
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Sidebar */}
-            {sidebarVisible && (
-                <div className="sidebar">
-                    <div className="sidebar-header">
-                        {activePanel === 'explorer' && 'Explorer'}
-                        {activePanel === 'search' && 'Search'}
-                        {activePanel === 'git' && 'Source Control'}
-                        {activePanel === 'users' && 'Collaborators'}
-                        {activePanel === 'extensions' && 'Extensions'}
-                        {isExamMode && (
-                            <div className="sidebar-header-actions" style={{ color: 'red', fontWeight: 'bold' }}>
-                                EXAM MODE
-                            </div>
-                        )}
-                        {roomId && !isExamMode && (
-                            <div className="sidebar-header-actions">
-                                <button onClick={handleCopyRoomLink} title="Copy room link">
-                                    {copied ? <span style={{ fontSize: 10 }}>Copied!</span> : <Share2 size={14} />}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                    <div className="sidebar-content">
-                        {activePanel === 'explorer' && (
-                            loading ? (
-                                <div style={{ padding: '12px' }}>
-                                    {[1, 2, 3, 4, 5].map((i) => (
-                                        <motion.div
-                                            key={i}
-                                            initial={{ opacity: 0.5 }}
-                                            animate={{ opacity: [0.5, 1, 0.5] }}
-                                            transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }}
-                                            style={{
-                                                height: 16,
-                                                marginBottom: 10,
-                                                borderRadius: 2,
-                                                background: 'var(--bg-active)',
-                                                width: `${Math.max(40, 100 - i * 10)}%`
-                                            }}
-                                        />
-                                    ))}
+                {/* Sidebar */}
+                {sidebarVisible && (
+                    <div className="sidebar">
+                        <div className="sidebar-header">
+                            {activePanel === 'explorer' && 'Explorer'}
+                            {activePanel === 'search' && 'Search'}
+                            {activePanel === 'git' && 'Source Control'}
+                            {activePanel === 'users' && 'Collaborators'}
+                            {activePanel === 'extensions' && 'Extensions'}
+                            {isExamMode && (
+                                <div className="sidebar-header-actions" style={{ color: 'red', fontWeight: 'bold' }}>
+                                    EXAM MODE
                                 </div>
-                            ) : error ? (
-                                <div style={{ padding: '12px', color: 'var(--accent-error)', fontSize: 12 }}>
-                                    {error}
+                            )}
+                            {roomId && !isExamMode && (
+                                <div className="sidebar-header-actions">
+                                    <button onClick={handleCopyRoomLink} title="Copy room link">
+                                        {copied ? <span style={{ fontSize: 10 }}>Copied!</span> : <Share2 size={14} />}
+                                    </button>
                                 </div>
-                            ) : (
-                                <>
-                                    <div className="explorer-actions">
-                                        <button
-                                            className="explorer-action-btn"
-                                            onClick={() => { setCreatingFile('file'); setNewFileName(''); }}
-                                            title="New File"
-                                        >
-                                            <FilePlus2 size={14} />
-                                        </button>
-                                        <button
-                                            className="explorer-action-btn"
-                                            onClick={() => { setCreatingFile('folder'); setNewFileName(''); }}
-                                            title="New Folder"
-                                        >
-                                            <FolderPlus size={14} />
-                                        </button>
-                                        {/* Upload button */}
-                                        <div className="upload-menu-wrapper" ref={uploadMenuRef}>
+                            )}
+                        </div>
+                        <div className="sidebar-content">
+                            {activePanel === 'explorer' && (
+                                loading ? (
+                                    <div style={{ padding: '12px' }}>
+                                        {[1, 2, 3, 4, 5].map((i) => (
+                                            <motion.div
+                                                key={i}
+                                                initial={{ opacity: 0.5 }}
+                                                animate={{ opacity: [0.5, 1, 0.5] }}
+                                                transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }}
+                                                style={{
+                                                    height: 16,
+                                                    marginBottom: 10,
+                                                    borderRadius: 2,
+                                                    background: 'var(--bg-active)',
+                                                    width: `${Math.max(40, 100 - i * 10)}%`
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                ) : error ? (
+                                    <div style={{ padding: '12px', color: 'var(--accent-error)', fontSize: 12 }}>
+                                        {error}
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="explorer-actions">
                                             <button
                                                 className="explorer-action-btn"
-                                                onClick={() => setUploadMenuOpen(v => !v)}
-                                                title="Upload Folder or ZIP"
+                                                onClick={() => { setCreatingFile('file'); setNewFileName(''); }}
+                                                title="New File"
                                             >
-                                                <Upload size={14} />
+                                                <FilePlus2 size={14} />
                                             </button>
-                                            {uploadMenuOpen && (
-                                                <div className="upload-dropdown">
-                                                    <button
-                                                        className="upload-dropdown-item"
-                                                        onClick={() => folderInputRef.current?.click()}
-                                                    >
-                                                        <FolderArchive size={13} />
-                                                        Upload Folder
-                                                    </button>
-                                                    <button
-                                                        className="upload-dropdown-item"
-                                                        onClick={() => zipInputRef.current?.click()}
-                                                    >
-                                                        <Upload size={13} />
-                                                        Upload ZIP
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                        {/* Hidden file inputs */}
-                                        <input
-                                            ref={zipInputRef}
-                                            type="file"
-                                            accept=".zip"
-                                            style={{ display: 'none' }}
-                                            onChange={handleUploadZip}
-                                        />
-                                        <input
-                                            ref={folderInputRef}
-                                            type="file"
-                                            style={{ display: 'none' }}
-                                            // @ts-ignore – webkitdirectory is non-standard but works in all modern browsers
-                                            webkitdirectory=""
-                                            multiple
-                                            onChange={handleUploadFolder}
-                                        />
-                                    </div>
-                                    {/* Upload status bar */}
-                                    {uploadStatus && (
-                                        <div className={`upload-status upload-status--${uploadStatus.type}`}>
-                                            {uploadStatus.type === 'uploading' && (
-                                                <span className="upload-spinner" />
-                                            )}
-                                            {uploadStatus.message}
-                                        </div>
-                                    )}
-                                    {creatingFile && (
-                                        <form
-                                            className="new-file-form"
-                                            onSubmit={(e) => {
-                                                e.preventDefault();
-                                                handleCreateFile(newFileName, creatingFile === 'folder');
-                                            }}
-                                        >
+                                            <button
+                                                className="explorer-action-btn"
+                                                onClick={() => { setCreatingFile('folder'); setNewFileName(''); }}
+                                                title="New Folder"
+                                            >
+                                                <FolderPlus size={14} />
+                                            </button>
+                                            {/* Upload button */}
+                                            <div className="upload-menu-wrapper" ref={uploadMenuRef}>
+                                                <button
+                                                    className="explorer-action-btn"
+                                                    onClick={() => setUploadMenuOpen(v => !v)}
+                                                    title="Upload Folder or ZIP"
+                                                >
+                                                    <Upload size={14} />
+                                                </button>
+                                                {uploadMenuOpen && (
+                                                    <div className="upload-dropdown">
+                                                        <button
+                                                            className="upload-dropdown-item"
+                                                            onClick={() => folderInputRef.current?.click()}
+                                                        >
+                                                            <FolderArchive size={13} />
+                                                            Upload Folder
+                                                        </button>
+                                                        <button
+                                                            className="upload-dropdown-item"
+                                                            onClick={() => zipInputRef.current?.click()}
+                                                        >
+                                                            <Upload size={13} />
+                                                            Upload ZIP
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {/* Hidden file inputs */}
                                             <input
-                                                autoFocus
-                                                className="new-file-input"
-                                                placeholder={creatingFile === 'folder' ? 'folder name...' : 'filename.ext...'}
-                                                value={newFileName}
-                                                onChange={(e) => setNewFileName(e.target.value)}
-                                                onBlur={() => { setCreatingFile(null); setNewFileName(''); }}
-                                                onKeyDown={(e) => { if (e.key === 'Escape') { setCreatingFile(null); setNewFileName(''); } }}
+                                                ref={zipInputRef}
+                                                type="file"
+                                                accept=".zip"
+                                                style={{ display: 'none' }}
+                                                onChange={handleUploadZip}
                                             />
-                                        </form>
+                                            <input
+                                                ref={folderInputRef}
+                                                type="file"
+                                                style={{ display: 'none' }}
+                                                // @ts-ignore – webkitdirectory is non-standard but works in all modern browsers
+                                                webkitdirectory=""
+                                                multiple
+                                                onChange={handleUploadFolder}
+                                            />
+                                        </div>
+                                        {/* Upload status bar */}
+                                        {uploadStatus && (
+                                            <div className={`upload-status upload-status--${uploadStatus.type}`}>
+                                                {uploadStatus.type === 'uploading' && (
+                                                    <span className="upload-spinner" />
+                                                )}
+                                                {uploadStatus.message}
+                                            </div>
+                                        )}
+                                        {creatingFile && (
+                                            <form
+                                                className="new-file-form"
+                                                onSubmit={(e) => {
+                                                    e.preventDefault();
+                                                    handleCreateFile(newFileName, creatingFile === 'folder');
+                                                }}
+                                            >
+                                                <input
+                                                    autoFocus
+                                                    className="new-file-input"
+                                                    placeholder={creatingFile === 'folder' ? 'folder name...' : 'filename.ext...'}
+                                                    value={newFileName}
+                                                    onChange={(e) => setNewFileName(e.target.value)}
+                                                    onBlur={() => { setCreatingFile(null); setNewFileName(''); }}
+                                                    onKeyDown={(e) => { if (e.key === 'Escape') { setCreatingFile(null); setNewFileName(''); } }}
+                                                />
+                                            </form>
+                                        )}
+                                        <FileExplorer
+                                            files={files}
+                                            onFileSelect={handleFileSelect}
+                                            selectedPath={activeTab}
+                                            onMoveFile={handleMoveFile}
+                                            onCreateFile={handleNestedCreateFile}
+                                            onDeleteFile={handleDeleteFile}
+                                            onRenameFile={handleRenameFile}
+                                        />
+                                    </>
+                                )
+                            )}
+                            {activePanel === 'search' && (
+                                <div style={{ padding: '8px 12px', color: 'var(--text-secondary)' }}>
+                                    Search coming soon...
+                                </div>
+                            )}
+                            {activePanel === 'git' && (
+                                <GitPanel
+                                    workspaceId={workspaceId}
+                                    username={username}
+                                    onRefreshTree={refreshTree}
+                                />
+                            )}
+                            {activePanel === 'extensions' && (
+                                <ExtensionPanel
+                                    sessionId={workspaceId}
+                                    installedExtensions={sessionData?.extensions.map(e => e.extensionId) || []}
+                                    onExtensionChange={handleExtensionChange}
+                                />
+                            )}
+                            {activePanel === 'users' && (
+                                <>
+                                    {roomId && (
+                                        <div className="room-info-panel">
+                                            <div className="room-info-row">
+                                                <span className="room-info-label">Room ID</span>
+                                                <code className="room-info-value">{roomId}</code>
+                                                <button className="room-info-copy" onClick={handleCopyRoomLink}>
+                                                    <Copy size={12} />
+                                                </button>
+                                            </div>
+                                            <div className="room-info-row">
+                                                <span className="room-info-label">You</span>
+                                                <span className="room-info-value">{username}</span>
+                                            </div>
+                                        </div>
                                     )}
-                                    <FileExplorer
-                                        files={files}
-                                        onFileSelect={handleFileSelect}
-                                        selectedPath={activeTab}
-                                        onMoveFile={handleMoveFile}
-                                        onCreateFile={handleNestedCreateFile}
-                                        onDeleteFile={handleDeleteFile}
-                                        onRenameFile={handleRenameFile}
-                                    />
+                                    <UserPresence provider={provider} currentUser={username} />
+                                    {!roomId && (
+                                        <div style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: 12 }}>
+                                            <p>Not in a room. <a href="#" onClick={(e) => { e.preventDefault(); navigate('/'); }} style={{ color: 'var(--accent-primary)' }}>Create or join a room</a> to collaborate.</p>
+                                        </div>
+                                    )}
                                 </>
-                            )
-                        )}
-                        {activePanel === 'search' && (
-                            <div style={{ padding: '8px 12px', color: 'var(--text-secondary)' }}>
-                                Search coming soon...
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Main Editor Area */}
+                <div className="main-area">
+                    <div className="editor-topbar">
+                        <EditorTabs
+                            tabs={tabs}
+                            activeTab={activeTab}
+                            onTabSelect={setActiveTab}
+                            onTabClose={handleTabClose}
+                        />
+                        <div className="user-badge">
+                            <div className="user-badge-avatar">
+                                {username.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="user-badge-name">{username}</span>
+                        </div>
+                    </div>
+                    <div className="editor-content">
+                        {activeTab ? (
+                            <CodeEditor
+                                key={activeTab}
+                                content={activeFileContent}
+                                language={activeLanguage}
+                                roomId={collabRoomId}
+                                username={username}
+                                onChange={handleEditorChange}
+                                onCursorChange={(line, col) => setCursorPos({ line, column: col })}
+                                onProviderReady={setProvider}
+                            />
+                        ) : (
+                            <div className="editor-welcome">
+                                <h2>Colab Code Editor</h2>
+                                {roomId ? (
+                                    <>
+                                        <p>Room: <code style={{ color: 'var(--accent-primary)' }}>{roomId}</code></p>
+                                        <p>Open a file from the Explorer to start editing</p>
+                                    </>
+                                ) : (
+                                    <p>Open a file from the Explorer to start editing</p>
+                                )}
+                                <p>
+                                    <kbd>Ctrl</kbd> + <kbd>S</kbd> Save File
+                                </p>
+                                <p>
+                                    <kbd>Ctrl</kbd> + <kbd>`</kbd> Toggle Terminal
+                                </p>
                             </div>
                         )}
-                        {activePanel === 'git' && (
-                            <GitPanel
-                                workspaceId={workspaceId}
-                                username={username}
-                                onRefreshTree={refreshTree}
+                    </div>
+
+                    {/* Bottom Panel */}
+                    {panelOpen && (
+                        <div className="bottom-panel" style={{ height: panelHeight }}>
+                            {/* Drag resize handle */}
+                            <div
+                                className="panel-resize-handle"
+                                onMouseDown={handlePanelDragStart}
                             />
-                        )}
-                        {activePanel === 'extensions' && (
-                            <ExtensionPanel
-                                sessionId={workspaceId}
-                                installedExtensions={sessionData?.extensions.map(e => e.extensionId) || []}
-                                onExtensionChange={handleExtensionChange}
-                            />
-                        )}
-                        {activePanel === 'users' && (
-                            <>
-                                {roomId && (
-                                    <div className="room-info-panel">
-                                        <div className="room-info-row">
-                                            <span className="room-info-label">Room ID</span>
-                                            <code className="room-info-value">{roomId}</code>
-                                            <button className="room-info-copy" onClick={handleCopyRoomLink}>
-                                                <Copy size={12} />
+                            <div className="panel-header">
+                                <div className="panel-terminal-tabs">
+                                    {terminals.map(t => (
+                                        <div
+                                            key={t.id}
+                                            className={`panel-terminal-tab${t.id === activeTerminal ? ' active' : ''}`}
+                                            onClick={() => setActiveTerminal(t.id)}
+                                        >
+                                            <span>{t.label}</span>
+                                            <button
+                                                className="panel-terminal-tab-close"
+                                                onClick={(e) => { e.stopPropagation(); closeTerminal(t.id); }}
+                                                title="Close Terminal"
+                                            >
+                                                <X size={12} />
                                             </button>
                                         </div>
-                                        <div className="room-info-row">
-                                            <span className="room-info-label">You</span>
-                                            <span className="room-info-value">{username}</span>
-                                        </div>
+                                    ))}
+                                    <button
+                                        className="panel-terminal-add"
+                                        onClick={addTerminal}
+                                        title="New Terminal"
+                                    >
+                                        <Plus size={14} />
+                                    </button>
+                                </div>
+                                <button
+                                    className="panel-toggle"
+                                    onClick={() => setPanelOpen(false)}
+                                    title="Close Panel"
+                                >
+                                    <PanelBottomClose size={16} />
+                                </button>
+                            </div>
+                            <div className="panel-content">
+                                {terminals.map(t => (
+                                    <div
+                                        key={t.id}
+                                        style={{ display: t.id === activeTerminal ? 'contents' : 'none' }}
+                                    >
+                                        <Terminal
+                                            id={t.id}
+                                            examId={isExamMode ? examId : undefined}
+                                            activeFile={activeTab}
+                                            activeCode={activeFileContent}
+                                            activeLanguage={activeLanguage}
+                                            onCreateFile={terminalCreateFile}
+                                            onDeleteFile={terminalDeleteFile}
+                                            onMoveFile={terminalMoveFile}
+                                            onReadFile={terminalReadFile}
+                                            onListFiles={terminalListFiles}
+                                        />
                                     </div>
-                                )}
-                                <UserPresence provider={provider} currentUser={username} />
-                                {!roomId && (
-                                    <div style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: 12 }}>
-                                        <p>Not in a room. <a href="#" onClick={(e) => { e.preventDefault(); navigate('/'); }} style={{ color: 'var(--accent-primary)' }}>Create or join a room</a> to collaborate.</p>
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* Main Editor Area */}
-            <div className="main-area">
-                <div className="editor-topbar">
-                    <EditorTabs
-                        tabs={tabs}
-                        activeTab={activeTab}
-                        onTabSelect={setActiveTab}
-                        onTabClose={handleTabClose}
-                    />
-                    <div className="user-badge">
-                        <div className="user-badge-avatar">
-                            {username.charAt(0).toUpperCase()}
+                                ))}
+                            </div>
                         </div>
-                        <span className="user-badge-name">{username}</span>
-                    </div>
-                </div>
-                <div className="editor-content">
-                    {activeTab ? (
-                        <CodeEditor
-                            key={activeTab}
-                            content={activeFileContent}
-                            language={activeLanguage}
-                            roomId={collabRoomId}
-                            username={username}
-                            onChange={handleEditorChange}
-                            onCursorChange={(line, col) => setCursorPos({ line, column: col })}
-                            onProviderReady={setProvider}
-                        />
-                    ) : (
-                        <div className="editor-welcome">
-                            <h2>Colab Code Editor</h2>
-                            {roomId ? (
-                                <>
-                                    <p>Room: <code style={{ color: 'var(--accent-primary)' }}>{roomId}</code></p>
-                                    <p>Open a file from the Explorer to start editing</p>
-                                </>
-                            ) : (
-                                <p>Open a file from the Explorer to start editing</p>
-                            )}
-                            <p>
-                                <kbd>Ctrl</kbd> + <kbd>S</kbd> Save File
-                            </p>
-                            <p>
-                                <kbd>Ctrl</kbd> + <kbd>`</kbd> Toggle Terminal
-                            </p>
+                    )}
+
+                    {!panelOpen && (
+                        <div
+                            style={{
+                                position: 'absolute',
+                                bottom: 'var(--status-bar-height)',
+                                right: 8,
+                                zIndex: 5,
+                            }}
+                        >
+                            <button
+                                className="panel-toggle"
+                                onClick={() => setPanelOpen(true)}
+                                title="Open Terminal"
+                                style={{ background: 'var(--bg-tertiary)', padding: '4px 8px', borderRadius: 4, border: '1px solid var(--border-color)' }}
+                            >
+                                <PanelBottomOpen size={16} />
+                            </button>
                         </div>
                     )}
                 </div>
 
-                {/* Bottom Panel */}
-                {panelOpen && (
-                    <div className="bottom-panel" style={{ height: panelHeight }}>
-                        {/* Drag resize handle */}
-                        <div
-                            className="panel-resize-handle"
-                            onMouseDown={handlePanelDragStart}
-                        />
-                        <div className="panel-header">
-                            <div className="panel-terminal-tabs">
-                                {terminals.map(t => (
-                                    <div
-                                        key={t.id}
-                                        className={`panel-terminal-tab${t.id === activeTerminal ? ' active' : ''}`}
-                                        onClick={() => setActiveTerminal(t.id)}
-                                    >
-                                        <span>{t.label}</span>
-                                        <button
-                                            className="panel-terminal-tab-close"
-                                            onClick={(e) => { e.stopPropagation(); closeTerminal(t.id); }}
-                                            title="Close Terminal"
-                                        >
-                                            <X size={12} />
-                                        </button>
-                                    </div>
-                                ))}
-                                <button
-                                    className="panel-terminal-add"
-                                    onClick={addTerminal}
-                                    title="New Terminal"
-                                >
-                                    <Plus size={14} />
-                                </button>
-                            </div>
-                            <button
-                                className="panel-toggle"
-                                onClick={() => setPanelOpen(false)}
-                                title="Close Panel"
-                            >
-                                <PanelBottomClose size={16} />
-                            </button>
-                        </div>
-                        <div className="panel-content">
-                            {terminals.map(t => (
-                                <div
-                                    key={t.id}
-                                    style={{ display: t.id === activeTerminal ? 'contents' : 'none' }}
-                                >
-                                    <Terminal
-                                        id={t.id}
-                                        examId={isExamMode ? examId : undefined}
-                                        activeFile={activeTab}
-                                        activeCode={activeFileContent}
-                                        activeLanguage={activeLanguage}
-                                        onCreateFile={terminalCreateFile}
-                                        onDeleteFile={terminalDeleteFile}
-                                        onMoveFile={terminalMoveFile}
-                                        onReadFile={terminalReadFile}
-                                        onListFiles={terminalListFiles}
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {!panelOpen && (
-                    <div
-                        style={{
-                            position: 'absolute',
-                            bottom: 'var(--status-bar-height)',
-                            right: 8,
-                            zIndex: 5,
-                        }}
-                    >
-                        <button
-                            className="panel-toggle"
-                            onClick={() => setPanelOpen(true)}
-                            title="Open Terminal"
-                            style={{ background: 'var(--bg-tertiary)', padding: '4px 8px', borderRadius: 4, border: '1px solid var(--border-color)' }}
-                        >
-                            <PanelBottomOpen size={16} />
-                        </button>
-                    </div>
-                )}
+                {/* Status Bar */}
+                <StatusBar
+                    language={activeLanguage}
+                    line={cursorPos.line}
+                    column={cursorPos.column}
+                    branch="main"
+                    connectedUsers={1}
+                />
             </div>
-
-            {/* Status Bar */}
-            <StatusBar
-                language={activeLanguage}
-                line={cursorPos.line}
-                column={cursorPos.column}
-                branch="main"
-                connectedUsers={1}
-            />
         </div>
     );
 }
