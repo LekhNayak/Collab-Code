@@ -162,99 +162,102 @@ export default function RoomPage() {
 
                 {/* Actions */}
                 {!createdRoomId && (
-                    <div className="room-actions">
-                        <div className="room-action-card">
-                            <h3>Create a Session</h3>
-                            <p>Start a new collaboration session</p>
-                            <input
-                                className="room-input"
-                                type="text"
-                                placeholder="Session name (optional)..."
-                                value={sessionName}
-                                onChange={(e) => setSessionName(e.target.value)}
-                            />
-                            <button className="room-btn room-btn-primary" onClick={handleCreateRoom}>
-                                <Plus size={16} />
-                                Create Session
-                            </button>
+                    <div className="flex flex-col gap-8 w-full">
+                        {/* Collaboration Section */}
+                        <div className="room-actions">
+                            <div className="room-action-card">
+                                <h3>Create a Session</h3>
+                                <p>Start a new collaboration session</p>
+                                <input
+                                    className="room-input"
+                                    type="text"
+                                    placeholder="Session name (optional)..."
+                                    value={sessionName}
+                                    onChange={(e) => setSessionName(e.target.value)}
+                                />
+                                <button className="room-btn room-btn-primary" onClick={handleCreateRoom}>
+                                    <Plus size={16} />
+                                    Create Session
+                                </button>
+                            </div>
+
+                            <div className="room-divider">
+                                <span>or</span>
+                            </div>
+
+                            <div className="room-action-card">
+                                <h3>Join a Room</h3>
+                                <p>Enter a room ID to join</p>
+                                <input
+                                    className="room-input"
+                                    type="text"
+                                    placeholder="Enter room ID..."
+                                    value={joinRoomId}
+                                    onChange={(e) => {
+                                        setJoinRoomId(e.target.value);
+                                        setError('');
+                                    }}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
+                                />
+                                <button
+                                    className="room-btn room-btn-secondary"
+                                    onClick={handleJoinRoom}
+                                    disabled={!joinRoomId.trim()}
+                                >
+                                    <LogIn size={16} />
+                                    Join Room
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="room-divider">
-                            <span>or</span>
-                        </div>
+                        {/* Saved Sessions */}
+                        {sessions.length > 0 && !createdRoomId && (
+                            <div className="session-history">
+                                <div
+                                    className="session-history-header"
+                                    onClick={() => setShowSessions(!showSessions)}
+                                >
+                                    <Clock size={16} />
+                                    <h3>Previous Sessions</h3>
+                                    <span className="session-count">{sessions.length}</span>
+                                </div>
 
-                        <div className="room-action-card">
-                            <h3>Join a Room</h3>
-                            <p>Enter a room ID to join</p>
-                            <input
-                                className="room-input"
-                                type="text"
-                                placeholder="Enter room ID..."
-                                value={joinRoomId}
-                                onChange={(e) => {
-                                    setJoinRoomId(e.target.value);
-                                    setError('');
-                                }}
-                                onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
-                            />
-                            <button
-                                className="room-btn room-btn-secondary"
-                                onClick={handleJoinRoom}
-                                disabled={!joinRoomId.trim()}
-                            >
-                                <LogIn size={16} />
-                                Join Room
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {/* Saved Sessions */}
-                {sessions.length > 0 && !createdRoomId && (
-                    <div className="session-history">
-                        <div
-                            className="session-history-header"
-                            onClick={() => setShowSessions(!showSessions)}
-                        >
-                            <Clock size={16} />
-                            <h3>Previous Sessions</h3>
-                            <span className="session-count">{sessions.length}</span>
-                        </div>
-
-                        {showSessions && (
-                            <div className="session-list">
-                                {sessions.map(session => (
-                                    <div
-                                        key={session.id}
-                                        className="session-card"
-                                        onClick={() => handleResumeSession(session)}
-                                    >
-                                        <div className="session-card-main">
-                                            <div className="session-card-name">{session.name}</div>
-                                            <div className="session-card-meta">
-                                                <span className="session-meta-item">
-                                                    <Clock size={11} /> {formatDate(session.updatedAt)}
-                                                </span>
-                                                <span className="session-meta-item">
-                                                    <Puzzle size={11} /> {session.extensions.length} ext
-                                                </span>
-                                                <span className="session-meta-item">
-                                                    <Code2 size={11} /> {session.openTabs.length} files
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div className="session-card-actions">
-                                            <button
-                                                className="session-delete-btn"
-                                                onClick={(e) => handleDeleteSession(session.id, e)}
-                                                title="Delete session"
+                                {showSessions && (
+                                    <div className="session-list">
+                                        {sessions.map(session => (
+                                            <div
+                                                key={session.id}
+                                                className="session-card"
+                                                onClick={() => handleResumeSession(session)}
                                             >
-                                                <Trash2 size={13} />
-                                            </button>
-                                            <ArrowRight size={16} className="session-arrow" />
-                                        </div>
+                                                <div className="session-card-main">
+                                                    <div className="session-card-name">{session.name}</div>
+                                                    <div className="session-card-meta">
+                                                        <span className="session-meta-item">
+                                                            <Clock size={11} /> {formatDate(session.updatedAt)}
+                                                        </span>
+                                                        <span className="session-meta-item">
+                                                            <Puzzle size={11} /> {session.extensions.length} ext
+                                                        </span>
+                                                        <span className="session-meta-item">
+                                                            <Code2 size={11} /> {session.openTabs.length} files
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="session-card-actions">
+                                                    <button
+                                                        className="session-delete-btn"
+                                                        onClick={(e) => handleDeleteSession(session.id, e)}
+                                                        title="Delete session"
+                                                    >
+                                                        <Trash2 size={13} />
+                                                    </button>
+                                                    <ArrowRight size={16} className="session-arrow" />
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
+                                )}
                             </div>
                         )}
                     </div>

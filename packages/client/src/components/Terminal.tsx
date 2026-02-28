@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { executeCode, type ExecutionResult } from '../api';
+import { executeCode, executeExamCode, type ExecutionResult } from '../api';
 
 interface TerminalProps {
     id: string;
+    examId?: string;
     activeFile?: string;
     activeCode?: string;
     activeLanguage?: string;
@@ -53,6 +54,7 @@ const CMD_LANG_MAP: Record<string, string> = {
 
 export default function Terminal({
     id,
+    examId,
     activeFile,
     activeCode,
     activeLanguage,
@@ -101,7 +103,12 @@ export default function Terminal({
         setIsRunning(true);
 
         try {
-            const result: ExecutionResult = await executeCode(code, language);
+            let result: ExecutionResult;
+            if (examId) {
+                result = await executeExamCode(examId, code, language);
+            } else {
+                result = await executeCode(code, language);
+            }
 
             if (result.stdout) appendMultiLine('output', result.stdout);
             if (result.stderr) appendMultiLine('error', result.stderr);

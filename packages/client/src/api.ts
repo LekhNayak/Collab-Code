@@ -424,3 +424,80 @@ export async function uploadFolder(workspaceId: string, files: FileList): Promis
     }
     return res.json();
 }
+
+// ---- Exam Portal API ----
+
+export interface ExamRoom {
+    id: string;
+    title: string;
+    ownerId: string;
+    startTime: string;
+    endTime: string | null;
+}
+
+export interface ExamLog {
+    id: string;
+    examId: string;
+    userId: string;
+    eventType: string;
+    codeSnapshot: string | null;
+    details: string | null;
+    createdAt: string;
+    user?: { username: string; email: string };
+}
+
+export async function createExam(title: string, startTime: string): Promise<ExamRoom> {
+    const res = await fetch(`${API_BASE}/exam`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, startTime }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function getExams(): Promise<ExamRoom[]> {
+    const res = await fetch(`${API_BASE}/exam`);
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function getExam(examId: string): Promise<ExamRoom> {
+    const res = await fetch(`${API_BASE}/exam/${examId}`);
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function joinExam(examId: string) {
+    const res = await fetch(`${API_BASE}/exam/${examId}/join`, {
+        method: 'POST',
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function getExamLogs(examId: string): Promise<ExamLog[]> {
+    const res = await fetch(`${API_BASE}/exam/${examId}/logs`);
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function executeExamCode(examId: string, code: string, language: string, stdin?: string): Promise<ExecutionResult> {
+    const res = await fetch(`${API_BASE}/exam/${examId}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, language, stdin }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function sendExamAlert(examId: string, pastedLength: number, content: string) {
+    const res = await fetch(`${API_BASE}/exam/${examId}/alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pastedLength, content }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}

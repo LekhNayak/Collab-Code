@@ -28,7 +28,7 @@ import Terminal from './Terminal';
 import GitPanel from './GitPanel';
 import ExtensionPanel from './ExtensionPanel';
 import UserPresence from './UserPresence';
-import { getFileTree, readFile, saveFile, initWorkspace, createFile as apiCreateFile, moveFile as apiMoveFile, deleteFile as apiDeleteFile, getSession, saveSession, createSession, getExtensions, uploadZip, uploadFolder, type SessionInfo, type ExtensionInfo } from '../api';
+import { getFileTree, readFile, saveFile, initWorkspace, createFile as apiCreateFile, moveFile as apiMoveFile, deleteFile as apiDeleteFile, getSession, saveSession, createSession, getExtensions, uploadZip, uploadFolder, joinExam, type SessionInfo, type ExtensionInfo } from '../api';
 import '../ide.css';
 
 type SidebarPanel = 'explorer' | 'search' | 'git' | 'users' | 'extensions';
@@ -36,13 +36,13 @@ type SidebarPanel = 'explorer' | 'search' | 'git' | 'users' | 'extensions';
 // In-memory file content cache
 const fileContents = new Map<string, string>();
 
-export default function IDELayout() {
-    const { roomId } = useParams<{ roomId: string }>();
+export default function IDELayout({ isExamMode }: { isExamMode?: boolean }) {
+    const { roomId, examId } = useParams<{ roomId?: string, examId?: string }>();
     const navigate = useNavigate();
     const username = localStorage.getItem('collab-username') || 'Anonymous';
 
-    // Use roomId as workspaceId for simplicity
-    const workspaceId = roomId || 'default';
+    // In exam mode, give each student their own workspace isolation
+    const workspaceId = isExamMode ? `exam_${examId}_${username}` : (roomId || 'default');
 
     const [activePanel, setActivePanel] = useState<SidebarPanel>('explorer');
     const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -63,6 +63,13 @@ export default function IDELayout() {
     const [sessionData, setSessionData] = useState<SessionInfo | null>(null);
     const [allExtensions, setAllExtensions] = useState<ExtensionInfo[]>([]);
     const sessionSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Notify backend when student joins exam
+    useEffect(() => {
+        if (isExamMode && examId) {
+            joinExam(examId).catch(err => console.error('Failed to log join event:', err));
+        }
+    }, [isExamMode, examId]);
 
     // Multi-terminal state
     const [terminals, setTerminals] = useState([{ id: 'term-1', label: 'Terminal 1' }]);
@@ -535,7 +542,9 @@ export default function IDELayout() {
 
     const activeFileContent = activeTab ? fileContents.get(activeTab) || '' : '';
     const activeLanguage = tabs.find((t) => t.path === activeTab)?.language || 'plaintext';
-    const collabRoomId = roomId && activeTab ? `${roomId}:${activeTab}` : undefined;
+
+    // In Exam mode, real-time sync happens on a fixed URL without the file name extension so the dashboard sees it.
+    const collabRoomId = isExamMode ? `/e/${examId}/s/${username}` : (roomId && activeTab ? `c/${roomId}:${activeTab}` : undefined);
 
     return (
         <div className={`ide-layout${!sidebarVisible ? ' sidebar-collapsed' : ''}`}>
@@ -592,7 +601,12 @@ export default function IDELayout() {
                         {activePanel === 'git' && 'Source Control'}
                         {activePanel === 'users' && 'Collaborators'}
                         {activePanel === 'extensions' && 'Extensions'}
-                        {roomId && (
+                        {isExamMode && (
+                            <div className="sidebar-header-actions" style={{ color: 'red', fontWeight: 'bold' }}>
+                                EXAM MODE
+                            </div>
+                        )}
+                        {roomId && !isExamMode && (
                             <div className="sidebar-header-actions">
                                 <button onClick={handleCopyRoomLink} title="Copy room link">
                                     {copied ? <span style={{ fontSize: 10 }}>Copied!</span> : <Share2 size={14} />}
@@ -794,6 +808,7 @@ export default function IDELayout() {
                 <div className="editor-content">
                     {activeTab ? (
                         <CodeEditor
+                            key={activeTab}
                             content={activeFileContent}
                             language={activeLanguage}
                             roomId={collabRoomId}
@@ -873,6 +888,7 @@ export default function IDELayout() {
                                 >
                                     <Terminal
                                         id={t.id}
+                                        examId={isExamMode ? examId : undefined}
                                         activeFile={activeTab}
                                         activeCode={activeFileContent}
                                         activeLanguage={activeLanguage}

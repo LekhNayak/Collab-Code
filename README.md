@@ -26,6 +26,7 @@ A **collaborative, in-browser code editor** with real-time multi-user editing, w
 - **Real-time collaboration** – Multiple users edit the same file at once (powered by [Yjs](https://yjs.dev/) + WebSockets).
 - **Monaco Editor** – Same editor as VS Code: syntax highlighting, multi-cursor, and language support.
 - **Workspaces** – Create workspaces, manage files and folders, and share with team members (roles: Owner, Editor, Viewer).
+- **Exam Portal** – Secure, role-based exam environments with isolated student workspaces, real-time proctor monitoring, logging, and automatic copy-paste cheat detection.
 - **GitHub OAuth** – Sign in with your GitHub account; JWT-based sessions.
 - **Code execution** – Run code in multiple languages via [Piston](https://github.com/engineer-man/piston) (optional). Supports Python, JavaScript/TypeScript, Java, C/C++, Go, Rust, Bash, and more. Uses a Redis-backed job queue (BullMQ) for async runs.
 - **Git integration** – Clone repos, init, status, add, commit, push, pull, branches, and remotes (via [isomorphic-git](https://isomorphic-git.org/) on the server).
@@ -265,6 +266,21 @@ This builds the client (and any other workspaces that define a `build` script). 
 
 ---
 
+## Exam Portal 
+
+The platform supports a secure, role-based exam feature that integrates seamlessly with real-time collaboration endpoints without disrupting regular usage:
+
+1. **Admin/Teacher Dashboard (`/admin`)**: 
+   - Deploy new exam rooms with custom URLs.
+   - Access the **Live Monitoring Suite** (`/exam/:id/monitor`) which acts as an operational command center.
+2. **Student Portal (`/e/:examId`)**:
+   - WebSockets automatically connect to an isolated student-specific namespace.
+   - Built-in **anti-cheating mechanisms** intercept any mass copy-pasting. 
+3. **Audit Log System**:
+   - All code compilations, success/failure statuses, exit codes, and mass-paste events are actively broadcasted and permanently logged against the student's ID via the Prisma backend APIs.
+
+---
+
 ## Code Execution (Piston)
 
 Code execution is optional. If you skip it, the “Run” feature in the IDE will not work until Piston (and optionally Redis) is set up.
@@ -323,6 +339,7 @@ From the **root** `package.json`:
 - **`/git`** – File and Git operations: clone, init, file CRUD, tree, and Git actions (status, add, commit, push, pull, branches, remotes, etc.).
 - **`/execute`** – Code execution: `POST /execute/run` (queued), `POST /execute/run/direct` (sync), `GET /execute/result/:jobId`.
 - **`/sessions`** – Sessions CRUD and extension registry: create/list/get/update/delete sessions, install/uninstall extensions, list extensions by category.
+- **`/exam`** – Exam Portal APIs: Room creation, secure log fetching, execution, and copy-paste alerts.
 
 WebSocket connections (e.g. `ws://localhost:3001/<roomId>`) are used for Yjs-based real-time collaboration; the path segment is the document/room ID.
 

@@ -9,12 +9,13 @@ import authRoutes from './routes/auth';
 import gitRoutes from './routes/git';
 import executionRoutes from './routes/execution';
 import sessionRoutes from './routes/sessions';
+import examRoutes from './routes/exam';
 
 const app = express();
 const port = process.env.PORT || 3001;
 
 app.use(cors({
-    origin: 'http://localhost:5173',
+    origin: ['http://localhost:5173', 'http://localhost:5174'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -35,6 +36,7 @@ app.use('/auth', authRoutes);
 app.use('/git', requireAuth, gitRoutes);
 app.use('/execute', requireAuth, executionRoutes);
 app.use('/sessions', requireAuth, sessionRoutes);
+app.use('/exam', requireAuth, examRoutes);
 
 app.get('/', (req, res) => {
     res.send('Collaborative IDE API Gateway');

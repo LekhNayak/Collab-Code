@@ -3,6 +3,7 @@ import Editor, { type OnMount } from '@monaco-editor/react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { MonacoBinding } from 'y-monaco';
+import { sendExamAlert } from '../api';
 
 interface CodeEditorProps {
     content: string;
@@ -84,6 +85,21 @@ export default function CodeEditor({
             onCursorChange?.(e.position.lineNumber, e.position.column);
         });
 
+        // Copy-paste detection for exams
+        if (roomId?.startsWith('/e/')) {
+            editor.onDidChangeModelContent((event: any) => {
+                event.changes.forEach((change: any) => {
+                    const pastedLength = change.text.length;
+                    if (pastedLength > 50) {
+                        const exId = roomId.split('/')[2];
+                        if (exId) {
+                            sendExamAlert(exId, pastedLength, change.text).catch(() => { });
+                        }
+                    }
+                });
+            });
+        }
+
         // Setup collaboration if roomId is provided
         if (roomId) {
             try {
@@ -98,6 +114,17 @@ export default function CodeEditor({
                 providerRef.current = wsProvider;
 
                 const type = doc.getText('monaco');
+
+                // In Exam mode, when switching tabs, we force the Yjs document to reflect 
+                // the current active file's content so the teacher's view updates seamlessly.
+                if (roomId.startsWith('/e/')) {
+                    if (type.length > 0) {
+                        type.delete(0, type.length);
+                    }
+                    if (content) {
+                        type.insert(0, content);
+                    }
+                }
 
                 const binding = new MonacoBinding(
                     type,

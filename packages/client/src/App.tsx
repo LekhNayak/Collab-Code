@@ -2,6 +2,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/Login';
 import RoomPage from './pages/Room';
 import IDELayout from './components/IDELayout';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminMonitor from './pages/AdminMonitor';
+import Hub from './pages/Hub';
 
 const AuthCallback: React.FC = () => {
   const token = new URLSearchParams(window.location.search).get('token');
@@ -22,11 +25,27 @@ function App() {
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route
           path="/"
+          element={isAuthenticated ? <Hub /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/collab"
           element={isAuthenticated ? <RoomPage /> : <Navigate to="/login" />}
         />
         <Route
           path="/room/:roomId"
           element={isAuthenticated ? <IDELayout /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/admin"
+          element={isAuthenticated ? <AdminDashboard /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/exam/:examId/monitor"
+          element={isAuthenticated ? <AdminMonitor /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/e/:examId"
+          element={isAuthenticated ? <IDELayout isExamMode /> : <Navigate to="/login" />}
         />
       </Routes>
     </Router>

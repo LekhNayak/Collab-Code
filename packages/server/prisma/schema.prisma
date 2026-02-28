@@ -18,6 +18,9 @@ model User {
 
   workspaces      WorkspaceMember[]
   ownedWorkspaces Workspace[]
+
+  ownedExams      ExamRoom[] @relation("ExamOwner")
+  examLogs        ExamLog[]
 }
 
 model Workspace {
@@ -65,4 +68,35 @@ model File {
 enum FileType {
   FILE
   DIRECTORY
+}
+
+model ExamRoom {
+  id          String    @id @default(uuid())
+  title       String
+  ownerId     String
+  owner       User      @relation("ExamOwner", fields: [ownerId], references: [id])
+  startTime   DateTime
+  endTime     DateTime?
+  logs        ExamLog[]
+  createdAt   DateTime  @default(now())
+}
+
+model ExamLog {
+  id             String    @id @default(uuid())
+  examId         String
+  exam           ExamRoom  @relation(fields: [examId], references: [id])
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
+  eventType      LogType
+  codeSnapshot   String?   // State of the code at the time of the event
+  details        String?   // JSON object with details (as string)
+  createdAt      DateTime  @default(now())
+}
+
+enum LogType {
+  JOIN
+  LEAVE
+  EXECUTE
+  COPY_PASTE_ALERT
+  SUSPICIOUS_BEHAVIOR
 }
