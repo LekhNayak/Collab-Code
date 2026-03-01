@@ -10,6 +10,7 @@ import gitRoutes from './routes/git';
 import executionRoutes from './routes/execution';
 import sessionRoutes from './routes/sessions';
 import examRoutes from './routes/exam';
+import { requestLogger } from './middleware/requestLogger';
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -20,6 +21,9 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '5mb' }));
+
+// ── API Request Logger (logs every request for debugging) ──
+app.use(requestLogger);
 
 app.use(session({
     secret: process.env.JWT_SECRET || 'secret',

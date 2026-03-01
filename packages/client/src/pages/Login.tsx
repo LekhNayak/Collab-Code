@@ -16,7 +16,8 @@ const Login: React.FC = () => {
     const [loading, setLoading] = useState(false);
 
     const handleGitHubLogin = () => {
-        window.location.href = 'http://localhost:3001/auth/github';
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        window.location.href = `${baseUrl}/auth/github`;
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -24,9 +25,10 @@ const Login: React.FC = () => {
         setError('');
         setLoading(true);
 
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
         const url = isLogin
-            ? 'http://localhost:3001/auth/login'
-            : 'http://localhost:3001/auth/register';
+            ? `${baseUrl}/auth/login`
+            : `${baseUrl}/auth/register`;
 
         const body = isLogin
             ? { email, password }

@@ -11,14 +11,19 @@ const AuthCallback: React.FC = () => {
   const token = new URLSearchParams(window.location.search).get('token');
   if (token) {
     localStorage.setItem('token', token);
-    return <Navigate to="/" />;
+    // Use window.location.href to fully reload the app to update the stale router states
+    window.location.href = '/';
+    return null;
   }
   return <Navigate to="/login" />;
 };
 
-function App() {
+const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = !!localStorage.getItem('token');
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+};
 
+function App() {
   return (
     <ThemeProvider>
       <Router>
@@ -27,27 +32,27 @@ function App() {
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route
             path="/"
-            element={isAuthenticated ? <Hub /> : <Navigate to="/login" />}
+            element={<PrivateRoute><Hub /></PrivateRoute>}
           />
           <Route
             path="/collab"
-            element={isAuthenticated ? <RoomPage /> : <Navigate to="/login" />}
+            element={<PrivateRoute><RoomPage /></PrivateRoute>}
           />
           <Route
             path="/room/:roomId"
-            element={isAuthenticated ? <IDELayout /> : <Navigate to="/login" />}
+            element={<PrivateRoute><IDELayout /></PrivateRoute>}
           />
           <Route
             path="/admin"
-            element={isAuthenticated ? <AdminDashboard /> : <Navigate to="/login" />}
+            element={<PrivateRoute><AdminDashboard /></PrivateRoute>}
           />
           <Route
             path="/exam/:examId/monitor"
-            element={isAuthenticated ? <AdminMonitor /> : <Navigate to="/login" />}
+            element={<PrivateRoute><AdminMonitor /></PrivateRoute>}
           />
           <Route
             path="/e/:examId"
-            element={isAuthenticated ? <IDELayout isExamMode /> : <Navigate to="/login" />}
+            element={<PrivateRoute><IDELayout isExamMode /></PrivateRoute>}
           />
         </Routes>
       </Router>
