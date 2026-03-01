@@ -12,8 +12,8 @@ interface BrutalCardProps {
 export default function BrutalCard({ children, className = '', onClick, hoverable = false, delay = 0 }: BrutalCardProps) {
     return (
         <motion.div
-            className={`bg-neo-surface border-2 border-neo-border p-6 ${hoverable ? 'cursor-pointer' : ''} ${className}`}
-            style={{ boxShadow: '4px 4px 0px 0px var(--neo-shadow)' }}
+            className={`bg-neo-surface border-4 border-neo-border p-6 md:p-8 ${hoverable ? 'cursor-pointer' : ''} ${className}`}
+            style={{ boxShadow: '8px 8px 0px 0px var(--neo-shadow)' }}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
@@ -22,15 +22,15 @@ export default function BrutalCard({ children, className = '', onClick, hoverabl
                 ease: [0.34, 1.56, 0.64, 1],
             }}
             whileHover={hoverable ? {
-                x: -4,
-                y: -4,
-                boxShadow: '8px 8px 0px 0px var(--neo-shadow)',
+                x: -6,
+                y: -6,
+                boxShadow: '14px 14px 0px 0px var(--neo-shadow)',
                 transition: { duration: 0.2, ease: [0.34, 1.56, 0.64, 1] },
             } : {}}
             whileTap={hoverable ? {
                 x: 4,
                 y: 4,
-                boxShadow: '0px 0px 0px 0px var(--neo-shadow)',
+                boxShadow: '4px 4px 0px 0px var(--neo-shadow)',
                 transition: { duration: 0.1 },
             } : {}}
             onClick={onClick}

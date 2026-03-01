@@ -115,6 +115,17 @@ export default function CodeEditor({
 
                 const type = doc.getText('monaco');
 
+                // If this is a newly imported file and no one else has typed in it,
+                // the Yjs document will be completely empty upon sync.
+                // We must populate it with the actual disk content to prevent it from clearing the editor.
+                wsProvider.on('sync', (isSynced: boolean) => {
+                    if (isSynced && !roomId.startsWith('/e/')) {
+                        if (type.length === 0 && content) {
+                            type.insert(0, content);
+                        }
+                    }
+                });
+
                 // In Exam mode, when switching tabs, we force the Yjs document to reflect 
                 // the current active file's content so the teacher's view updates seamlessly.
                 if (roomId.startsWith('/e/')) {

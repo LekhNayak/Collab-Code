@@ -15,19 +15,19 @@ export default function BrutalButton({
     disabled,
     ...props
 }: BrutalButtonProps) {
-    const baseClasses = "font-bold border-2 border-neo-border flex items-center justify-center gap-2 relative overflow-hidden select-none";
+    const baseClasses = "font-black border-4 border-neo-border flex items-center justify-center gap-2 relative overflow-hidden select-none";
 
     const variants: Record<string, string> = {
-        primary: "bg-neo-accent text-neo-accent-text",
-        secondary: "bg-neo-surface text-neo-text",
-        danger: "bg-neo-error text-white border-neo-border",
-        ghost: "bg-transparent text-neo-text border-transparent shadow-none hover:shadow-none",
+        primary: "bg-neo-accent text-neo-accent-text tracking-wide",
+        secondary: "bg-neo-surface text-neo-text tracking-wide",
+        danger: "bg-neo-error text-white tracking-wide",
+        ghost: "bg-transparent text-neo-text border-transparent shadow-none hover:shadow-none tracking-wide",
     };
 
     const sizes: Record<string, string> = {
-        sm: "px-3 py-1.5 text-sm",
-        md: "px-6 py-3 text-base",
-        lg: "px-8 py-4 text-lg"
+        sm: "px-4 py-2 text-sm",
+        md: "px-8 py-4 text-base",
+        lg: "px-10 py-5 text-xl"
     };
 
     const disabledClasses = disabled
@@ -37,16 +37,16 @@ export default function BrutalButton({
     return (
         <motion.button
             className={`${baseClasses} ${variants[variant]} ${sizes[size]} ${disabledClasses} ${className}`}
-            style={{ boxShadow: disabled ? 'none' : '4px 4px 0px 0px var(--neo-shadow)' }}
+            style={{ boxShadow: disabled ? 'none' : '6px 6px 0px 0px var(--neo-shadow)' }}
             whileHover={disabled ? {} : {
-                x: -2,
-                y: -2,
-                boxShadow: '6px 6px 0px 0px var(--neo-shadow)',
+                x: -3,
+                y: -3,
+                boxShadow: '9px 9px 0px 0px var(--neo-shadow)',
                 transition: { duration: 0.15 }
             }}
             whileTap={disabled ? {} : {
-                x: 4,
-                y: 4,
+                x: 6,
+                y: 6,
                 boxShadow: '0px 0px 0px 0px var(--neo-shadow)',
                 transition: { duration: 0.1 }
             }}

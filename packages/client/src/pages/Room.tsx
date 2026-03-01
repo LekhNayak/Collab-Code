@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getSessions, createSession, deleteSession, type SessionInfo } from '../api';
 import BrutalButton from '../components/ui/BrutalButton';
 import BrutalInput from '../components/ui/BrutalInput';
-import BrutalCard from '../components/ui/BrutalCard';
 import ThemeToggle from '../components/ThemeToggle';
 
 function generateRoomId(): string {
