@@ -32,6 +32,7 @@ A **collaborative, in-browser code editor** with real-time multi-user editing, w
 - **Git integration** – Clone repos, init, status, add, commit, push, pull, branches, and remotes (via [isomorphic-git](https://isomorphic-git.org/) on the server).
 - **File system** – Create, edit, delete, rename, and move files/folders inside a workspace. File tree and tabbed editor.
 - **Sessions** – Save and restore editor sessions (open tabs, active file, settings). Optional extension registry (built-in + custom extensions).
+- **GitHub Import** – Clone public and private repositories straight into your IDE workspace instantly.
 - **Terminal-style UI** – In-app “terminal” with commands like `ls`, `cat`, `touch`, `mkdir`, `rm` for file operations.
 
 ---
@@ -52,15 +53,14 @@ The repo is an **npm workspaces** monorepo: `packages/client`, `packages/server`
 
 ---
 
-## Animation Architecture
+## Design Architecture (Neo-Brutalism)
 
-We use **Framer Motion** for React component animations and refined CSS transitions for basic interactions, delivering a seamless, professional UX similar to VS Code.
+The Colab Cloud UI heavily emphasizes a modern **Neo-Brutalist** design aesthetic. This translates to bold typography, high-contrast borders, solid drop shadows, and vivid functional colors.
 
-- **Libraries Chosen**: `framer-motion`
-- **Why Chosen**: Framer Motion handles complex layout transitions (like moving and resizing editor tabs) flawlessly with `layout` props, and handles component unmounting seamlessly via `AnimatePresence`. 
-- **Strategy for Consistency**: We maintain global CSS motion tokens (`--transition-fast`, `--transition-normal`) in `index.css` with a standardized `cubic-bezier()` curve. Framer Motion overrides are kept strictly <= 300ms to preserve UI snappiness.
-- **Performance**: We rely on opacity, transform, and layout animations, which are heavily optimized and hardware-accelerated.
-- **Accessibility**: Framer Motion natively supports `prefers-reduced-motion` to tone down transitions for users requiring strict accessibility compliance.
+- **Libraries Chosen**: `framer-motion` & `lucide-react`
+- **Animation Strategy**: We rely heavily on micro-interactions. Elements have slight bounce on hover, push effects on click/tap, and we utilize Framer Motion to handle layout transitions (like moving and resizing editor tabs) flawlessly.
+- **Component Primitives**: Specialized `BrutalButton`, `BrutalCard`, and `BrutalInput` wrappers enforce strict 4px borders and solid box-shadow displacements to keep the ecosystem cohesive.
+- **Dynamic Adaptability**: The platform ships with `next-themes` style toggling, supporting both sleek dark mode and glaring light mode while maintaining brutalist design laws contextually.
 
 ---
 
@@ -103,6 +103,11 @@ Colab Code Editor/
 │   │   └── package.json
 │   └── shared/                  # Shared TypeScript types (User, Workspace)
 │       └── src/index.ts
+├── markdown files/              # Documentation and reports
+│   ├── API_REFERENCE.md
+│   ├── SECURITY_HARDENING_REPORT.md
+│   ├── SOURCE_CONTROL_GUIDE.md
+│   └── bug_log.md
 ├── README.md
 └── .env files (see below)
 ```
