@@ -137,4 +137,21 @@ router.post('/:examId/execute', requireAuth, async (req: Request, res: Response)
     }
 });
 
+// Delete an Exam Room (Only owner can delete)
+router.delete('/:examId', requireAuth, async (req: Request, res: Response) => {
+    try {
+        const exam = await prisma.examRoom.findUnique({ where: { id: req.params.examId } });
+        if (!exam) return res.status(404).json({ error: 'Exam not found' });
+
+        if (exam.ownerId !== (req.user as any).id) {
+            return res.status(403).json({ error: 'Only the owner can delete this exam room' });
+        }
+
+        await prisma.examRoom.delete({ where: { id: req.params.examId } });
+        res.status(200).json({ message: 'Exam room deleted successfully' });
+    } catch (err: any) {
+        res.status(500).json({ error: 'Failed to delete exam room', details: err.message });
+    }
+});
+
 export default router;

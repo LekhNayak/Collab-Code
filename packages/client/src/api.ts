@@ -501,3 +501,11 @@ export async function sendExamAlert(examId: string, pastedLength: number, conten
     if (!res.ok) throw new Error((await res.json()).error);
     return res.json();
 }
+
+export async function deleteExam(examId: string) {
+    const res = await fetch(`${API_BASE}/exam/${examId}`, {
+        method: 'DELETE',
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}

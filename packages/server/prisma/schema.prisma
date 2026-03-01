@@ -84,7 +84,7 @@ model ExamRoom {
 model ExamLog {
   id             String    @id @default(uuid())
   examId         String
-  exam           ExamRoom  @relation(fields: [examId], references: [id])
+  exam           ExamRoom  @relation(fields: [examId], references: [id], onDelete: Cascade)
   userId         String
   user           User      @relation(fields: [userId], references: [id])
   eventType      LogType

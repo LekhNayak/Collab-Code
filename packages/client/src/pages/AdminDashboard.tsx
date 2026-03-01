@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Clock, ChevronRight, LogOut, Code2 } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { getExams, createExam } from '../api';
+import { Plus, Users, Clock, ChevronRight, LogOut, Code2, Trash2 } from 'lucide-react';
+import { motion, type Variants } from 'framer-motion';
+import { getExams, createExam, deleteExam } from '../api';
 import type { ExamRoom } from '../api';
 import BrutalCard from '../components/ui/BrutalCard';
 import BrutalButton from '../components/ui/BrutalButton';
 import BrutalInput from '../components/ui/BrutalInput';
 import ThemeToggle from '../components/ThemeToggle';
 
-const staggerContainer = {
+const staggerContainer: Variants = {
     hidden: { opacity: 0 },
     show: {
         opacity: 1,
@@ -17,15 +17,19 @@ const staggerContainer = {
     }
 };
 
-const staggerItem = {
+const staggerItem: Variants = {
     hidden: { opacity: 0, y: 15 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.34, 1.56, 0.64, 1] } }
+    show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } }
 };
 
 export default function AdminDashboard() {
     const [exams, setExams] = useState<ExamRoom[]>([]);
     const [newTitle, setNewTitle] = useState('');
     const [loading, setLoading] = useState(true);
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [examToDelete, setExamToDelete] = useState<string | null>(null);
+    const [alertModalOpen, setAlertModalOpen] = useState(false);
+    const [alertMessage, setAlertMessage] = useState('');
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -39,7 +43,8 @@ export default function AdminDashboard() {
         } catch (err: any) {
             console.error('Failed to load exams', err);
             if (err.message && err.message.includes('Foreign key constraint')) {
-                alert('Your session is invalid or belongs to an old guest account. Please log out and log back in.');
+                setAlertMessage('Your session is invalid or belongs to an old guest account. Please log out and log back in.');
+                setAlertModalOpen(true);
             }
         } finally {
             setLoading(false);
@@ -60,7 +65,28 @@ export default function AdminDashboard() {
             setNewTitle('');
         } catch (err: any) {
             console.error('Failed to create exam', err);
-            alert(`Failed to create exam. It looks like your user session is invalid. Please log out and log in again.`);
+            setAlertMessage('Failed to create exam. It looks like your user session is invalid. Please log out and log in again.');
+            setAlertModalOpen(true);
+        }
+    };
+
+    const handleDeleteClick = (examId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setExamToDelete(examId);
+        setDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!examToDelete) return;
+        try {
+            await deleteExam(examToDelete);
+            setExams(exams.filter(exam => exam.id !== examToDelete));
+            setDeleteModalOpen(false);
+            setExamToDelete(null);
+        } catch (err: any) {
+            console.error('Failed to delete exam', err);
+            setAlertMessage('Failed to delete exam room.');
+            setAlertModalOpen(true);
         }
     };
 
@@ -172,12 +198,23 @@ export default function AdminDashboard() {
                                 >
                                     <div className="flex justify-between items-start mb-6">
                                         <h3 className="text-2xl font-black uppercase line-clamp-2 text-neo-text">{exam.title}</h3>
-                                        <motion.div
-                                            className="bg-neo-accent p-2 border-2 border-neo-border shadow-brutal-sm"
-                                            whileHover={{ x: 3, transition: { duration: 0.2 } }}
-                                        >
-                                            <ChevronRight size={20} className="text-neo-accent-text" />
-                                        </motion.div>
+                                        <div className="flex gap-2">
+                                            <motion.button
+                                                type="button"
+                                                className="bg-neo-surface p-2 border-2 border-neo-border shadow-brutal-sm hover:bg-red-500 group"
+                                                onClick={(e) => handleDeleteClick(exam.id, e)}
+                                                whileHover={{ scale: 1.05 }}
+                                                whileTap={{ scale: 0.95 }}
+                                            >
+                                                <Trash2 size={20} className="text-neo-text-secondary group-hover:text-white" />
+                                            </motion.button>
+                                            <motion.div
+                                                className="bg-neo-accent p-2 border-2 border-neo-border shadow-brutal-sm relative z-10"
+                                                whileHover={{ x: 3, transition: { duration: 0.2 } }}
+                                            >
+                                                <ChevronRight size={20} className="text-neo-accent-text" />
+                                            </motion.div>
+                                        </div>
                                     </div>
                                     <div className="space-y-4 font-bold text-sm mt-auto">
                                         <p className="flex items-center gap-2 text-neo-text-secondary">
@@ -198,6 +235,63 @@ export default function AdminDashboard() {
                     </motion.div>
                 )}
             </div>
+
+            {/* Custom Delete Confirmation Modal */}
+            {deleteModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="bg-neo-bg max-w-md w-full border-4 border-neo-border shadow-[8px_8px_0px_0px_var(--neo-shadow)]"
+                    >
+                        <div className="bg-neo-surface p-6">
+                            <h3 className="text-2xl font-black uppercase text-neo-text mb-4">Confirm Deletion</h3>
+                            <p className="text-neo-text-secondary font-bold mb-8">
+                                Are you sure you want to delete this exam room? This action cannot be undone and will delete all associated logs.
+                            </p>
+                            <div className="flex justify-end gap-4">
+                                <BrutalButton
+                                    variant="secondary"
+                                    onClick={() => {
+                                        setDeleteModalOpen(false);
+                                        setExamToDelete(null);
+                                    }}
+                                >
+                                    CANCEL
+                                </BrutalButton>
+                                <BrutalButton variant="danger" onClick={confirmDelete}>
+                                    DELETE
+                                </BrutalButton>
+                            </div>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Custom Alert Modal */}
+            {alertModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="bg-neo-bg max-w-md w-full border-4 border-neo-border shadow-[8px_8px_0px_0px_var(--neo-shadow)]"
+                    >
+                        <div className="bg-neo-surface p-6">
+                            <h3 className="text-2xl font-black uppercase text-neo-text mb-4 text-red-500">Notice</h3>
+                            <p className="text-neo-text-secondary font-bold mb-8">
+                                {alertMessage}
+                            </p>
+                            <div className="flex justify-end gap-4">
+                                <BrutalButton variant="primary" onClick={() => setAlertModalOpen(false)}>
+                                    DISMISS
+                                </BrutalButton>
+                            </div>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
         </div>
     );
 }
