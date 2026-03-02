@@ -456,4 +456,43 @@ router.post('/upload/:workspaceId', upload.any(), async (req: Request, res: Resp
     }
 });
 
+// Download a file, folder, or the entire workspace as a ZIP
+router.get('/download/:workspaceId', async (req: Request, res: Response) => {
+    try {
+        const { workspaceId } = req.params;
+        const filePath = req.query.path as string;
+
+        let targetPath = gitService.getWorkspacePath(workspaceId);
+        let zipName = `${workspaceId}.zip`;
+
+        if (filePath) {
+            const cleanPath = filePath.replace(/^\//, '');
+            targetPath = gitService.resolveFilePath(workspaceId, cleanPath);
+            zipName = `${path.basename(targetPath)}.zip`;
+        }
+
+        if (!fs.existsSync(targetPath)) {
+            return res.status(404).json({ error: 'Path not found' });
+        }
+
+        const stat = fs.statSync(targetPath);
+
+        if (stat.isFile()) {
+            return res.download(targetPath);
+        }
+
+        // It's a directory, zip it
+        const zip = new AdmZip();
+        zip.addLocalFolder(targetPath);
+        const zipBuffer = zip.toBuffer();
+
+        res.set('Content-Type', 'application/zip');
+        res.set('Content-Disposition', `attachment; filename="${zipName}"`);
+        res.send(zipBuffer);
+    } catch (error: any) {
+        console.error('Download error:', error);
+        res.status(500).json({ error: error.message || 'Download failed' });
+    }
+});
+
 export default router;

@@ -54,7 +54,9 @@ declare module 'adm-zip' {
         getEntries(): ZipEntry[];
         extractAllTo(targetPath: string, overwrite?: boolean): void;
         addFile(entryName: string, data: Buffer, comment?: string, attr?: number): void;
+        addLocalFolder(localPath: string, zipPath?: string, filter?: RegExp | Function): void;
         writeZip(targetFileName?: string): void;
+        toBuffer(): Buffer;
     }
 
     export = AdmZip;

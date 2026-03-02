@@ -21,13 +21,13 @@ export class GitService {
         }
     }
 
-    private getWorkspacePath(workspaceId: string): string {
+    public getWorkspacePath(workspaceId: string): string {
         // Sanitize workspace ID to prevent path traversal
         const safe = workspaceId.replace(/[^a-zA-Z0-9_-]/g, '');
         return path.join(this.workspacesDir, safe);
     }
 
-    private resolveFilePath(workspaceId: string, filePath: string): string {
+    public resolveFilePath(workspaceId: string, filePath: string): string {
         const wsDir = this.getWorkspacePath(workspaceId);
         // Resolve and ensure the path stays within workspace
         const resolved = path.resolve(wsDir, filePath);

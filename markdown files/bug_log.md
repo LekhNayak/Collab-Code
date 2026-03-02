@@ -42,3 +42,8 @@ This log chronicles the bugs and issues that have been addressed across the coll
 - **Issue:** When a user successfully imported a new GitHub project, clicking on files inside the project tree resulted in the immediate flashing of lines then total erasure of all text contents.
 - **Root Cause:** A Yjs (Collaborative layer) Websocket synchronization race condition. When the file loaded locally, a split-second later the WebSocket sent down an "Empty Session State" signal for that file and aggressively overwrote the local text buffer.
 - **Resolution:** Patched `Editor.tsx` by attaching an `on('sync')` listener. During the initial synchronization handshake, the editor intercepts the blank payload, explicitly populates the local disk content into the remote Yjs document memory bank, and correctly broadcasts the code content.
+
+## 9. Path Traversal Sandbox Breach on File Downloads
+- **Issue:** When a user attempted to download a single file from the IDE (like `/photo.JPG`), the backend threw a `500 Internal Server Error` claiming a "Sandbox breach blocked" and failed the download.
+- **Root Cause:** The `GitService.ts` resolved paths using NodeJS `path.resolve()`. Because the frontend passed single-file requests with a leading forward slash, NodeJS interpreted it as an absolute path pointing to the root of the server's hard drive, causing the anti-traversal security mechanism to instantly kill the request.
+- **Resolution:** Modified the `/download/:workspaceId` endpoint to cleanly strip any leading `/` strings using Regex (`^\/`) from the incoming `filePath` payload before processing it, ensuring it stays safely scoped to the isolated workspace container.

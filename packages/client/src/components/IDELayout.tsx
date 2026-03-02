@@ -19,6 +19,7 @@ import {
     Puzzle,
     Upload,
     FolderArchive,
+    Download, // Added Download icon
 } from 'lucide-react';
 import FileExplorer, { type FileNode } from './FileExplorer';
 import EditorTabs, { type TabInfo } from './EditorTabs';
@@ -28,7 +29,7 @@ import Terminal from './Terminal';
 import GitPanel from './GitPanel';
 import ExtensionPanel from './ExtensionPanel';
 import UserPresence from './UserPresence';
-import { getFileTree, readFile, saveFile, initWorkspace, createFile as apiCreateFile, moveFile as apiMoveFile, deleteFile as apiDeleteFile, getSession, saveSession, createSession, getExtensions, uploadZip, uploadFolder, joinExam, type SessionInfo, type ExtensionInfo } from '../api';
+import { getFileTree, readFile, saveFile, initWorkspace, createFile as apiCreateFile, moveFile as apiMoveFile, deleteFile as apiDeleteFile, getSession, saveSession, createSession, getExtensions, uploadZip, uploadFolder, joinExam, downloadWorkspace, type SessionInfo, type ExtensionInfo } from '../api';
 import '../ide.css';
 
 type SidebarPanel = 'explorer' | 'search' | 'git' | 'users' | 'extensions';
@@ -323,6 +324,15 @@ export default function IDELayout({ isExamMode }: { isExamMode?: boolean }) {
             setTimeout(() => setError(''), 3000);
         }
     }, [workspaceId, refreshTree]);
+
+    const handleDownloadFile = useCallback(async (path?: string) => {
+        try {
+            await downloadWorkspace(workspaceId, path);
+        } catch (err: any) {
+            setUploadStatus({ type: 'error', message: `✗ Download failed: ${err.message}` });
+            setTimeout(() => setUploadStatus(null), 4000);
+        }
+    }, [workspaceId]);
 
     const handleMoveFile = useCallback(async (oldPath: string, newPath: string) => {
         try {
@@ -657,33 +667,40 @@ export default function IDELayout({ isExamMode }: { isExamMode?: boolean }) {
                                                 <FolderPlus size={14} />
                                             </button>
                                             {/* Upload button */}
-                                            <div className="upload-menu-wrapper" ref={uploadMenuRef}>
-                                                <button
-                                                    className="explorer-action-btn"
-                                                    onClick={() => setUploadMenuOpen(v => !v)}
-                                                    title="Upload Folder or ZIP"
-                                                >
-                                                    <Upload size={14} />
-                                                </button>
-                                                {uploadMenuOpen && (
-                                                    <div className="upload-dropdown">
-                                                        <button
-                                                            className="upload-dropdown-item"
-                                                            onClick={() => folderInputRef.current?.click()}
-                                                        >
-                                                            <FolderArchive size={13} />
-                                                            Upload Folder
-                                                        </button>
-                                                        <button
-                                                            className="upload-dropdown-item"
-                                                            onClick={() => zipInputRef.current?.click()}
-                                                        >
-                                                            <Upload size={13} />
-                                                            Upload ZIP
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
+
+                                            <button
+                                                className="explorer-action-btn"
+                                                onClick={() => handleDownloadFile()}
+                                                title="Download Workspace"
+                                            >
+                                                <Download size={14} />
+                                            </button>
+                                            <button
+                                                className="explorer-action-btn"
+                                                onClick={() => setUploadMenuOpen(v => !v)}
+                                                title="Upload Folder or ZIP"
+                                            >
+                                                <Upload size={14} />
+                                            </button>
+                                            {uploadMenuOpen && (
+                                                <div className="upload-dropdown">
+                                                    <button
+                                                        className="upload-dropdown-item"
+                                                        onClick={() => folderInputRef.current?.click()}
+                                                    >
+                                                        <FolderArchive size={13} />
+                                                        Upload Folder
+                                                    </button>
+                                                    <button
+                                                        className="upload-dropdown-item"
+                                                        onClick={() => zipInputRef.current?.click()}
+                                                    >
+                                                        <Upload size={13} />
+                                                        Upload ZIP
+                                                    </button>
+                                                </div>
+                                            )}
+
                                             {/* Hidden file inputs */}
                                             <input
                                                 ref={zipInputRef}
@@ -738,6 +755,7 @@ export default function IDELayout({ isExamMode }: { isExamMode?: boolean }) {
                                             onCreateFile={handleNestedCreateFile}
                                             onDeleteFile={handleDeleteFile}
                                             onRenameFile={handleRenameFile}
+                                            onDownloadFile={handleDownloadFile}
                                         />
                                     </>
                                 )

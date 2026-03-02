@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ChevronRight, FilePlus2, FolderPlus, Trash2, Pencil } from 'lucide-react';
+import { ChevronRight, FilePlus2, FolderPlus, Trash2, Pencil, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import FileIcon from './FileIcon';
 
@@ -20,6 +20,7 @@ interface FileExplorerProps {
     onCreateFile?: (parentPath: string, name: string, isFolder: boolean) => void;
     onDeleteFile?: (path: string) => void;
     onRenameFile?: (oldPath: string, newName: string) => void;
+    onDownloadFile?: (path: string) => void;
 }
 
 // Context menu state
@@ -37,6 +38,7 @@ export default function FileExplorer({
     onCreateFile,
     onDeleteFile,
     onRenameFile,
+    onDownloadFile,
 }: FileExplorerProps) {
     const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
     const [inlineCreate, setInlineCreate] = useState<{ parentPath: string; type: 'file' | 'folder' } | null>(null);
@@ -151,6 +153,12 @@ export default function FileExplorer({
                         setContextMenu(null);
                     }}>
                         <Pencil size={13} /> Rename
+                    </button>
+                    <button onClick={() => {
+                        onDownloadFile?.(contextMenu.node.path);
+                        setContextMenu(null);
+                    }}>
+                        <Download size={13} /> Download
                     </button>
                     <button className="context-menu-danger" onClick={() => {
                         onDeleteFile?.(contextMenu.node.path);

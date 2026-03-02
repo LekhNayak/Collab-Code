@@ -425,6 +425,55 @@ export async function uploadFolder(workspaceId: string, files: FileList): Promis
     return res.json();
 }
 
+export async function downloadWorkspace(workspaceId: string, filePath?: string) {
+    const url = new URL(`${API_BASE}/git/download/${workspaceId}`);
+    if (filePath) {
+        url.searchParams.append('path', filePath);
+    }
+    const token = localStorage.getItem('token');
+    const headers: Record<string, string> = {};
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const res = await window.fetch(url.toString(), { headers });
+    if (!res.ok) {
+        let text = 'Download failed';
+        try {
+            const errJson = await res.json();
+            text = errJson.error || text;
+        } catch {
+            text = await res.text() || text;
+        }
+        throw new Error(text);
+    }
+
+    const blob = await res.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = downloadUrl;
+
+    // Read filename from Content-Disposition header if possible
+    const contentDisposition = res.headers.get('Content-Disposition');
+    let filename = `${workspaceId}.zip`;
+    if (contentDisposition) {
+        const match = contentDisposition.match(/filename="([^"]+)"/);
+        if (match && match[1]) filename = match[1];
+    } else if (filePath) {
+        // Fallback for files
+        filename = filePath.split('/').pop() || filename;
+    }
+
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.setTimeout(() => {
+        window.URL.revokeObjectURL(downloadUrl);
+        a.remove();
+    }, 100);
+}
+
 // ---- Exam Portal API ----
 
 export interface ExamRoom {
