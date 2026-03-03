@@ -1,18 +1,6 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    restart: always
-    environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: collaborative_ide
-    ports:
-      - "5433:5432"
-    volumes:
-      - ./postgres_data:/var/lib/postgresql/data
-
   redis:
     image: redis:7-alpine
     restart: always
