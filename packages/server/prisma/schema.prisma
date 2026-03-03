@@ -7,20 +7,32 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  ADMIN
+  STUDENT
+}
+
+enum RoomType {
+  COLLAB
+  EXAM
+}
+
 model User {
   id        String   @id @default(uuid())
   username  String   @unique
   email     String   @unique
   password  String?
   avatarUrl String?
+  role      UserRole @default(STUDENT)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   workspaces      WorkspaceMember[]
   ownedWorkspaces Workspace[]
 
-  ownedExams      ExamRoom[] @relation("ExamOwner")
+  ownedExams      Exam[] @relation("ExamOwner")
   examLogs        ExamLog[]
+  examSessions    ExamSession[]
 }
 
 model Workspace {
@@ -70,21 +82,44 @@ enum FileType {
   DIRECTORY
 }
 
-model ExamRoom {
+model Room {
+  id             String   @id @default(uuid())
+  type           RoomType
+  name           String?
+  examId         String?
+  exam           Exam?    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  createdByRole  UserRole
+  createdAt      DateTime @default(now())
+}
+
+model Exam {
   id          String    @id @default(uuid())
   title       String
   ownerId     String
   owner       User      @relation("ExamOwner", fields: [ownerId], references: [id])
   startTime   DateTime
   endTime     DateTime?
+  rooms       Room[]
+  sessions    ExamSession[]
   logs        ExamLog[]
   createdAt   DateTime  @default(now())
+}
+
+model ExamSession {
+  id        String   @id @default(uuid())
+  examId    String
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  startTime DateTime @default(now())
+  endTime   DateTime?
+  status    String   @default("ACTIVE")
 }
 
 model ExamLog {
   id             String    @id @default(uuid())
   examId         String
-  exam           ExamRoom  @relation(fields: [examId], references: [id], onDelete: Cascade)
+  exam           Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
   userId         String
   user           User      @relation(fields: [userId], references: [id])
   eventType      LogType
@@ -100,3 +135,4 @@ enum LogType {
   COPY_PASTE_ALERT
   SUSPICIOUS_BEHAVIOR
 }
+

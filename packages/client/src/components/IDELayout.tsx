@@ -29,7 +29,7 @@ import Terminal from './Terminal';
 import GitPanel from './GitPanel';
 import ExtensionPanel from './ExtensionPanel';
 import UserPresence from './UserPresence';
-import { getFileTree, readFile, saveFile, initWorkspace, createFile as apiCreateFile, moveFile as apiMoveFile, deleteFile as apiDeleteFile, getSession, saveSession, createSession, getExtensions, uploadZip, uploadFolder, joinExam, downloadWorkspace, type SessionInfo, type ExtensionInfo } from '../api';
+import { getFileTree, readFile, saveFile, initWorkspace, createFile as apiCreateFile, moveFile as apiMoveFile, deleteFile as apiDeleteFile, getSession, saveSession, createSession, getExtensions, uploadZip, uploadFolder, joinExam, downloadWorkspace, resolveExamRoom, type SessionInfo, type ExtensionInfo, type ExamRoom } from '../api';
 import '../ide.css';
 
 type SidebarPanel = 'explorer' | 'search' | 'git' | 'users' | 'extensions';
@@ -37,13 +37,31 @@ type SidebarPanel = 'explorer' | 'search' | 'git' | 'users' | 'extensions';
 // In-memory file content cache
 const fileContents = new Map<string, string>();
 
-export default function IDELayout({ isExamMode }: { isExamMode?: boolean }) {
-    const { roomId, examId } = useParams<{ roomId?: string, examId?: string }>();
+export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?: boolean }) {
+    const { roomId } = useParams<{ roomId?: string }>();
     const navigate = useNavigate();
     const username = localStorage.getItem('collab-username') || 'Anonymous';
 
-    // In exam mode, give each student their own workspace isolation
-    const workspaceId = isExamMode ? `exam_${examId}_${username}` : (roomId || 'default');
+    const isExamMode = manualExamMode || (roomId && roomId.startsWith('EX-'));
+    const [roomBlocked, setRoomBlocked] = useState(false);
+    const [roomBlockReason, setRoomBlockReason] = useState('');
+
+    // Extract user ID from JWT for per-student workspace isolation
+    const getUserIdFromToken = (): string | null => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return null;
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            return payload.id || null;
+        } catch { return null; }
+    };
+    const currentUserId = getUserIdFromToken();
+
+    // In exam mode, workspace must be isolated per student
+    // Each student gets their own workspace: EX-a1b2c3d4__userId
+    const workspaceId = isExamMode && roomId && currentUserId
+        ? `${roomId}__${currentUserId}`
+        : (roomId || 'default');
 
     const [activePanel, setActivePanel] = useState<SidebarPanel>('explorer');
     const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -60,17 +78,81 @@ export default function IDELayout({ isExamMode }: { isExamMode?: boolean }) {
     const [creatingFile, setCreatingFile] = useState<'file' | 'folder' | null>(null);
     const [newFileName, setNewFileName] = useState('');
 
+    const [resolvedExamId, setResolvedExamId] = useState<string | null>(null);
+
+    const [examData, setExamData] = useState<ExamRoom | null>(null);
+    const [timeLeft, setTimeLeft] = useState<string>('');
+
     // Session & Extensions state
     const [sessionData, setSessionData] = useState<SessionInfo | null>(null);
     const [allExtensions, setAllExtensions] = useState<ExtensionInfo[]>([]);
     const sessionSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // Resolve exam room code -> exam metadata
+    useEffect(() => {
+        if (isExamMode && roomId && roomId.startsWith('EX-')) {
+            resolveExamRoom(roomId)
+                .then(({ exam }) => {
+                    setResolvedExamId(exam.id);
+                    setExamData(exam);
+                })
+                .catch(err => {
+                    console.error('Failed to resolve exam room:', err);
+                    setRoomBlocked(true);
+                    setRoomBlockReason('This exam room code is invalid or does not exist in the system.');
+                });
+        }
+    }, [isExamMode, roomId]);
+
+    // Timer logic
+    useEffect(() => {
+        if (!examData || !examData.endTime) return;
+
+        const updateTimer = () => {
+            const end = new Date(examData.endTime!).getTime();
+            const now = Date.now();
+            const diff = end - now;
+
+            if (diff <= 0) {
+                setTimeLeft('00:00:00 - Time is up!');
+                return;
+            }
+
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+            setTimeLeft(`${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`);
+        };
+
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
+    }, [examData]);
+
     // Notify backend when student joins exam
     useEffect(() => {
-        if (isExamMode && examId) {
-            joinExam(examId).catch(err => console.error('Failed to log join event:', err));
+        if (isExamMode && resolvedExamId) {
+            joinExam(resolvedExamId).catch(err => console.error('Failed to log join event:', err));
         }
-    }, [isExamMode, examId]);
+    }, [isExamMode, resolvedExamId]);
+
+    // ── Room Type Validation Guard ──
+    useEffect(() => {
+        if (!roomId) return;
+
+        // Enforce prefix-based access at the routing level
+        if (isExamMode && !roomId.startsWith('EX-')) {
+            setRoomBlocked(true);
+            setRoomBlockReason('This is not a valid Exam room code. Exam codes start with EX-.');
+            return;
+        }
+        if (!isExamMode && roomId.startsWith('EX-')) {
+            setRoomBlocked(true);
+            setRoomBlockReason('Cannot open an Exam room in Collaboration mode. Go to the Hub and select "Take an Exam".');
+            return;
+        }
+    }, [roomId, isExamMode]);
 
     // Multi-terminal state
     const [terminals, setTerminals] = useState([{ id: 'term-1', label: 'Terminal 1' }]);
@@ -285,6 +367,7 @@ export default function IDELayout({ isExamMode }: { isExamMode?: boolean }) {
     }, [workspaceId]);
 
     const handleCreateFile = useCallback(async (name: string, isFolder: boolean) => {
+        if (isExamMode) return; // Disable creation in exam mode
         if (!name.trim()) return;
         try {
             const path = '/' + name.trim();
@@ -304,9 +387,10 @@ export default function IDELayout({ isExamMode }: { isExamMode?: boolean }) {
             setError(err.message);
             setTimeout(() => setError(''), 3000);
         }
-    }, [workspaceId, refreshTree]);
+    }, [workspaceId, refreshTree, isExamMode]);
 
     const handleNestedCreateFile = useCallback(async (parentPath: string, name: string, isFolder: boolean) => {
+        if (isExamMode) return;
         if (!name.trim()) return;
         try {
             const fullPath = parentPath === '/' ? `/${name.trim()}` : `${parentPath}/${name.trim()}`;
@@ -323,7 +407,7 @@ export default function IDELayout({ isExamMode }: { isExamMode?: boolean }) {
             setError(err.message);
             setTimeout(() => setError(''), 3000);
         }
-    }, [workspaceId, refreshTree]);
+    }, [workspaceId, refreshTree, isExamMode]);
 
     const handleDownloadFile = useCallback(async (path?: string) => {
         try {
@@ -335,6 +419,7 @@ export default function IDELayout({ isExamMode }: { isExamMode?: boolean }) {
     }, [workspaceId]);
 
     const handleMoveFile = useCallback(async (oldPath: string, newPath: string) => {
+        if (isExamMode) return;
         try {
             await apiMoveFile(workspaceId, oldPath, newPath);
             await refreshTree();
@@ -364,9 +449,10 @@ export default function IDELayout({ isExamMode }: { isExamMode?: boolean }) {
             setError(err.message);
             setTimeout(() => setError(''), 3000);
         }
-    }, [workspaceId, refreshTree]);
+    }, [workspaceId, refreshTree, isExamMode]);
 
     const handleDeleteFile = useCallback(async (path: string) => {
+        if (isExamMode) return;
         try {
             await apiDeleteFile(workspaceId, path);
             await refreshTree();
@@ -378,13 +464,14 @@ export default function IDELayout({ isExamMode }: { isExamMode?: boolean }) {
             setError(err.message);
             setTimeout(() => setError(''), 3000);
         }
-    }, [workspaceId, refreshTree]);
+    }, [workspaceId, refreshTree, isExamMode]);
 
     const handleRenameFile = useCallback(async (oldPath: string, newName: string) => {
+        if (isExamMode) return;
         const parentDir = oldPath.substring(0, oldPath.lastIndexOf('/'));
         const newPath = parentDir ? `${parentDir}/${newName}` : `/${newName}`;
         await handleMoveFile(oldPath, newPath);
-    }, [handleMoveFile]);
+    }, [handleMoveFile, isExamMode]);
 
     // Close upload menu when clicking outside
     useEffect(() => {
@@ -443,21 +530,24 @@ export default function IDELayout({ isExamMode }: { isExamMode?: boolean }) {
     }, []);
 
     const terminalCreateFile = useCallback(async (path: string, isFolder: boolean) => {
+        if (isExamMode) return;
         await apiCreateFile(workspaceId, path, isFolder);
         await refreshTree();
-    }, [workspaceId, refreshTree]);
+    }, [workspaceId, refreshTree, isExamMode]);
 
     const terminalDeleteFile = useCallback(async (path: string) => {
+        if (isExamMode) return;
         await apiDeleteFile(workspaceId, path);
         await refreshTree();
         setTabs(prev => prev.filter(t => t.path !== path && !t.path.startsWith(path + '/')));
         fileContents.delete(path);
-    }, [workspaceId, refreshTree]);
+    }, [workspaceId, refreshTree, isExamMode]);
 
     const terminalMoveFile = useCallback(async (oldPath: string, newPath: string) => {
+        if (isExamMode) return;
         await apiMoveFile(workspaceId, oldPath, newPath);
         await refreshTree();
-    }, [workspaceId, refreshTree]);
+    }, [workspaceId, refreshTree, isExamMode]);
 
     const terminalReadFile = useCallback(async (path: string): Promise<string> => {
         const content = await readFile(workspaceId, path);
@@ -553,12 +643,44 @@ export default function IDELayout({ isExamMode }: { isExamMode?: boolean }) {
     const activeFileContent = activeTab ? fileContents.get(activeTab) || '' : '';
     const activeLanguage = tabs.find((t) => t.path === activeTab)?.language || 'plaintext';
 
-    // In Exam mode, real-time sync happens on a fixed URL without the file name extension so the dashboard sees it.
-    const collabRoomId = isExamMode ? `/e/${examId}/s/${username}` : (roomId && activeTab ? `c/${roomId}:${activeTab}` : undefined);
+    const collabRoomId = roomId;
+
+    // ── Room type mismatch blocker ──
+    if (roomBlocked) {
+        return (
+            <div style={{
+                width: '100%', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: '#1a1a2e', color: '#e94560', fontFamily: 'monospace', flexDirection: 'column', gap: 16, padding: 32,
+            }}>
+                <div style={{ fontSize: 48, fontWeight: 900 }}>⛔ ACCESS DENIED</div>
+                <div style={{ fontSize: 18, color: '#eee', maxWidth: 500, textAlign: 'center' }}>
+                    {roomBlockReason}
+                </div>
+                <button
+                    onClick={() => navigate('/')}
+                    style={{
+                        marginTop: 24, padding: '12px 32px', fontSize: 16, fontWeight: 800,
+                        background: '#e94560', color: '#fff', border: 'none', cursor: 'pointer',
+                        textTransform: 'uppercase', letterSpacing: 2,
+                    }}
+                >
+                    Back to Hub
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="editor-root" data-theme="dark" style={{ width: '100%', height: '100%' }}>
-            <div className={`ide-layout${!sidebarVisible ? ' sidebar-collapsed' : ''}`}>
+
+            {/* Header for Exam Time Left */}
+            {isExamMode && timeLeft && (
+                <div style={{ backgroundColor: 'rgb(220, 38, 38)', color: 'white', fontWeight: 'bold', textAlign: 'center', padding: '6px' }}>
+                    Time Left: {timeLeft}
+                </div>
+            )}
+
+            <div className={`ide-layout${!sidebarVisible ? ' sidebar-collapsed' : ''}`} style={{ height: isExamMode && timeLeft ? 'calc(100% - 32px)' : '100%' }}>
                 {/* Activity Bar */}
                 <div className="activity-bar">
                     <div
@@ -582,13 +704,17 @@ export default function IDELayout({ isExamMode }: { isExamMode?: boolean }) {
                     >
                         <GitBranch size={24} />
                     </div>
-                    <div
-                        className={`activity-bar-icon${activePanel === 'users' && sidebarVisible ? ' active' : ''}`}
-                        onClick={() => toggleSidebar('users')}
-                        title="Collaborators"
-                    >
-                        <Users size={24} />
-                    </div>
+
+                    {!isExamMode && (
+                        <div
+                            className={`activity-bar-icon${activePanel === 'users' && sidebarVisible ? ' active' : ''}`}
+                            onClick={() => toggleSidebar('users')}
+                            title="Collaborators"
+                        >
+                            <Users size={24} />
+                        </div>
+                    )}
+
                     <div
                         className={`activity-bar-icon${activePanel === 'extensions' && sidebarVisible ? ' active' : ''}`}
                         onClick={() => toggleSidebar('extensions')}
@@ -831,6 +957,7 @@ export default function IDELayout({ isExamMode }: { isExamMode?: boolean }) {
                                 content={activeFileContent}
                                 language={activeLanguage}
                                 roomId={collabRoomId}
+                                examId={resolvedExamId || undefined}
                                 username={username}
                                 onChange={handleEditorChange}
                                 onCursorChange={(line, col) => setCursorPos({ line, column: col })}
@@ -907,7 +1034,7 @@ export default function IDELayout({ isExamMode }: { isExamMode?: boolean }) {
                                     >
                                         <Terminal
                                             id={t.id}
-                                            examId={isExamMode ? examId : undefined}
+                                            examId={isExamMode ? resolvedExamId || undefined : undefined}
                                             activeFile={activeTab}
                                             activeCode={activeFileContent}
                                             activeLanguage={activeLanguage}

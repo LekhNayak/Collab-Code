@@ -51,7 +51,7 @@ function App() {
             element={<PrivateRoute><AdminMonitor /></PrivateRoute>}
           />
           <Route
-            path="/e/:examId"
+            path="/e/:roomId"
             element={<PrivateRoute><IDELayout isExamMode /></PrivateRoute>}
           />
         </Routes>

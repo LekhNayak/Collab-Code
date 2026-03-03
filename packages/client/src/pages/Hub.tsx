@@ -40,7 +40,7 @@ export default function Hub() {
         for (let i = 0; i < 8; i++) {
             result += chars.charAt(Math.floor(Math.random() * chars.length));
         }
-        return result;
+        return `CR-${result}`;
     };
 
     const handleStudentSubmit = (e: React.FormEvent) => {
@@ -49,8 +49,16 @@ export default function Hub() {
             setError('Please provide both your name and the Exam ID.');
             return;
         }
+
+        const code = examId.trim();
+        if (!code.startsWith('EX-')) {
+            setError('Invalid Exam Code. It should start with EX- (e.g. EX-a1b2c3d4).');
+            return;
+        }
+
         localStorage.setItem('collab-username', studentName.trim());
-        navigate(`/e/${examId.trim()}`);
+        // Navigate using the room code directly as the roomId param
+        navigate(`/e/${code}`);
     };
 
     const handleImportSubmit = async (e: React.FormEvent) => {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Clock, ChevronRight, LogOut, Code2, Trash2 } from 'lucide-react';
+import { Plus, Users, Clock, ChevronRight, LogOut, Code2, Trash2, Copy } from 'lucide-react';
 import { motion, type Variants } from 'framer-motion';
 import { getExams, createExam, deleteExam } from '../api';
 import type { ExamRoom } from '../api';
@@ -223,11 +223,23 @@ export default function AdminDashboard() {
                                             </div>
                                             {new Date(exam.startTime).toLocaleDateString()} {new Date(exam.startTime).toLocaleTimeString()}
                                         </p>
-                                        <p className="flex items-center gap-2">
-                                            <span className="bg-neo-border text-neo-bg px-2 py-1 border-2 border-neo-border shadow-brutal-sm uppercase text-xs">
-                                                ID: {exam.id.split('-')[0]}
-                                            </span>
-                                        </p>
+                                        {exam.roomCode && (
+                                            <div className="flex items-center gap-2">
+                                                <span className="bg-neo-border text-neo-bg px-2 py-1 border-2 border-neo-border shadow-brutal-sm uppercase text-xs font-black tracking-wider">
+                                                    {exam.roomCode}
+                                                </span>
+                                                <button
+                                                    className="bg-neo-surface p-1 border-2 border-neo-border hover:bg-neo-accent transition-colors"
+                                                    title="Copy exam code for students"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        navigator.clipboard.writeText(exam.roomCode!);
+                                                    }}
+                                                >
+                                                    <Copy size={14} />
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </BrutalCard>
                             </motion.div>

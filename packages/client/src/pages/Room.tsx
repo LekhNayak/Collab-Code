@@ -13,7 +13,7 @@ function generateRoomId(): string {
     for (let i = 0; i < 8; i++) {
         result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    return result;
+    return `CR-${result}`;
 }
 
 export default function RoomPage() {
@@ -64,8 +64,21 @@ export default function RoomPage() {
             setError('Please enter a room ID');
             return;
         }
+
+        let targetId = joinRoomId.trim();
+
+        if (targetId.startsWith('EX-') || targetId.startsWith('e/')) {
+            setError('Cannot join an exam from the Collab Hub. Return to the main hub and select "Take an Exam".');
+            return;
+        }
+
+        // Auto-prepend CR- if they just typed the random code
+        if (!targetId.startsWith('CR-')) {
+            targetId = `CR-${targetId}`;
+        }
+
         localStorage.setItem('collab-username', username.trim());
-        navigate(`/room/${joinRoomId.trim()}`);
+        navigate(`/room/${targetId}`);
     };
 
     const handleEnterRoom = () => {

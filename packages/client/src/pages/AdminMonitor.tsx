@@ -10,7 +10,7 @@ import { ShieldAlert, Terminal, ArrowLeft, Filter, UserPlus } from 'lucide-react
 import { motion, AnimatePresence } from 'framer-motion';
 import BrutalButton from '../components/ui/BrutalButton';
 
-const StudentPreview = ({ examId, studentName }: { examId: string, studentName: string }) => {
+const StudentPreview = ({ examId, studentId, studentName }: { examId: string, studentId: string, studentName: string }) => {
     const [connected, setConnected] = useState(false);
 
     const editorRef = useRef<any>(null);
@@ -32,9 +32,11 @@ const StudentPreview = ({ examId, studentName }: { examId: string, studentName: 
         const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3001';
         const token = localStorage.getItem('token') || '';
 
-        // Connect as a read-only viewer to the student's specific namespace
-        const wsProvider = new WebsocketProvider(wsUrl, `/e/${examId}/s/${studentName}`, doc, {
-            params: token ? { token } : {}
+        // Connect to the student's per-user Yjs document via admin monitor mode.
+        // Room name must be unique per student so the y-websocket client doesn't
+        // merge multiple monitors into one local doc.
+        const wsProvider = new WebsocketProvider(wsUrl, `admin-monitor-${studentId}`, doc, {
+            params: { token, examId, studentId, mode: 'admin-monitor' }
         });
         providerRef.current = wsProvider;
 
@@ -128,7 +130,7 @@ export default function AdminMonitor() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-8">
                     {Array.from(students.entries()).map(([id, username]) => (
-                        <StudentPreview key={id} examId={examId!} studentName={username} />
+                        <StudentPreview key={id} examId={examId!} studentId={id} studentName={username} />
                     ))}
                     {students.size === 0 && (
                         <motion.div

@@ -9,6 +9,7 @@ interface CodeEditorProps {
     content: string;
     language: string;
     roomId?: string;
+    examId?: string; // resolved exam UUID for alert API calls
     username?: string;
     onChange?: (value: string | undefined) => void;
     onCursorChange?: (line: number, column: number) => void;
@@ -54,6 +55,7 @@ export default function CodeEditor({
     content,
     language,
     roomId,
+    examId,
     username = 'Anonymous',
     onChange,
     onCursorChange,
@@ -86,15 +88,12 @@ export default function CodeEditor({
         });
 
         // Copy-paste detection for exams
-        if (roomId?.startsWith('/e/')) {
+        if (roomId?.startsWith('EX-') && examId) {
             editor.onDidChangeModelContent((event: any) => {
                 event.changes.forEach((change: any) => {
                     const pastedLength = change.text.length;
                     if (pastedLength > 50) {
-                        const exId = roomId.split('/')[2];
-                        if (exId) {
-                            sendExamAlert(exId, pastedLength, change.text).catch(() => { });
-                        }
+                        sendExamAlert(examId, pastedLength, change.text).catch(() => { });
                     }
                 });
             });
@@ -115,27 +114,28 @@ export default function CodeEditor({
 
                 const type = doc.getText('monaco');
 
-                // If this is a newly imported file and no one else has typed in it,
-                // the Yjs document will be completely empty upon sync.
-                // We must populate it with the actual disk content to prevent it from clearing the editor.
+                // Wait for sync in ALL modes before touching the Yjs document.
+                // This prevents race conditions where local writes conflict with remote state.
                 wsProvider.on('sync', (isSynced: boolean) => {
-                    if (isSynced && !roomId.startsWith('/e/')) {
+                    if (!isSynced) return;
+
+                    if (roomId.startsWith('EX-')) {
+                        // Exam mode: push the current file content into the Yjs doc
+                        // so the admin monitor can see what the student is editing.
+                        if (type.length > 0) {
+                            type.delete(0, type.length);
+                        }
+                        if (content) {
+                            type.insert(0, content);
+                        }
+                    } else {
+                        // Collab mode: only populate if the Yjs doc is empty
+                        // (first user to open a newly imported file)
                         if (type.length === 0 && content) {
                             type.insert(0, content);
                         }
                     }
                 });
-
-                // In Exam mode, when switching tabs, we force the Yjs document to reflect 
-                // the current active file's content so the teacher's view updates seamlessly.
-                if (roomId.startsWith('/e/')) {
-                    if (type.length > 0) {
-                        type.delete(0, type.length);
-                    }
-                    if (content) {
-                        type.insert(0, content);
-                    }
-                }
 
                 const binding = new MonacoBinding(
                     type,

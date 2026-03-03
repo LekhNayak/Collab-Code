@@ -134,14 +134,11 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
 
         // ── Request Body (for POST/PUT/PATCH) ──
         if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body && Object.keys(req.body).length > 0) {
-            const sanitized = sanitizeBody(req.body);
-            console.log(
-                `   ${colors.gray}Body:${colors.reset}   ${colors.dim}${JSON.stringify(sanitized)}${colors.reset}`
-            );
+            // Disabled heavy synchronously-blocking body log for performance
         }
 
         // ── Route Params ──
-        const paramKeys = Object.keys(req.params);
+        const paramKeys = Object.keys(req.params || {});
         if (paramKeys.length > 0) {
             console.log(
                 `   ${colors.gray}Params:${colors.reset} ${colors.dim}${JSON.stringify(req.params)}${colors.reset}`

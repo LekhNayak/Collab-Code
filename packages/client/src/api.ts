@@ -482,6 +482,7 @@ export interface ExamRoom {
     ownerId: string;
     startTime: string;
     endTime: string | null;
+    roomCode?: string; // EX-xxxx shareable code
 }
 
 export interface ExamLog {
@@ -496,7 +497,7 @@ export interface ExamLog {
 }
 
 export async function createExam(title: string, startTime: string): Promise<ExamRoom> {
-    const res = await fetch(`${API_BASE}/exam`, {
+    const res = await fetch(`${API_BASE}/exam/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, startTime }),
@@ -512,7 +513,7 @@ export async function getExams(): Promise<ExamRoom[]> {
 }
 
 export async function getExam(examId: string): Promise<ExamRoom> {
-    const res = await fetch(`${API_BASE}/exam/${examId}`);
+    const res = await fetch(`${API_BASE}/exam/${examId}/meta`);
     if (!res.ok) throw new Error((await res.json()).error);
     return res.json();
 }
@@ -555,6 +556,12 @@ export async function deleteExam(examId: string) {
     const res = await fetch(`${API_BASE}/exam/${examId}`, {
         method: 'DELETE',
     });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function resolveExamRoom(roomCode: string): Promise<{ room: { id: string; name: string; type: string }; exam: ExamRoom }> {
+    const res = await fetch(`${API_BASE}/exam/resolve/${roomCode}`);
     if (!res.ok) throw new Error((await res.json()).error);
     return res.json();
 }

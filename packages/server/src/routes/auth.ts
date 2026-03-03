@@ -1,11 +1,10 @@
 import { Router } from 'express';
-import passport from 'passport';
-import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import passport from 'passport';
+import prisma from '../db';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
 

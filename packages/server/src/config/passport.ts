@@ -1,8 +1,6 @@
 import passport from 'passport';
 import { Strategy as GitHubStrategy } from 'passport-github2';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../db';
 
 passport.serializeUser((user: any, done) => {
     done(null, user.id);

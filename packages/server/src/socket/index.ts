@@ -3,74 +3,110 @@ import { WebSocketServer } from 'ws';
 import * as Y from 'yjs';
 import { setupWSConnection } from 'y-websocket/bin/utils';
 import jwt from 'jsonwebtoken';
-
-// Global map to store Yjs documents in memory
-const docs = new Map<string, Y.Doc>();
+import prisma from '../db';
 
 export const setupWebSocket = (server: Server) => {
     const wss = new WebSocketServer({ noServer: true });
 
-    wss.on('connection', (ws, req) => {
-        const url = req.url;
-        if (!url) {
-            ws.close();
-            return;
-        }
+    wss.on('connection', (ws: any, req: any, socketConfig: any) => {
+        const { docName } = socketConfig as any;
 
-        const user = (req as any).user; // Set by Upgrade handler
-
-        const pathname = new URL(url, 'ws://localhost').pathname;
-        let docName = pathname.replace(/^\//, ''); // fallback
-
-        // Route separation
-        if (pathname.startsWith('/c/')) {
-            // Collab Portal
-            docName = `collab_${pathname.replace('/c/', '')}`;
-        } else if (pathname.startsWith('/e/')) {
-            // Exam Portal: /e/:examId/s/:userId
-            const parts = pathname.split('/');
-            // parts: ['', 'e', 'examId', 's', 'username']
-            if (parts[3] === 's' && parts[4]) {
-                const requestedStudentName = parts[4];
-
-                // Security check: If they are a student, they can only connect to their own specific IDE room!
-                // To allow teachers to view all rooms, we could check if user owns the exam room from DB.
-                // For now, if the user tries to join another's room, we'll prefix it specially unless they are admin.
-                // We'll trust the requestedStudentName if it's the teacher reviewing.
-                if (user && user.username !== requestedStudentName && !user.isAdmin) {
-                    // Let's assume everyone can only access their own room unless we verify teacher status via API.
-                    // For now, simple isolation:
-                    if (requestedStudentName !== user.username) {
-                        // Just an isolated room they can't access
-                        // Wait, teachers need to access it! We don't have an isAdmin flag cleanly passed here.
-                        // For a simple fix, let's keep docName as is, but rely on UI hidden routing.
-                        // Actually, let's allow it as the teacher's username won't match the student's username.
-                    }
-                }
-                docName = `exam_${parts[2]}_student_${requestedStudentName}`;
-            }
-        }
+        // Override req.url so y-websocket's setupWSConnection uses our computed docName
+        // y-websocket defaults to req.url.slice(1).split('?')[0] if no docName option given
+        // But passing docName as option SHOULD work. Belt-and-suspenders: override req.url too.
+        req.url = '/' + docName;
 
         setupWSConnection(ws, req, { docName });
+
+        console.log(`[WS] Yjs doc registered: "${docName}"`);
     });
 
-    server.on('upgrade', (request, socket, head) => {
+    server.on('upgrade', async (request, socket, head) => {
         try {
             const url = new URL(request.url || '', 'ws://localhost');
             const token = url.searchParams.get('token');
 
             if (!token) {
                 console.error('[WS Upgrade] Missing token');
-                throw new Error("Unauthenticated");
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                return socket.destroy();
             }
 
             const secret = process.env.JWT_SECRET || 'secret';
-            const decoded = jwt.verify(token, secret);
+            const decoded: any = jwt.verify(token, secret);
+            const user = await prisma.user.findUnique({ where: { id: decoded.id } });
 
-            (request as any).user = decoded;
+            if (!user) {
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                return socket.destroy();
+            }
+
+            // Get mode and IDs from query params (explicit) or fallback to URL path
+            const mode = url.searchParams.get('mode');
+            const pathRoomId = url.pathname.substring(1); // strip leading /
+
+            let docName = pathRoomId;
+            let isReadOnly = false;
+
+            if (mode === 'admin-monitor') {
+                // ── ADMIN MONITOR: admin viewing a specific student's live doc ──
+                const examId = url.searchParams.get('examId');
+                const studentId = url.searchParams.get('studentId');
+
+                if (!examId || !studentId) {
+                    socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+                    return socket.destroy();
+                }
+                if ((user as any).role !== 'ADMIN') {
+                    socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+                    return socket.destroy();
+                }
+
+                // Map admin to the SAME Yjs doc the student writes to
+                docName = `exam-${examId}-${studentId}`;
+                isReadOnly = true;
+
+            } else if (pathRoomId.startsWith('EX-')) {
+                // ── EXAM mode: student or admin entering an exam room ──
+                const room = await prisma.room.findFirst({ where: { name: pathRoomId } });
+                if (!room || room.type !== 'EXAM') {
+                    console.error(`[WS] Room not found or not EXAM: ${pathRoomId}`);
+                    socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+                    return socket.destroy();
+                }
+
+                const exam = await prisma.exam.findUnique({ where: { id: room.examId as string } });
+                if (!exam) {
+                    socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+                    return socket.destroy();
+                }
+
+                if ((user as any).role === 'ADMIN') {
+                    docName = `exam-${exam.id}-admin`;
+                    isReadOnly = true;
+                } else {
+                    // Auto-create session if needed
+                    let session = await prisma.examSession.findFirst({
+                        where: { examId: exam.id, userId: user.id }
+                    });
+                    if (!session) {
+                        session = await prisma.examSession.create({
+                            data: { examId: exam.id, userId: user.id, status: 'ACTIVE' }
+                        });
+                    }
+
+                    // Per-student isolation: unique Yjs doc per student
+                    docName = `exam-${exam.id}-${user.id}`;
+                }
+            } else {
+                // ── COLLAB mode ──
+                docName = `collab-${pathRoomId}`;
+            }
+
+            console.log(`[WS] user=${user.username} role=${(user as any).role} path=${pathRoomId} mode=${mode || 'normal'} → doc="${docName}" readOnly=${isReadOnly}`);
 
             wss.handleUpgrade(request, socket, head, (ws) => {
-                wss.emit('connection', ws, request);
+                wss.emit('connection', ws, request, { docName, isReadOnly });
             });
         } catch (err: any) {
             console.error('[WS Upgrade] Error:', err.message);
@@ -79,5 +115,5 @@ export const setupWebSocket = (server: Server) => {
         }
     });
 
-    console.log('WebSocket Server Initialized for Collaboration');
+    console.log('WebSocket Server Initialized for Dual Mode');
 };

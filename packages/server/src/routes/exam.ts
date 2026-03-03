@@ -1,20 +1,24 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
-import { requireAuth } from '../middleware/auth';
+import prisma from '../db';
+import { requireAuth, requireRole } from '../middleware/auth';
 import { executeDirectly } from '../services/executionService';
+import crypto from 'crypto';
 
 const router = Router();
-const prisma = new PrismaClient();
 
-// Middleware to Ensure Admin/Teacher
-// Assuming RBAC checks the user's implicit "ownership" of the exam room for simplicity,
-// or we can allow anyone to create one, making them the owner.
+// ══════════════════════════════════════════════════════
+// STATIC / LITERAL routes MUST come BEFORE /:id routes
+// ══════════════════════════════════════════════════════
 
-// Create a new Exam Room
-router.post('/', requireAuth, async (req: Request, res: Response) => {
+// POST /exam/create -> ADMIN only
+router.post('/create', requireRole('ADMIN'), async (req: Request, res: Response) => {
     try {
         const { title, startTime, endTime } = req.body;
-        const exam = await prisma.examRoom.create({
+
+        // Generate a short, human-friendly exam room code
+        const roomCode = `EX-${crypto.randomBytes(4).toString('hex')}`;
+
+        const exam = await prisma.exam.create({
             data: {
                 title: title || 'New Exam',
                 ownerId: (req.user as any).id,
@@ -22,83 +26,249 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
                 endTime: endTime ? new Date(endTime) : null,
             },
         });
-        res.status(201).json(exam);
+
+        // Auto-create the EXAM room linked to this exam
+        await prisma.room.create({
+            data: {
+                name: roomCode,
+                type: 'EXAM',
+                examId: exam.id,
+                createdByRole: 'ADMIN',
+            },
+        });
+
+        // Return exam data + the shareable room code
+        res.status(201).json({ ...exam, roomCode });
     } catch (err: any) {
-        if (err.code === 'P2003') { // Prisma Foreign Key constraint failed
-            return res.status(401).json({ error: 'Your session is invalid or belongs to an old guest account. Please log in again.', details: err.message });
-        }
-        res.status(500).json({ error: 'Failed to create exam room', details: err.message });
+        res.status(500).json({ error: 'Failed to create exam', details: err.message });
     }
 });
 
-// List user's exams (Admin view)
-router.get('/', requireAuth, async (req: Request, res: Response) => {
+// List all user exams (Admin) — MUST be before /:id routes
+router.get('/', requireRole('ADMIN'), async (req: Request, res: Response) => {
     try {
-        const exams = await prisma.examRoom.findMany({
+        const exams = await prisma.exam.findMany({
             where: { ownerId: (req.user as any).id },
+            include: { rooms: { select: { name: true } } },
             orderBy: { createdAt: 'desc' },
         });
-        res.status(200).json(exams);
+        // Flatten: attach the first room name as roomCode
+        const result = exams.map((e: any) => ({
+            ...e,
+            roomCode: e.rooms?.[0]?.name || null,
+            rooms: undefined,
+        }));
+        res.status(200).json(result);
     } catch (err: any) {
         res.status(500).json({ error: 'Failed to fetch exams', details: err.message });
     }
 });
 
-// Get Exam Details
-router.get('/:examId', requireAuth, async (req: Request, res: Response) => {
+// Resolve a room code (e.g. EX-a1b2c3d4) into exam metadata — MUST be before /:id routes
+router.get('/resolve/:roomCode', async (req: Request, res: Response) => {
     try {
-        const exam = await prisma.examRoom.findUnique({
-            where: { id: req.params.examId },
+        const room = await prisma.room.findFirst({
+            where: { name: req.params.roomCode },
+            include: { exam: { select: { id: true, title: true, startTime: true, endTime: true, ownerId: true } } }
+        });
+        if (!room) return res.status(404).json({ error: 'Room not found' });
+        if (room.type !== 'EXAM' || !room.exam) return res.status(400).json({ error: 'Not an exam room' });
+        res.status(200).json({ room: { id: room.id, name: room.name, type: room.type }, exam: room.exam });
+    } catch (err: any) {
+        res.status(500).json({ error: 'Failed to resolve room', details: err.message });
+    }
+});
+
+// ══════════════════════════════════════════════════════
+// PARAMETRIC /:id routes below
+// ══════════════════════════════════════════════════════
+
+// GET /exam/:id/meta -> Get Exam metadata (for timer and info)
+router.get('/:id/meta', async (req: Request, res: Response) => {
+    try {
+        const exam = await prisma.exam.findUnique({
+            where: { id: req.params.id },
+            select: {
+                id: true,
+                title: true,
+                startTime: true,
+                endTime: true,
+                ownerId: true
+            }
         });
         if (!exam) return res.status(404).json({ error: 'Exam not found' });
         res.status(200).json(exam);
     } catch (err: any) {
-        res.status(500).json({ error: 'Failed to fetch exam', details: err.message });
+        res.status(500).json({ error: 'Failed to fetch exam metadata', details: err.message });
     }
 });
 
-// Student Joins Exam
-router.post('/:examId/join', requireAuth, async (req: Request, res: Response) => {
+// GET /exam/:id/logs -> Get all exam logs (Admin)
+router.get('/:id/logs', requireRole('ADMIN'), async (req: Request, res: Response) => {
     try {
-        const log = await prisma.examLog.create({
-            data: {
-                examId: req.params.examId,
-                userId: (req.user as any).id,
-                eventType: 'JOIN',
-                details: JSON.stringify({ message: 'Student joined the exam room' }),
-            },
-        });
-        res.status(201).json(log);
-    } catch (err: any) {
-        res.status(500).json({ error: 'Failed to record join event', details: err.message });
-    }
-});
-
-// Get Exam Logs (Only owner can read logs)
-router.get('/:examId/logs', requireAuth, async (req: Request, res: Response) => {
-    try {
-        const exam = await prisma.examRoom.findUnique({ where: { id: req.params.examId } });
-        if (!exam) return res.status(404).json({ error: 'Exam not found' });
-        // Optional: Ensure req.user.id === exam.ownerId for security
-
         const logs = await prisma.examLog.findMany({
-            where: { examId: req.params.examId },
+            where: { examId: req.params.id },
             include: { user: { select: { username: true, email: true } } },
             orderBy: { createdAt: 'desc' },
         });
         res.status(200).json(logs);
     } catch (err: any) {
-        res.status(500).json({ error: 'Failed to fetch logs', details: err.message });
+        res.status(500).json({ error: 'Failed to fetch exam logs', details: err.message });
     }
 });
 
-// Post a copy-paste alert log (From student)
-router.post('/:examId/alert', requireAuth, async (req: Request, res: Response) => {
+// GET /exam/:id/sessions -> ADMIN only
+router.get('/:id/sessions', requireRole('ADMIN'), async (req: Request, res: Response) => {
     try {
-        const { type, pastedLength, content } = req.body;
+        const sessions = await prisma.examSession.findMany({
+            where: { examId: req.params.id },
+            include: { user: { select: { username: true, email: true } } },
+            orderBy: { startTime: 'desc' },
+        });
+        res.status(200).json(sessions);
+    } catch (err: any) {
+        res.status(500).json({ error: 'Failed to fetch sessions', details: err.message });
+    }
+});
+
+// POST /exam/:id/start -> ADMIN only
+router.post('/:id/start', requireRole('ADMIN'), async (req: Request, res: Response) => {
+    try {
+        const exam = await prisma.exam.update({
+            where: { id: req.params.id },
+            data: {
+                startTime: new Date()
+            }
+        });
+        res.status(200).json(exam);
+    } catch (err: any) {
+        res.status(500).json({ error: 'Failed to start exam', details: err.message });
+    }
+});
+
+// POST /exam/:id/create-room -> ADMIN only (legacy, /create already does this)
+router.post('/:id/create-room', requireRole('ADMIN'), async (req: Request, res: Response) => {
+    try {
+        const randomId = crypto.randomBytes(4).toString('hex');
+        const examId = req.params.id;
+        const roomName = `EX-${randomId}`;
+
+        const exam = await prisma.exam.findUnique({ where: { id: examId } });
+        if (!exam) return res.status(404).json({ error: 'Exam not found' });
+
+        const room = await prisma.room.create({
+            data: {
+                name: roomName,
+                type: 'EXAM',
+                examId: examId,
+                createdByRole: 'ADMIN'
+            }
+        });
+
+        res.status(201).json(room);
+    } catch (err: any) {
+        res.status(500).json({ error: 'Failed to create exam room', details: err.message });
+    }
+});
+
+// POST /exam/:id/join -> Student joins exam (creates session + log)
+router.post('/:id/join', async (req: Request, res: Response) => {
+    try {
+        const userId = (req.user as any).id;
+        const examId = req.params.id;
+
+        // Verify exam exists
+        const exam = await prisma.exam.findUnique({ where: { id: examId } });
+        if (!exam) return res.status(404).json({ error: 'Exam not found' });
+
+        // Ensure session exists or create one
+        let session = await prisma.examSession.findFirst({
+            where: { examId, userId }
+        });
+
+        if (!session) {
+            session = await prisma.examSession.create({
+                data: {
+                    examId,
+                    userId,
+                    status: 'ACTIVE'
+                }
+            });
+        }
+
         const log = await prisma.examLog.create({
             data: {
-                examId: req.params.examId,
+                examId: examId,
+                userId: userId,
+                eventType: 'JOIN',
+                details: JSON.stringify({ message: 'Student joined the exam room' }),
+            },
+        });
+        res.status(201).json({ log, session });
+    } catch (err: any) {
+        console.error('[Exam Join Error]', err);
+        res.status(500).json({ error: 'Failed to record join event', details: err.message });
+    }
+});
+
+// POST /exam/:id/submit -> STUDENT only
+router.post('/:id/submit', async (req: Request, res: Response) => {
+    try {
+        const userId = (req.user as any).id;
+        const examId = req.params.id;
+
+        const session = await prisma.examSession.findFirst({
+            where: { examId, userId, status: 'ACTIVE' }
+        });
+
+        if (!session) {
+            return res.status(404).json({ error: 'Active session not found' });
+        }
+
+        const updatedSession = await prisma.examSession.update({
+            where: { id: session.id },
+            data: {
+                status: 'SUBMITTED',
+                endTime: new Date()
+            }
+        });
+
+        res.status(200).json(updatedSession);
+    } catch (err: any) {
+        res.status(500).json({ error: 'Failed to submit exam', details: err.message });
+    }
+});
+
+// POST /exam/:id/execute -> Execute code in exam mode and capture log
+router.post('/:id/execute', async (req: Request, res: Response) => {
+    try {
+        const { code, language, stdin, args } = req.body;
+
+        const result = await executeDirectly({ code, language, stdin, args });
+
+        await prisma.examLog.create({
+            data: {
+                examId: req.params.id,
+                userId: (req.user as any).id,
+                eventType: 'EXECUTE',
+                codeSnapshot: code,
+                details: JSON.stringify(result),
+            },
+        }).catch((err: any) => console.error('[Exam Execution Log Error]', err));
+
+        res.status(200).json(result);
+    } catch (err: any) {
+        res.status(500).json({ error: 'Execution failed', details: err.message });
+    }
+});
+
+// POST /exam/:id/alert -> Copy-paste alert log
+router.post('/:id/alert', async (req: Request, res: Response) => {
+    try {
+        const { pastedLength, content } = req.body;
+        const log = await prisma.examLog.create({
+            data: {
+                examId: req.params.id,
                 userId: (req.user as any).id,
                 eventType: 'COPY_PASTE_ALERT',
                 codeSnapshot: content || undefined,
@@ -111,46 +281,25 @@ router.post('/:examId/alert', requireAuth, async (req: Request, res: Response) =
     }
 });
 
-// Execute code in exam mode and capture log (From student)
-router.post('/:examId/execute', requireAuth, async (req: Request, res: Response) => {
+// DELETE /exam/:id -> Delete an Exam (Admin)
+router.delete('/:id', requireRole('ADMIN'), async (req: Request, res: Response) => {
     try {
-        const { code, language, stdin, args } = req.body;
-
-        // 1. Run the code
-        const result = await executeDirectly({ code, language, stdin, args });
-
-        // 2. Log it in the exam logs async
-        await prisma.examLog.create({
-            data: {
-                examId: req.params.examId,
-                userId: (req.user as any).id,
-                eventType: 'EXECUTE',
-                codeSnapshot: code,
-                details: JSON.stringify(result),
-            },
-        }).catch((err: any) => console.error('[Exam Execution Log Error]', err));
-
-        // 3. Return the standard result back to the student IDE
-        res.status(200).json(result);
-    } catch (err: any) {
-        res.status(500).json({ error: 'Execution failed', details: err.message });
-    }
-});
-
-// Delete an Exam Room (Only owner can delete)
-router.delete('/:examId', requireAuth, async (req: Request, res: Response) => {
-    try {
-        const exam = await prisma.examRoom.findUnique({ where: { id: req.params.examId } });
+        const exam = await prisma.exam.findUnique({ where: { id: req.params.id } });
         if (!exam) return res.status(404).json({ error: 'Exam not found' });
 
         if (exam.ownerId !== (req.user as any).id) {
-            return res.status(403).json({ error: 'Only the owner can delete this exam room' });
+            return res.status(403).json({ error: 'Only the owner can delete this exam' });
         }
 
-        await prisma.examRoom.delete({ where: { id: req.params.examId } });
-        res.status(200).json({ message: 'Exam room deleted successfully' });
+        // Delete in correct order to respect FK constraints
+        await prisma.examLog.deleteMany({ where: { examId: req.params.id } });
+        await prisma.examSession.deleteMany({ where: { examId: req.params.id } });
+        await prisma.room.deleteMany({ where: { examId: req.params.id } });
+        await prisma.exam.delete({ where: { id: req.params.id } });
+
+        res.status(200).json({ message: 'Exam deleted successfully' });
     } catch (err: any) {
-        res.status(500).json({ error: 'Failed to delete exam room', details: err.message });
+        res.status(500).json({ error: 'Failed to delete exam', details: err.message });
     }
 });
 
