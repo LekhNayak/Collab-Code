@@ -367,7 +367,6 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     }, [workspaceId]);
 
     const handleCreateFile = useCallback(async (name: string, isFolder: boolean) => {
-        if (isExamMode) return; // Disable creation in exam mode
         if (!name.trim()) return;
         try {
             const path = '/' + name.trim();
@@ -387,10 +386,9 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             setError(err.message);
             setTimeout(() => setError(''), 3000);
         }
-    }, [workspaceId, refreshTree, isExamMode]);
+    }, [workspaceId, refreshTree]);
 
     const handleNestedCreateFile = useCallback(async (parentPath: string, name: string, isFolder: boolean) => {
-        if (isExamMode) return;
         if (!name.trim()) return;
         try {
             const fullPath = parentPath === '/' ? `/${name.trim()}` : `${parentPath}/${name.trim()}`;
@@ -407,7 +405,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             setError(err.message);
             setTimeout(() => setError(''), 3000);
         }
-    }, [workspaceId, refreshTree, isExamMode]);
+    }, [workspaceId, refreshTree]);
 
     const handleDownloadFile = useCallback(async (path?: string) => {
         try {
@@ -419,7 +417,6 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     }, [workspaceId]);
 
     const handleMoveFile = useCallback(async (oldPath: string, newPath: string) => {
-        if (isExamMode) return;
         try {
             await apiMoveFile(workspaceId, oldPath, newPath);
             await refreshTree();
@@ -449,10 +446,9 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             setError(err.message);
             setTimeout(() => setError(''), 3000);
         }
-    }, [workspaceId, refreshTree, isExamMode]);
+    }, [workspaceId, refreshTree]);
 
     const handleDeleteFile = useCallback(async (path: string) => {
-        if (isExamMode) return;
         try {
             await apiDeleteFile(workspaceId, path);
             await refreshTree();
@@ -464,14 +460,13 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             setError(err.message);
             setTimeout(() => setError(''), 3000);
         }
-    }, [workspaceId, refreshTree, isExamMode]);
+    }, [workspaceId, refreshTree]);
 
     const handleRenameFile = useCallback(async (oldPath: string, newName: string) => {
-        if (isExamMode) return;
         const parentDir = oldPath.substring(0, oldPath.lastIndexOf('/'));
         const newPath = parentDir ? `${parentDir}/${newName}` : `/${newName}`;
         await handleMoveFile(oldPath, newPath);
-    }, [handleMoveFile, isExamMode]);
+    }, [handleMoveFile]);
 
     // Close upload menu when clicking outside
     useEffect(() => {
@@ -530,24 +525,21 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     }, []);
 
     const terminalCreateFile = useCallback(async (path: string, isFolder: boolean) => {
-        if (isExamMode) return;
         await apiCreateFile(workspaceId, path, isFolder);
         await refreshTree();
-    }, [workspaceId, refreshTree, isExamMode]);
+    }, [workspaceId, refreshTree]);
 
     const terminalDeleteFile = useCallback(async (path: string) => {
-        if (isExamMode) return;
         await apiDeleteFile(workspaceId, path);
         await refreshTree();
         setTabs(prev => prev.filter(t => t.path !== path && !t.path.startsWith(path + '/')));
         fileContents.delete(path);
-    }, [workspaceId, refreshTree, isExamMode]);
+    }, [workspaceId, refreshTree]);
 
     const terminalMoveFile = useCallback(async (oldPath: string, newPath: string) => {
-        if (isExamMode) return;
         await apiMoveFile(workspaceId, oldPath, newPath);
         await refreshTree();
-    }, [workspaceId, refreshTree, isExamMode]);
+    }, [workspaceId, refreshTree]);
 
     const terminalReadFile = useCallback(async (path: string): Promise<string> => {
         const content = await readFile(workspaceId, path);
