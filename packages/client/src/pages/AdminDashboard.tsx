@@ -4,9 +4,6 @@ import { Plus, Users, Clock, ChevronRight, LogOut, Code2, Trash2, Copy } from 'l
 import { motion, type Variants } from 'framer-motion';
 import { getExams, createExam, deleteExam } from '../api';
 import type { ExamRoom } from '../api';
-import BrutalCard from '../components/ui/BrutalCard';
-import BrutalButton from '../components/ui/BrutalButton';
-import BrutalInput from '../components/ui/BrutalInput';
 import ThemeToggle from '../components/ThemeToggle';
 
 const staggerContainer: Variants = {
@@ -91,157 +88,160 @@ export default function AdminDashboard() {
     };
 
     return (
-        <div className="flex h-screen bg-neo-bg text-neo-text p-8 overflow-y-auto font-sans relative">
+        <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#0f172a] text-white p-6 md:p-12 overflow-y-auto font-sans relative">
+            {/* Ethereal background blurs */}
+            <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/20 blur-[120px] rounded-full pointer-events-none" />
+            <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-fuchsia-500/20 blur-[120px] rounded-full pointer-events-none" />
+            
             <div className="absolute top-6 right-6 flex items-center gap-4 z-20">
                 <ThemeToggle />
             </div>
 
-            <div className="max-w-6xl mx-auto w-full">
+            <div className="max-w-6xl mx-auto w-full relative z-10">
                 <motion.div
-                    className="flex justify-between items-center mb-12 border-b-4 border-neo-border pb-6 mt-4"
+                    className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 border-b border-white/10 pb-6 mt-4 backdrop-blur-sm"
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4 }}
+                    transition={{ duration: 0.5 }}
                 >
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-5">
                         <motion.div
-                            className="w-16 h-16 bg-neo-accent border-4 border-neo-border flex items-center justify-center shadow-brutal-sm"
+                            className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/30 border border-white/20"
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
-                            transition={{ delay: 0.1, duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+                            transition={{ delay: 0.1, duration: 0.5, type: 'spring' }}
                         >
-                            <Users size={32} className="text-neo-accent-text" />
+                            <Users size={32} className="text-white" />
                         </motion.div>
                         <div>
-                            <h1 className="text-4xl font-black uppercase tracking-tighter text-neo-text">
+                            <h1 className="text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70">
                                 Proctor Dashboard
                             </h1>
-                            <p className="font-bold text-lg uppercase text-neo-text-secondary">Exam Management</p>
+                            <p className="font-medium text-lg text-indigo-200/70">Exam Management Area</p>
                         </div>
                     </div>
-                    <BrutalButton variant="danger" size="sm" onClick={handleLogout} className="flex gap-2">
+                    <button 
+                        onClick={handleLogout} 
+                        className="mt-6 md:mt-0 px-5 py-2.5 rounded-xl bg-white/5 border border-red-500/30 text-red-400 font-semibold hover:bg-red-500/10 hover:border-red-500/50 transition-all flex items-center gap-2"
+                    >
                         <LogOut size={18} /> LOGOUT
-                    </BrutalButton>
+                    </button>
                 </motion.div>
 
-                <BrutalCard className="mb-12">
-                    <h2 className="text-2xl font-black uppercase mb-4 text-neo-text">Create New Exam</h2>
-                    <div className="flex flex-col md:flex-row gap-4 items-end">
-                        <div className="flex-1 w-full">
-                            <BrutalInput
+                <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 mb-12 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+                    <h2 className="text-2xl font-bold mb-6 text-white flex items-center gap-3">
+                        <Plus className="text-indigo-400" /> Create New Exam
+                    </h2>
+                    <div className="flex flex-col md:flex-row gap-5 items-end">
+                        <div className="flex-1 w-full flex flex-col gap-2">
+                            <label className="text-sm font-semibold text-white/70 uppercase tracking-widest pl-1">Exam Title</label>
+                            <input
                                 type="text"
-                                label="Exam Title"
                                 value={newTitle}
                                 onChange={(e) => setNewTitle(e.target.value)}
                                 placeholder="e.g., Midterm Algorithms"
+                                className="w-full bg-black/20 border border-white/10 text-white px-5 py-4 rounded-xl outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all text-lg shadow-inner"
                             />
                         </div>
-                        <BrutalButton
-                            variant="primary"
-                            size="lg"
+                        <button
                             onClick={handleCreate}
-                            className="w-full md:w-auto h-[48px] flex items-center justify-center gap-2 mb-1"
+                            className="w-full md:w-auto h-[58px] px-8 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold transition-all shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2"
                         >
                             <Plus size={20} /> CREATE ROOM
-                        </BrutalButton>
+                        </button>
                     </div>
-                </BrutalCard>
+                </div>
 
                 <motion.h2
-                    className="text-3xl font-black mb-8 uppercase border-b-4 border-neo-border pb-2 inline-block text-neo-text"
-                    initial={{ opacity: 0, x: -10 }}
+                    className="text-3xl font-bold mb-8 flex items-center gap-3 text-white"
+                    initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3, duration: 0.4 }}
+                    transition={{ delay: 0.3, duration: 0.5 }}
                 >
-                    Active Exam Rooms
+                    <div className="w-2 h-8 bg-indigo-500 rounded-full" /> Active Exam Rooms
                 </motion.h2>
 
                 {loading ? (
-                    <div className="flex gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {[1, 2, 3].map(i => (
                             <motion.div
                                 key={i}
-                                className="flex-1 h-48 bg-neo-surface border-4 border-neo-border"
-                                animate={{ opacity: [0.4, 0.7, 0.4] }}
+                                className="h-56 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md"
+                                animate={{ opacity: [0.3, 0.6, 0.3] }}
                                 transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.15 }}
                             />
                         ))}
                     </div>
                 ) : exams.length === 0 ? (
-                    <BrutalCard className="text-center py-12">
-                        <div className="flex flex-col items-center gap-4">
+                    <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-16 text-center shadow-lg">
+                        <div className="flex flex-col items-center gap-6">
                             <motion.div
-                                className="w-16 h-16 bg-neo-surface border-4 border-neo-border flex items-center justify-center shadow-brutal-sm"
-                                animate={{ y: [-3, 3, -3] }}
-                                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                                className="w-20 h-20 bg-black/20 rounded-full border border-white/10 flex items-center justify-center shadow-inner"
+                                animate={{ y: [-5, 5, -5] }}
+                                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
                             >
-                                <Code2 size={32} className="text-neo-text-secondary" />
+                                <Code2 size={40} className="text-indigo-400" />
                             </motion.div>
-                            <h3 className="text-2xl font-black uppercase text-neo-text">No Exams Created Yet</h3>
-                            <p className="font-bold text-neo-text-secondary">Create an exam room to get started.</p>
+                            <div>
+                                <h3 className="text-2xl font-bold text-white mb-2">No Exams Created Yet</h3>
+                                <p className="text-white/50 text-lg">Create your first exam room above to get started.</p>
+                            </div>
                         </div>
-                    </BrutalCard>
+                    </div>
                 ) : (
                     <motion.div
-                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                         variants={staggerContainer}
                         initial="hidden"
                         animate="show"
                     >
-                        {exams.map((exam, index) => (
+                        {exams.map((exam) => (
                             <motion.div key={exam.id} variants={staggerItem}>
-                                <BrutalCard
-                                    hoverable
-                                    className="cursor-pointer flex flex-col h-full"
+                                <div
+                                    className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 shadow-xl cursor-pointer hover:bg-white/15 hover:border-white/30 transition-all hover:-translate-y-1 group flex flex-col h-full"
                                     onClick={() => navigate(`/exam/${exam.id}/monitor`)}
-                                    delay={index}
                                 >
-                                    <div className="flex justify-between items-start mb-6">
-                                        <h3 className="text-2xl font-black uppercase line-clamp-2 text-neo-text">{exam.title}</h3>
-                                        <div className="flex gap-2">
-                                            <motion.button
-                                                type="button"
-                                                className="bg-neo-surface p-2 border-2 border-neo-border shadow-brutal-sm hover:bg-red-500 group"
-                                                onClick={(e) => handleDeleteClick(exam.id, e)}
-                                                whileHover={{ scale: 1.05 }}
-                                                whileTap={{ scale: 0.95 }}
-                                            >
-                                                <Trash2 size={20} className="text-neo-text-secondary group-hover:text-white" />
-                                            </motion.button>
-                                            <motion.div
-                                                className="bg-neo-accent p-2 border-2 border-neo-border shadow-brutal-sm relative z-10"
-                                                whileHover={{ x: 3, transition: { duration: 0.2 } }}
-                                            >
-                                                <ChevronRight size={20} className="text-neo-accent-text" />
-                                            </motion.div>
-                                        </div>
+                                    <div className="flex justify-between items-start mb-8">
+                                        <h3 className="text-2xl font-bold text-white leading-tight group-hover:text-indigo-300 transition-colors line-clamp-2 pr-4">
+                                            {exam.title}
+                                        </h3>
+                                        <button
+                                            type="button"
+                                            className="bg-black/20 p-2 rounded-lg border border-white/10 text-white/50 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30 transition-all"
+                                            onClick={(e) => handleDeleteClick(exam.id, e)}
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
                                     </div>
-                                    <div className="space-y-4 font-bold text-sm mt-auto">
-                                        <p className="flex items-center gap-2 text-neo-text-secondary">
-                                            <div className="p-1 bg-neo-surface border-2 border-neo-border">
+                                    <div className="space-y-4 text-sm font-medium mt-auto">
+                                        <div className="flex items-center gap-3 text-white/70">
+                                            <div className="p-1.5 bg-black/20 rounded-md border border-white/10 text-indigo-300">
                                                 <Clock size={16} />
                                             </div>
-                                            {new Date(exam.startTime).toLocaleDateString()} {new Date(exam.startTime).toLocaleTimeString()}
-                                        </p>
+                                            {new Date(exam.startTime).toLocaleDateString()} at {new Date(exam.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                        </div>
                                         {exam.roomCode && (
-                                            <div className="flex items-center gap-2">
-                                                <span className="bg-neo-border text-neo-bg px-2 py-1 border-2 border-neo-border shadow-brutal-sm uppercase text-xs font-black tracking-wider">
+                                            <div className="flex items-center justify-between bg-black/30 rounded-lg border border-white/5 p-2">
+                                                <span className="font-mono text-indigo-300 tracking-wider font-bold">
                                                     {exam.roomCode}
                                                 </span>
                                                 <button
-                                                    className="bg-neo-surface p-1 border-2 border-neo-border hover:bg-neo-accent transition-colors"
-                                                    title="Copy exam code for students"
+                                                    className="p-1.5 rounded-md hover:bg-white/10 transition-colors text-white/50 hover:text-white"
+                                                    title="Copy exam code"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         navigator.clipboard.writeText(exam.roomCode!);
                                                     }}
                                                 >
-                                                    <Copy size={14} />
+                                                    <Copy size={16} />
                                                 </button>
                                             </div>
                                         )}
+                                        <div className="pt-4 border-t border-white/10 flex items-center text-indigo-400 font-semibold group-hover:gap-2 transition-all">
+                                            Monitor Exam <ChevronRight size={18} />
+                                        </div>
                                     </div>
-                                </BrutalCard>
+                                </div>
                             </motion.div>
                         ))}
                     </motion.div>
@@ -250,31 +250,34 @@ export default function AdminDashboard() {
 
             {/* Custom Delete Confirmation Modal */}
             {deleteModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        className="bg-neo-bg max-w-md w-full border-4 border-neo-border shadow-[8px_8px_0px_0px_var(--neo-shadow)]"
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        className="bg-[#1e1e2e] w-full max-w-md border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
                     >
-                        <div className="bg-neo-surface p-6">
-                            <h3 className="text-2xl font-black uppercase text-neo-text mb-4">Confirm Deletion</h3>
-                            <p className="text-neo-text-secondary font-bold mb-8">
-                                Are you sure you want to delete this exam room? This action cannot be undone and will delete all associated logs.
+                        <div className="p-8">
+                            <h3 className="text-2xl font-bold text-white mb-3">Delete Exam?</h3>
+                            <p className="text-white/60 mb-8 leading-relaxed">
+                                Are you sure you want to delete this exam room? This action cannot be undone and will delete all associated student logs and sessions.
                             </p>
-                            <div className="flex justify-end gap-4">
-                                <BrutalButton
-                                    variant="secondary"
+                            <div className="flex justify-end gap-3 flex-col sm:flex-row">
+                                <button
                                     onClick={() => {
                                         setDeleteModalOpen(false);
                                         setExamToDelete(null);
                                     }}
+                                    className="px-6 py-2.5 rounded-xl border border-white/10 text-white/70 hover:bg-white/5 hover:text-white font-medium transition-colors"
                                 >
-                                    CANCEL
-                                </BrutalButton>
-                                <BrutalButton variant="danger" onClick={confirmDelete}>
-                                    DELETE
-                                </BrutalButton>
+                                    Cancel
+                                </button>
+                                <button 
+                                    onClick={confirmDelete}
+                                    className="px-6 py-2.5 rounded-xl bg-red-500/20 border border-red-500/50 text-red-400 hover:bg-red-500 hover:text-white font-medium transition-all"
+                                >
+                                    Delete Exam
+                                </button>
                             </div>
                         </div>
                     </motion.div>
@@ -283,22 +286,27 @@ export default function AdminDashboard() {
 
             {/* Custom Alert Modal */}
             {alertModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        className="bg-neo-bg max-w-md w-full border-4 border-neo-border shadow-[8px_8px_0px_0px_var(--neo-shadow)]"
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        className="bg-[#1e1e2e] w-full max-w-md border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
                     >
-                        <div className="bg-neo-surface p-6">
-                            <h3 className="text-2xl font-black uppercase text-neo-text mb-4 text-red-500">Notice</h3>
-                            <p className="text-neo-text-secondary font-bold mb-8">
+                        <div className="p-8">
+                            <h3 className="text-xl font-bold text-red-400 flex items-center gap-2 mb-3">
+                                Notice
+                            </h3>
+                            <p className="text-white/80 font-medium mb-8 leading-relaxed">
                                 {alertMessage}
                             </p>
-                            <div className="flex justify-end gap-4">
-                                <BrutalButton variant="primary" onClick={() => setAlertModalOpen(false)}>
-                                    DISMISS
-                                </BrutalButton>
+                            <div className="flex justify-end">
+                                <button 
+                                    onClick={() => setAlertModalOpen(false)}
+                                    className="px-6 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-medium transition-colors shadow-lg shadow-indigo-500/20"
+                                >
+                                    Dismiss
+                                </button>
                             </div>
                         </div>
                     </motion.div>

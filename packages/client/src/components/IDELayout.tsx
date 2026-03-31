@@ -29,7 +29,7 @@ import Terminal from './Terminal';
 import GitPanel from './GitPanel';
 import ExtensionPanel from './ExtensionPanel';
 import UserPresence from './UserPresence';
-import { getFileTree, readFile, saveFile, initWorkspace, createFile as apiCreateFile, moveFile as apiMoveFile, deleteFile as apiDeleteFile, getSession, saveSession, createSession, getExtensions, uploadZip, uploadFolder, joinExam, downloadWorkspace, resolveExamRoom, type SessionInfo, type ExtensionInfo, type ExamRoom } from '../api';
+import { getFileTree, readFile, saveFile, initWorkspace, createFile as apiCreateFile, moveFile as apiMoveFile, deleteFile as apiDeleteFile, getSession, saveSession, createSession, getExtensions, uploadZip, uploadFolder, joinExam, downloadWorkspace, resolveExamRoom, sendTabSwitch, sendFullscreenExit, sendExamAlert, getMyExamSession, type SessionInfo, type ExtensionInfo, type ExamRoom } from '../api';
 import '../ide.css';
 
 type SidebarPanel = 'explorer' | 'search' | 'git' | 'users' | 'extensions';
@@ -136,6 +136,130 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             joinExam(resolvedExamId).catch(err => console.error('Failed to log join event:', err));
         }
     }, [isExamMode, resolvedExamId]);
+
+    // Anti-cheat restrictions (copy-paste + tab-switch + fullscreen)
+    useEffect(() => {
+        if (!isExamMode || !resolvedExamId || roomBlocked) return;
+
+        let hasAlertedExit = false;
+
+        // ── Fullscreen enforcement ──
+        const enterFullscreen = () => {
+            if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log("Could not auto-enter fullscreen:", err.message);
+                });
+            }
+        };
+
+        const handleVisibilityChange = async () => {
+            if (document.visibilityState === 'hidden') {
+                try {
+                    const data = await sendTabSwitch(resolvedExamId);
+                    if (data.session && data.session.isBlocked) {
+                        setRoomBlocked(true);
+                        setRoomBlockReason('You have been blocked from the exam for exceeding the maximum allowed tab switches (3).');
+                    } else if (data.session) {
+                        // Non-blocking warning — modern, no alert()
+                        console.warn(`[Exam] Tab switch ${data.session.tabSwitchCount}/3`);
+                    }
+                } catch (e) {
+                    console.error('Error logging tab switch', e);
+                }
+            }
+        };
+
+        const handleFullscreenChange = async () => {
+            if (!document.fullscreenElement) {
+                if (!hasAlertedExit) {
+                    hasAlertedExit = true;
+                }
+                try {
+                    await sendFullscreenExit(resolvedExamId);
+                } catch (e) {
+                    console.error('Error logging fullscreen exit', e);
+                }
+            } else {
+                hasAlertedExit = false;
+            }
+        };
+
+        // ── Copy enforcement: log if > 20 chars ──
+        const handleCopy = async (e: ClipboardEvent) => {
+            const selected = window.getSelection()?.toString() || '';
+            const length = selected.length;
+            if (length > 20) {
+                try {
+                    await sendExamAlert(resolvedExamId, length, selected.substring(0, 200));
+                    console.warn(`[Exam] Suspicious copy: ${length} chars logged`);
+                } catch (err) {
+                    console.error('Failed to log copy event', err);
+                }
+            }
+            // Copies > 50 chars are also blocked
+            if (length > 50) {
+                e.preventDefault();
+                e.clipboardData?.setData('text/plain', '');
+                console.warn('[Exam] Copy blocked: content exceeds 50 chars');
+            }
+        };
+
+        // ── Paste enforcement: block if > 50 chars, log if > 20 chars ──
+        const handlePaste = async (e: ClipboardEvent) => {
+            const pastedText = e.clipboardData?.getData('text/plain') || '';
+            const length = pastedText.length;
+
+            if (length > 50) {
+                e.preventDefault();
+                try {
+                    await sendExamAlert(resolvedExamId, length, pastedText.substring(0, 200));
+                    console.warn(`[Exam] Paste BLOCKED: ${length} chars`);
+                } catch (err) {
+                    console.error('Failed to log paste block', err);
+                }
+                return;
+            }
+
+            if (length > 20) {
+                try {
+                    await sendExamAlert(resolvedExamId, length, pastedText.substring(0, 200));
+                    console.warn(`[Exam] Paste logged: ${length} chars`);
+                } catch (err) {
+                    console.error('Failed to log paste', err);
+                }
+            }
+        };
+
+        // Check if currently blocked
+        getMyExamSession(resolvedExamId)
+            .then(data => {
+                if (data && data.isBlocked) {
+                    setRoomBlocked(true);
+                    setRoomBlockReason(data.blockedReason || 'You are blocked from this exam.');
+                }
+            })
+            .catch(console.error);
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('copy', handleCopy as unknown as EventListener);
+        document.addEventListener('paste', handlePaste as unknown as EventListener);
+
+        // Sometimes browsers require interaction to go fullscreen
+        document.body.addEventListener('click', enterFullscreen, { once: true });
+
+        // Attempt right away
+        enterFullscreen();
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            document.removeEventListener('copy', handleCopy as unknown as EventListener);
+            document.removeEventListener('paste', handlePaste as unknown as EventListener);
+            document.body.removeEventListener('click', enterFullscreen);
+        };
+    }, [isExamMode, resolvedExamId, roomBlocked]);
+
 
     // ── Room Type Validation Guard ──
     useEffect(() => {
@@ -637,38 +761,67 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
 
     const collabRoomId = roomId;
 
-    // ── Room type mismatch blocker ──
+    // ── Room type mismatch / exam block screen ──
     if (roomBlocked) {
         return (
-            <div style={{
-                width: '100%', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: '#1a1a2e', color: '#e94560', fontFamily: 'monospace', flexDirection: 'column', gap: 16, padding: 32,
-            }}>
-                <div style={{ fontSize: 48, fontWeight: 900 }}>⛔ ACCESS DENIED</div>
-                <div style={{ fontSize: 18, color: '#eee', maxWidth: 500, textAlign: 'center' }}>
-                    {roomBlockReason}
-                </div>
-                <button
-                    onClick={() => navigate('/')}
-                    style={{
-                        marginTop: 24, padding: '12px 32px', fontSize: 16, fontWeight: 800,
-                        background: '#e94560', color: '#fff', border: 'none', cursor: 'pointer',
-                        textTransform: 'uppercase', letterSpacing: 2,
-                    }}
+            <div
+                className="w-full h-screen flex items-center justify-center p-8 relative overflow-hidden"
+                style={{ background: 'linear-gradient(135deg, #090d1f 0%, #1a1a2e 50%, #090d1f 100%)' }}
+            >
+                {/* Background glows */}
+                <div className="absolute top-[-15%] left-[-10%] w-[40%] h-[40%] bg-red-500/10 blur-[120px] rounded-full pointer-events-none" />
+                <div className="absolute bottom-[-15%] right-[-10%] w-[40%] h-[40%] bg-orange-500/10 blur-[120px] rounded-full pointer-events-none" />
+
+                <motion.div
+                    className="max-w-lg w-full bg-white/5 backdrop-blur-xl border border-red-500/30 rounded-3xl p-10 text-center shadow-[0_8px_64px_rgba(239,68,68,0.15)]"
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
                 >
-                    Back to Hub
-                </button>
+                    <motion.div
+                        className="text-6xl mb-6"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+                    >
+                        ⛔
+                    </motion.div>
+                    <h1 className="text-3xl font-black text-red-400 mb-4 tracking-tight">Access Denied</h1>
+                    <p className="text-white/70 text-base leading-relaxed mb-8 font-medium">
+                        {roomBlockReason}
+                    </p>
+                    <button
+                        onClick={() => navigate('/')}
+                        className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white font-bold text-base tracking-wide transition-all shadow-lg shadow-red-500/25"
+                    >
+                        Return to Hub
+                    </button>
+                </motion.div>
             </div>
         );
     }
 
     return (
-        <div className="editor-root" data-theme="dark" style={{ width: '100%', height: '100%' }}>
+        <div className="editor-root" data-theme="dark" style={{ width: '100%', height: '100%', position: 'relative' }}>
 
-            {/* Header for Exam Time Left */}
+            {/* Exam timer bar */}
             {isExamMode && timeLeft && (
-                <div style={{ backgroundColor: 'rgb(220, 38, 38)', color: 'white', fontWeight: 'bold', textAlign: 'center', padding: '6px' }}>
-                    Time Left: {timeLeft}
+                <div style={{
+                    background: 'linear-gradient(90deg, #dc2626, #b91c1c)',
+                    color: 'white',
+                    fontWeight: '700',
+                    textAlign: 'center',
+                    padding: '5px 16px',
+                    fontSize: '13px',
+                    letterSpacing: '0.5px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                }}>
+                    <span style={{ opacity: 0.8 }}>🔒 EXAM IN PROGRESS</span>
+                    <span style={{ opacity: 0.5 }}>|</span>
+                    <span>Time Remaining: {timeLeft}</span>
                 </div>
             )}
 

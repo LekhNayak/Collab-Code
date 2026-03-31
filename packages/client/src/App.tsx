@@ -5,6 +5,7 @@ import IDELayout from './components/IDELayout';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminMonitor from './pages/AdminMonitor';
 import Hub from './pages/Hub';
+import CollabAdmin from './pages/CollabAdmin';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 const AuthCallback: React.FC = () => {
@@ -53,6 +54,10 @@ function App() {
           <Route
             path="/e/:roomId"
             element={<PrivateRoute><IDELayout isExamMode /></PrivateRoute>}
+          />
+          <Route
+            path="/collab-admin/:roomId"
+            element={<PrivateRoute><CollabAdmin /></PrivateRoute>}
           />
         </Routes>
       </Router>

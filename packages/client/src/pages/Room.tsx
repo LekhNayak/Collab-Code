@@ -1,11 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, LogIn, Copy, Users, Code2, Clock, Puzzle, Trash2, ArrowRight } from 'lucide-react';
+import { Plus, LogIn, Copy, Users, Code2, Clock, Puzzle, Trash2, ArrowRight, ArrowLeft, CheckCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getSessions, createSession, deleteSession, type SessionInfo } from '../api';
-import BrutalButton from '../components/ui/BrutalButton';
-import BrutalInput from '../components/ui/BrutalInput';
-import ThemeToggle from '../components/ThemeToggle';
+import LiquidEther from '../components/ui/LiquidEther';
+
+const staggerContainer = {
+    hidden: { opacity: 0 },
+    show: {
+        opacity: 1,
+        transition: { staggerChildren: 0.1, delayChildren: 0.15 }
+    }
+};
+
+const staggerItem = {
+    hidden: { opacity: 0, y: 16 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.34, 1.56, 0.64, 1] as const } }
+};
 
 function generateRoomId(): string {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -29,7 +40,6 @@ export default function RoomPage() {
     const [sessionName, setSessionName] = useState('');
     const [showSessions, setShowSessions] = useState(true);
 
-    // Load saved sessions
     useEffect(() => {
         getSessions().then(setSessions).catch(console.error);
     }, []);
@@ -42,7 +52,6 @@ export default function RoomPage() {
         localStorage.setItem('collab-username', username.trim());
         const roomId = generateRoomId();
 
-        // Create a session for this room
         const name = sessionName.trim() || `Session ${new Date().toLocaleDateString()}`;
         try {
             await createSession(name, roomId, roomId, username.trim());
@@ -72,7 +81,6 @@ export default function RoomPage() {
             return;
         }
 
-        // Auto-prepend CR- if they just typed the random code
         if (!targetId.startsWith('CR-')) {
             targetId = `CR-${targetId}`;
         }
@@ -89,7 +97,7 @@ export default function RoomPage() {
         const link = `${window.location.origin}/room/${createdRoomId}`;
         navigator.clipboard.writeText(link);
         setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        setTimeout(() => setCopied(false), 2500);
     };
 
     const handleResumeSession = (session: SessionInfo) => {
@@ -122,257 +130,242 @@ export default function RoomPage() {
     };
 
     return (
-        <div className="min-h-screen bg-neo-bg text-neo-text flex flex-col items-center py-12 px-6 font-sans relative overflow-hidden">
-            {/* Background shapes */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <motion.div
-                    className="absolute w-28 h-28 border-4 border-neo-border opacity-[0.04]"
-                    style={{ top: '8%', right: '12%' }}
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 35, repeat: Infinity, ease: 'linear' }}
-                />
-                <motion.div
-                    className="absolute w-16 h-16 bg-neo-accent opacity-[0.06]"
-                    style={{ bottom: '10%', left: '8%' }}
-                    animate={{ y: [-10, 10, -10] }}
-                    transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-                />
+        <div className="min-h-[100dvh] bg-black text-white flex flex-col items-center justify-center p-4 md:p-8 font-sans relative overflow-x-hidden overflow-y-auto">
+            <LiquidEther className="absolute inset-0 z-0 opacity-100" />
+
+            {/* Back button */}
+            <div className="absolute top-6 left-6 z-20">
+                <button
+                    onClick={() => navigate('/')}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 text-white hover:bg-white/10 hover:border-white/20 transition-all font-semibold shadow-sm group"
+                >
+                    <ArrowLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
+                    Back to Hub
+                </button>
             </div>
 
-            <div className="absolute top-6 right-6 flex gap-4 z-20">
-                <BrutalButton variant="secondary" size="sm" onClick={() => navigate('/')}>
-                    BACK TO HUB
-                </BrutalButton>
-                <ThemeToggle />
-            </div>
-
-            <motion.div
-                className="w-full max-w-2xl bg-neo-surface border-4 border-neo-border shadow-brutal p-8 relative z-10"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
-            >
+            <div className="max-w-3xl w-full relative z-10 flex flex-col gap-8 mt-12 md:mt-4">
                 {/* Header */}
-                <div className="flex flex-col items-center mb-8 border-b-4 border-neo-border pb-8">
+                <motion.div
+                    className="text-center"
+                    initial={{ opacity: 0, y: -16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.55, ease: [0.34, 1.56, 0.64, 1] }}
+                >
                     <motion.div
-                        className="w-20 h-20 bg-neo-accent border-4 border-neo-border flex items-center justify-center shadow-brutal mb-4"
-                        initial={{ scale: 0, rotate: -10 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ delay: 0.2, duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+                        className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-[0_0_40px_rgba(99,102,241,0.35)] mx-auto mb-5"
+                        initial={{ scale: 0.5, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ delay: 0.1, duration: 0.5, type: 'spring', stiffness: 200 }}
                     >
-                        <Code2 size={40} className="text-neo-accent-text" />
+                        <Code2 size={32} className="text-white" />
                     </motion.div>
-                    <h1 className="text-4xl font-black uppercase tracking-tighter mb-2 text-center text-neo-text">Colab Code Editor</h1>
-                    <p className="font-bold text-lg uppercase text-neo-text-secondary">Real-time collaborative coding</p>
-                </div>
+                    <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white mb-3">
+                        Collaboration Hub
+                    </h1>
+                    <p className="font-medium text-white/50 text-base">
+                        Real-time collaborative coding workspace
+                    </p>
+                </motion.div>
 
-                {/* Username */}
-                <div className="mb-8">
-                    <BrutalInput
-                        label="DISPLAY NAME"
-                        type="text"
-                        placeholder="Enter your name..."
-                        value={username}
-                        onChange={(e) => {
-                            setUsername(e.target.value);
-                            setError('');
-                        }}
-                        onKeyDown={(e) => e.key === 'Enter' && handleCreateRoom()}
-                    />
-                </div>
-
-                <AnimatePresence>
-                    {error && (
+                <AnimatePresence mode="wait">
+                    {createdRoomId ? (
+                        /* ── Room Created Card ── */
                         <motion.div
-                            initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                            animate={{ opacity: 1, height: 'auto', marginBottom: 32 }}
-                            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                            className="bg-neo-error text-white font-bold border-2 border-neo-border p-4 text-center shadow-brutal-sm overflow-hidden"
+                            key="created"
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                            transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+                            className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[32px] p-8 shadow-2xl text-center"
                         >
-                            {error}
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
-                {/* Created Room Card */}
-                <AnimatePresence>
-                    {createdRoomId && (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-neo-accent border-4 border-neo-border p-6 shadow-brutal mb-8 flex flex-col items-center text-center"
-                        >
-                            <div className="flex items-center gap-2 font-black text-xl mb-4 text-neo-accent-text">
-                                <Users size={24} />
-                                <span>ROOM CREATED!</span>
+                            <div className="w-14 h-14 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-[0_0_30px_rgba(16,185,129,0.5)]">
+                                <Users size={28} className="text-white" />
                             </div>
-                            <div className="flex items-center justify-center gap-4 bg-neo-surface border-4 border-neo-border p-4 w-full mb-4 shadow-brutal-sm">
-                                <code className="text-xl font-bold text-neo-text">{createdRoomId}</code>
-                                <BrutalButton size="sm" onClick={handleCopyLink} title="Copy invite link" className="flex-shrink-0">
-                                    <Copy size={16} />
-                                    {copied ? 'COPIED!' : 'COPY LINK'}
-                                </BrutalButton>
-                            </div>
-                            <p className="font-bold mb-6 text-neo-accent-text">
-                                SHARE THIS LINK WITH OTHERS TO COLLABORATE
-                            </p>
-                            <BrutalButton variant="primary" size="lg" className="w-full text-xl" onClick={handleEnterRoom}>
-                                <LogIn size={24} />
-                                ENTER ROOM
-                            </BrutalButton>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                            <h2 className="text-2xl font-bold mb-2 text-white">Room Created!</h2>
+                            <p className="text-white/60 mb-6 text-sm font-medium">Share this code or link with your collaborators</p>
 
-                {/* Actions */}
-                {!createdRoomId && (
-                    <div className="flex flex-col gap-8 w-full">
-                        {/* Collaboration Section */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <motion.div
-                                className="flex flex-col gap-4"
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.3, duration: 0.4 }}
-                            >
-                                <div>
-                                    <h3 className="font-black text-xl mb-1 uppercase text-neo-text">Create a Session</h3>
-                                    <p className="font-semibold text-sm text-neo-text-secondary">Start a new collaboration session.</p>
-                                </div>
-                                <BrutalInput
-                                    type="text"
-                                    placeholder="Session name (optional)..."
-                                    value={sessionName}
-                                    onChange={(e) => setSessionName(e.target.value)}
-                                />
-                                <BrutalButton variant="primary" onClick={handleCreateRoom} className="mt-auto">
-                                    <Plus size={20} />
-                                    CREATE SESSION
-                                </BrutalButton>
-                            </motion.div>
-
-                            <motion.div
-                                className="flex flex-col gap-4"
-                                initial={{ opacity: 0, x: 10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.4, duration: 0.4 }}
-                            >
-                                <div>
-                                    <h3 className="font-black text-xl mb-1 uppercase text-neo-text">Join a Room</h3>
-                                    <p className="font-semibold text-sm text-neo-text-secondary">Enter a room ID from a friend.</p>
-                                </div>
-                                <BrutalInput
-                                    type="text"
-                                    placeholder="Enter room ID..."
-                                    value={joinRoomId}
-                                    onChange={(e) => {
-                                        setJoinRoomId(e.target.value);
-                                        setError('');
-                                    }}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
-                                />
-                                <BrutalButton variant="secondary" onClick={handleJoinRoom} disabled={!joinRoomId.trim()} className="mt-auto">
-                                    <LogIn size={20} />
-                                    JOIN ROOM
-                                </BrutalButton>
-                            </motion.div>
-                        </div>
-
-                        {/* Saved Sessions */}
-                        {sessions.length > 0 && !createdRoomId && (
-                            <motion.div
-                                className="mt-8"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.5, duration: 0.4 }}
-                            >
-                                <motion.div
-                                    className="flex items-center justify-between bg-neo-border text-neo-bg px-4 py-3 cursor-pointer select-none border-4 border-neo-border"
-                                    onClick={() => setShowSessions(!showSessions)}
-                                    whileTap={{ scale: 0.99 }}
+                            <div className="bg-black/30 border border-white/5 rounded-2xl p-4 mb-6 flex items-center justify-between gap-4">
+                                <code className="text-xl font-bold font-mono text-indigo-300 tracking-widest">{createdRoomId}</code>
+                                <button
+                                    onClick={handleCopyLink}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-white font-semibold transition-all shadow-sm"
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <Clock size={20} />
-                                        <h3 className="font-black text-lg uppercase tracking-wide">Previous Sessions</h3>
-                                    </div>
+                                    {copied ? <CheckCheck size={16} className="text-emerald-400" /> : <Copy size={16} />}
+                                    {copied ? 'Copied!' : 'Copy Link'}
+                                </button>
+                            </div>
+
+                            <button
+                                onClick={handleEnterRoom}
+                                className="w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold text-lg tracking-wide shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-3 transition-all"
+                            >
+                                <LogIn size={22} /> Enter Room
+                            </button>
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            key="actions"
+                            variants={staggerContainer}
+                            initial="hidden"
+                            animate="show"
+                            exit={{ opacity: 0, y: -16, transition: { duration: 0.2 } }}
+                            className="flex flex-col gap-6"
+                        >
+                            {/* Username field */}
+                            <motion.div variants={staggerItem} className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-2xl">
+                                <label className="block text-xs font-bold text-white uppercase tracking-widest mb-3 pl-2">Display Name</label>
+                                <input
+                                    type="text"
+                                    value={username}
+                                    onChange={e => { setUsername(e.target.value); setError(''); }}
+                                    placeholder="Enter your name..."
+                                    className="w-full bg-black/20 border border-white/5 text-white px-5 py-4 rounded-xl outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-base placeholder:text-white/30 shadow-inner"
+                                />
+                            </motion.div>
+
+                            {/* Error */}
+                            <AnimatePresence>
+                                {error && (
                                     <motion.div
-                                        className="bg-neo-bg text-neo-border font-black px-3 py-1 rounded-full text-sm border-2 border-neo-border"
-                                        animate={{ rotate: showSessions ? 0 : 180 }}
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="bg-red-500/20 border border-red-500/30 text-red-200 rounded-xl px-5 py-4 text-sm font-bold text-center shadow-lg"
                                     >
-                                        {sessions.length}
+                                        {error}
                                     </motion.div>
+                                )}
+                            </AnimatePresence>
+
+                            {/* Create / Join grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                {/* Create Session */}
+                                <motion.div variants={staggerItem} className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col gap-5">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-md">
+                                            <Plus size={24} className="text-white" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-white text-xl leading-tight">Create Session</h3>
+                                            <p className="text-white/50 text-sm font-medium">Start a new room</p>
+                                        </div>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        placeholder="Session name (optional)..."
+                                        value={sessionName}
+                                        onChange={e => setSessionName(e.target.value)}
+                                        className="w-full bg-black/20 border border-white/5 text-white px-5 py-3.5 rounded-xl outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all text-sm font-medium placeholder:text-white/30 shadow-inner"
+                                    />
+                                    <button
+                                        onClick={handleCreateRoom}
+                                        className="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold tracking-wide shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 transition-all mt-1"
+                                    >
+                                        <Plus size={18} strokeWidth={2.5}/> Create Session
+                                    </button>
                                 </motion.div>
 
-                                <AnimatePresence>
-                                    {showSessions && (
-                                        <motion.div
-                                            initial={{ opacity: 0, height: 0 }}
-                                            animate={{ opacity: 1, height: 'auto' }}
-                                            exit={{ opacity: 0, height: 0 }}
-                                            transition={{ duration: 0.3 }}
-                                            className="overflow-hidden"
-                                        >
-                                            <div className="flex flex-col gap-4 mt-6">
+                                {/* Join Room */}
+                                <motion.div variants={staggerItem} className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col gap-5">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-md">
+                                            <LogIn size={22} className="text-white" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-white text-xl leading-tight">Join Room</h3>
+                                            <p className="text-white/50 text-sm font-medium">Enter a friend's room ID</p>
+                                        </div>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter room ID (CR-...)..."
+                                        value={joinRoomId}
+                                        onChange={e => { setJoinRoomId(e.target.value); setError(''); }}
+                                        onKeyDown={e => e.key === 'Enter' && handleJoinRoom()}
+                                        className="w-full bg-black/20 border border-white/5 text-white px-5 py-3.5 rounded-xl outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 transition-all text-sm font-medium font-mono uppercase placeholder:text-white/30 placeholder:normal-case shadow-inner"
+                                    />
+                                    <button
+                                        onClick={handleJoinRoom}
+                                        disabled={!joinRoomId.trim()}
+                                        className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold tracking-wide shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-1"
+                                    >
+                                        <LogIn size={18} strokeWidth={2.5}/> Join Room
+                                    </button>
+                                </motion.div>
+                            </div>
+
+                            {/* Previous Sessions */}
+                            {sessions.length > 0 && (
+                                <motion.div variants={staggerItem} className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-2xl mt-2">
+                                    <button
+                                        className="w-full flex items-center justify-between mb-4 group"
+                                        onClick={() => setShowSessions(!showSessions)}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Clock size={20} className="text-indigo-300" />
+                                            <h3 className="font-bold text-white text-lg">Previous Sessions</h3>
+                                        </div>
+                                        <span className="text-sm font-bold text-white/80 bg-white/10 px-4 py-1.5 rounded-full shadow-sm border border-white/5">
+                                            {sessions.length}
+                                        </span>
+                                    </button>
+
+                                    <AnimatePresence>
+                                        {showSessions && (
+                                            <motion.div
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: 'auto' }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                transition={{ duration: 0.3 }}
+                                                className="overflow-hidden flex flex-col gap-3"
+                                            >
                                                 {sessions.map((session, index) => (
                                                     <motion.div
                                                         key={session.id}
-                                                        className="bg-neo-surface border-4 border-neo-border p-4 shadow-brutal-sm flex justify-between items-center cursor-pointer"
                                                         initial={{ opacity: 0, x: -10 }}
                                                         animate={{ opacity: 1, x: 0 }}
                                                         transition={{ delay: index * 0.05, duration: 0.3 }}
-                                                        whileHover={{
-                                                            x: -4,
-                                                            y: -4,
-                                                            boxShadow: '8px 8px 0px 0px var(--neo-shadow)',
-                                                            transition: { duration: 0.15 }
-                                                        }}
-                                                        whileTap={{
-                                                            x: 2,
-                                                            y: 2,
-                                                            boxShadow: '0px 0px 0px 0px var(--neo-shadow)',
-                                                        }}
+                                                        className="bg-black/30 border border-white/5 rounded-[20px] p-4 flex justify-between items-center cursor-pointer hover:bg-white/10 transition-all group shadow-sm"
                                                         onClick={() => handleResumeSession(session)}
                                                     >
-                                                        <div className="flex flex-col gap-1">
-                                                            <div className="font-black text-lg text-neo-text">{session.name}</div>
-                                                            <div className="flex items-center gap-4 text-sm font-bold text-neo-text-secondary">
-                                                                <span className="flex items-center gap-1">
-                                                                    <Clock size={14} /> {formatDate(session.updatedAt)}
+                                                        <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                                                            <div className="font-bold text-white truncate text-[15px]">{session.name}</div>
+                                                            <div className="flex items-center gap-4 text-[11px] font-semibold text-white/50 uppercase tracking-wide">
+                                                                <span className="flex items-center gap-1.5">
+                                                                    <Clock size={12} strokeWidth={2.5} /> {formatDate(session.updatedAt)}
                                                                 </span>
-                                                                <span className="flex items-center gap-1">
-                                                                    <Puzzle size={14} /> {session.extensions.length} ext
+                                                                <span className="flex items-center gap-1.5">
+                                                                    <Puzzle size={12} strokeWidth={2.5} /> {session.extensions.length} ext
                                                                 </span>
-                                                                <span className="flex items-center gap-1">
-                                                                    <Code2 size={14} /> {session.openTabs.length} files
+                                                                <span className="flex items-center gap-1.5">
+                                                                    <Code2 size={12} strokeWidth={2.5} /> {session.openTabs.length} files
                                                                 </span>
                                                             </div>
                                                         </div>
-                                                        <div className="flex items-center gap-3">
-                                                            <BrutalButton
-                                                                variant="danger"
-                                                                size="sm"
-                                                                onClick={(e) => handleDeleteSession(session.id, e)}
+                                                        <div className="flex items-center gap-2 ml-3">
+                                                            <button
+                                                                onClick={e => handleDeleteSession(session.id, e)}
+                                                                className="p-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 hover:border-red-500/30 border border-white/5 text-white/50 hover:text-red-400 font-bold transition-all shadow-sm"
                                                                 title="Delete session"
-                                                                className="px-2 py-2"
                                                             >
-                                                                <Trash2 size={18} />
-                                                            </BrutalButton>
-                                                            <div className="bg-neo-border text-neo-bg p-2 flex items-center justify-center">
-                                                                <ArrowRight size={20} />
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                            <div className="p-2.5 rounded-xl bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 group-hover:bg-indigo-500/30 transition-all shadow-md">
+                                                                <ArrowRight size={16} strokeWidth={2.5} />
                                                             </div>
                                                         </div>
                                                     </motion.div>
                                                 ))}
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </motion.div>
-                        )}
-                    </div>
-                )}
-            </motion.div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </motion.div>
+                            )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
         </div>
     );
 }

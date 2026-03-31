@@ -281,6 +281,160 @@ router.post('/:id/alert', async (req: Request, res: Response) => {
     }
 });
 
+// POST /exam/:id/tab-switch -> Tab switch detected
+router.post('/:id/tab-switch', async (req: Request, res: Response) => {
+    try {
+        const examId = req.params.id;
+        const userId = (req.user as any).id;
+        
+        // Log the event
+        const log = await prisma.examLog.create({
+            data: {
+                examId,
+                userId,
+                eventType: 'TAB_SWITCH',
+                details: JSON.stringify({ message: 'User switched tabs' }),
+            },
+        });
+        
+        // Update session
+        let session = await prisma.examSession.findFirst({
+            where: { examId, userId, status: 'ACTIVE' }
+        });
+        
+        if (session) {
+            const newCount = session.tabSwitchCount + 1;
+            const shouldBlock = newCount >= 3;
+            
+            session = await prisma.examSession.update({
+                where: { id: session.id },
+                data: {
+                    tabSwitchCount: newCount,
+                    isBlocked: shouldBlock ? true : session.isBlocked,
+                    blockedAt: shouldBlock && !session.isBlocked ? new Date() : session.blockedAt,
+                    blockedReason: shouldBlock && !session.isBlocked ? 'Exceeded maximum tab switches' : session.blockedReason
+                }
+            });
+        }
+        res.status(201).json({ log, session });
+    } catch (err: any) {
+        res.status(500).json({ error: 'Failed to save tab-switch log', details: err.message });
+    }
+});
+
+// POST /exam/:id/fullscreen-exit -> Fullscreen exit detected
+router.post('/:id/fullscreen-exit', async (req: Request, res: Response) => {
+    try {
+        const examId = req.params.id;
+        const userId = (req.user as any).id;
+        
+        const log = await prisma.examLog.create({
+            data: {
+                examId,
+                userId,
+                eventType: 'FULLSCREEN_EXIT',
+                details: JSON.stringify({ message: 'User exited fullscreen mode' }),
+            },
+        });
+        res.status(201).json({ log });
+    } catch (err: any) {
+        res.status(500).json({ error: 'Failed to save fullscreen-exit log', details: err.message });
+    }
+});
+
+// GET /exam/:id/my-session -> Get current student's session
+router.get('/:id/my-session', async (req: Request, res: Response) => {
+    try {
+        const session = await prisma.examSession.findFirst({
+            where: { examId: req.params.id, userId: (req.user as any).id }
+        });
+        res.status(200).json(session || { isBlocked: false });
+    } catch (err: any) {
+        res.status(500).json({ error: 'Failed to fetch session', details: err.message });
+    }
+});
+
+// POST /exam/:id/block -> ADMIN only
+router.post('/:id/block', requireRole('ADMIN'), async (req: Request, res: Response) => {
+    try {
+        const { userId, reason } = req.body;
+        const session = await prisma.examSession.findFirst({
+            where: { examId: req.params.id, userId }
+        });
+        if (!session) return res.status(404).json({ error: 'Session not found for user' });
+        
+        const updated = await prisma.examSession.update({
+            where: { id: session.id },
+            data: {
+                isBlocked: true,
+                blockedAt: new Date(),
+                blockedReason: reason || 'Blocked by admin'
+            }
+        });
+        res.status(200).json(updated);
+    } catch (err: any) {
+        res.status(500).json({ error: 'Failed to block student', details: err.message });
+    }
+});
+
+// POST /exam/:id/unblock -> ADMIN only
+router.post('/:id/unblock', requireRole('ADMIN'), async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.body;
+        const session = await prisma.examSession.findFirst({
+            where: { examId: req.params.id, userId }
+        });
+        if (!session) return res.status(404).json({ error: 'Session not found for user' });
+        
+        const updated = await prisma.examSession.update({
+            where: { id: session.id },
+            data: {
+                isBlocked: false,
+                blockedAt: null,
+                blockedReason: null,
+                tabSwitchCount: 0 // Resetting count so they don't get blocked immediately again
+            }
+        });
+        res.status(200).json(updated);
+    } catch (err: any) {
+        res.status(500).json({ error: 'Failed to unblock student', details: err.message });
+    }
+});
+
+// POST /exam/:id/remove-student -> ADMIN only — removes a student from the exam
+router.post('/:id/remove-student', requireRole('ADMIN'), async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.body;
+        const session = await prisma.examSession.findFirst({
+            where: { examId: req.params.id, userId }
+        });
+        if (!session) return res.status(404).json({ error: 'Session not found for user' });
+
+        const updated = await prisma.examSession.update({
+            where: { id: session.id },
+            data: {
+                status: 'REMOVED',
+                isBlocked: true,
+                blockedAt: new Date(),
+                blockedReason: 'Removed from exam by admin'
+            }
+        });
+
+        await prisma.examLog.create({
+            data: {
+                examId: req.params.id,
+                userId,
+                eventType: 'SUSPICIOUS_BEHAVIOR',
+                details: JSON.stringify({ message: 'Student removed from exam by admin' }),
+            }
+        });
+
+        res.status(200).json(updated);
+    } catch (err: any) {
+        res.status(500).json({ error: 'Failed to remove student', details: err.message });
+    }
+});
+
 // DELETE /exam/:id -> Delete an Exam (Admin)
 router.delete('/:id', requireRole('ADMIN'), async (req: Request, res: Response) => {
     try {

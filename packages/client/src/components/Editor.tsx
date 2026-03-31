@@ -81,23 +81,48 @@ export default function CodeEditor({
         };
     }, [roomId]);
 
+    // Exam mode copy/paste restrictions
+    useEffect(() => {
+        if (!roomId?.startsWith('EX-') || !examId) return;
+
+        const handleCopy = (e: ClipboardEvent) => {
+            const selection = window.getSelection()?.toString() || '';
+            if (selection.length > 50) {
+                e.preventDefault();
+                alert('Copy limit exceeded! You cannot copy more than 50 characters in exam mode.');
+                return;
+            }
+            if (selection.length > 20) {
+                sendExamAlert(examId, selection.length, `COPY: ${selection}`).catch(() => {});
+            }
+        };
+
+        const handlePaste = (e: ClipboardEvent) => {
+            const text = e.clipboardData?.getData('text/plain') || '';
+            if (text.length > 50) {
+                e.preventDefault();
+                alert('Paste limit exceeded! You cannot paste more than 50 characters in exam mode.');
+                return;
+            }
+            if (text.length > 20) {
+                sendExamAlert(examId, text.length, `PASTE: ${text}`).catch(() => {});
+            }
+        };
+
+        document.addEventListener('copy', handleCopy, true);
+        document.addEventListener('paste', handlePaste, true);
+
+        return () => {
+            document.removeEventListener('copy', handleCopy, true);
+            document.removeEventListener('paste', handlePaste, true);
+        };
+    }, [roomId, examId]);
+
     const handleMount: OnMount = useCallback((editor, _monaco) => {
         // Track cursor position
         editor.onDidChangeCursorPosition((e) => {
             onCursorChange?.(e.position.lineNumber, e.position.column);
         });
-
-        // Copy-paste detection for exams
-        if (roomId?.startsWith('EX-') && examId) {
-            editor.onDidChangeModelContent((event: any) => {
-                event.changes.forEach((change: any) => {
-                    const pastedLength = change.text.length;
-                    if (pastedLength > 50) {
-                        sendExamAlert(examId, pastedLength, change.text).catch(() => { });
-                    }
-                });
-            });
-        }
 
         // Setup collaboration if roomId is provided
         if (roomId) {

@@ -106,14 +106,18 @@ model Exam {
 }
 
 model ExamSession {
-  id        String   @id @default(uuid())
-  examId    String
-  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  startTime DateTime @default(now())
-  endTime   DateTime?
-  status    String   @default("ACTIVE")
+  id             String    @id @default(uuid())
+  examId         String
+  exam           Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
+  startTime      DateTime  @default(now())
+  endTime        DateTime?
+  status         String    @default("ACTIVE")
+  tabSwitchCount Int       @default(0)
+  isBlocked      Boolean   @default(false)
+  blockedAt      DateTime?
+  blockedReason  String?
 }
 
 model ExamLog {
@@ -134,5 +138,7 @@ enum LogType {
   EXECUTE
   COPY_PASTE_ALERT
   SUSPICIOUS_BEHAVIOR
+  TAB_SWITCH
+  FULLSCREEN_EXIT
 }
 

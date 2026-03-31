@@ -565,3 +565,58 @@ export async function resolveExamRoom(roomCode: string): Promise<{ room: { id: s
     if (!res.ok) throw new Error((await res.json()).error);
     return res.json();
 }
+
+export async function sendTabSwitch(examId: string) {
+    const res = await fetch(`${API_BASE}/exam/${examId}/tab-switch`, { method: 'POST' });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function sendFullscreenExit(examId: string) {
+    const res = await fetch(`${API_BASE}/exam/${examId}/fullscreen-exit`, { method: 'POST' });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function getMyExamSession(examId: string) {
+    const res = await fetch(`${API_BASE}/exam/${examId}/my-session`);
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function getExamSessions(examId: string) {
+    const res = await fetch(`${API_BASE}/exam/${examId}/sessions`);
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function blockStudent(examId: string, userId: string, reason?: string) {
+    const res = await fetch(`${API_BASE}/exam/${examId}/block`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, reason }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function unblockStudent(examId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/exam/${examId}/unblock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function removeStudent(examId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/exam/${examId}/remove-student`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
