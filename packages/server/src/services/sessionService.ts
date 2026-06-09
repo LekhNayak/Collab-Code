@@ -28,7 +28,9 @@ export class SessionService {
     private sessionsDir: string;
 
     constructor() {
-        this.sessionsDir = path.join(process.cwd(), 'sessions');
+        this.sessionsDir = process.env.DATA_DIR
+            ? path.join(process.env.DATA_DIR, 'sessions')
+            : path.join(process.cwd(), 'sessions');
         if (!fs.existsSync(this.sessionsDir)) {
             fs.mkdirSync(this.sessionsDir, { recursive: true });
         }

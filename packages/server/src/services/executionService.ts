@@ -1,21 +1,35 @@
 import { Queue, Worker, Job } from 'bullmq';
 
-// Redis connection config (used by BullMQ internally)
-const redisConfig = {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379'),
-};
-
-console.log(`[Execution] Redis config: ${redisConfig.host}:${redisConfig.port}`);
-
-// Piston API base URL
-const PISTON_URL = 'http://127.0.0.1:2358';
-console.log(`[Execution] Piston URL (HARDCODED): ${PISTON_URL}`);
-if (typeof fetch === 'undefined') {
-    console.error('[Execution] Global fetch is UNDEFINED! Node version may be too old.');
-} else {
-    console.log('[Execution] Global fetch is available');
+// Build Redis connection config.
+// Fly.io Upstash Redis provides REDIS_URL (rediss://...).
+// Local dev uses REDIS_HOST + REDIS_PORT.
+// maxRetriesPerRequest: null is required by BullMQ.
+function buildRedisConfig() {
+    if (process.env.REDIS_URL) {
+        const url = new URL(process.env.REDIS_URL);
+        return {
+            host: url.hostname,
+            port: parseInt(url.port || '6379'),
+            password: url.password || undefined,
+            tls: url.protocol === 'rediss:' ? {} : undefined,
+            maxRetriesPerRequest: null as null,
+        };
+    }
+    return {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379'),
+        maxRetriesPerRequest: null as null,
+    };
 }
+
+const redisConfig = buildRedisConfig();
+console.log(`[Execution] Redis: ${redisConfig.host}:${redisConfig.port}`);
+
+// Piston API base URL — override with PISTON_URL env var for self-hosted instances
+// Public API path: https://emkc.org/api/v2/piston
+// Self-hosted path: http://localhost:2358/api/v2
+const PISTON_URL = process.env.PISTON_URL || 'https://emkc.org/api/v2/piston';
+console.log(`[Execution] Piston URL: ${PISTON_URL}`);
 
 // Language name mapping for Piston (must match installed runtime names)
 const LANG_MAP: Record<string, { language: string; version: string }> = {
@@ -78,7 +92,7 @@ const worker = new Worker(
         }
 
         try {
-            const response = await fetch(`${PISTON_URL}/api/v2/execute`, {
+            const response = await fetch(`${PISTON_URL}/execute`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -169,8 +183,8 @@ export async function executeDirectly(request: ExecutionRequest): Promise<Execut
     const startTime = Date.now();
 
     try {
-        console.log(`[Execution] Calling Piston at ${PISTON_URL}/api/v2/execute`);
-        const response = await fetch(`${PISTON_URL}/api/v2/execute`, {
+        console.log(`[Execution] Calling Piston at ${PISTON_URL}/execute`);
+        const response = await fetch(`${PISTON_URL}/execute`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

@@ -1,0 +1,49 @@
+# fly.toml — Fly.io app configuration for Colab Code Editor backend
+# Docs: https://fly.io/docs/reference/configuration/
+#
+# Before first deploy:
+#   1. fly auth login
+#   2. fly launch --no-deploy  (generates app name, sets primary_region)
+#   3. fly redis create        (creates Upstash Redis, copy the URL)
+#   4. fly secrets set ...     (see README — Environment Variables)
+#   5. fly volumes create colab_data --size 3 --region <your-region>
+#   6. fly deploy
+
+app = 'colab-code-editor'
+primary_region = 'iad'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  PORT = '3001'
+  NODE_ENV = 'production'
+  DATA_DIR = '/data'
+
+# Run database migrations before every new deployment
+[deploy]
+  release_command = 'node_modules/.bin/prisma db push --schema=packages/server/prisma/schema.prisma --accept-data-loss'
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+  [http_service.concurrency]
+    type = 'connections'
+    hard_limit = 100
+    soft_limit = 80
+
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
+
+# Persistent volume for workspaces, sessions, and custom extensions
+# Create with: fly volumes create colab_data --size 3 --region iad
+[[mounts]]
+  source = 'colab_data'
+  destination = '/data'

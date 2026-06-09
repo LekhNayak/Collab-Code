@@ -5,6 +5,7 @@ import { motion, type Variants } from 'framer-motion';
 import { getExams, createExam, deleteExam } from '../api';
 import type { ExamRoom } from '../api';
 import LiquidEther from '../components/ui/LiquidEther';
+import Modal from '../components/ui/Modal';
 
 const staggerContainer: Variants = {
     hidden: { opacity: 0 },
@@ -256,70 +257,42 @@ export default function AdminDashboard() {
             </div>
             </div>
 
-            {/* Custom Delete Confirmation Modal */}
-            {deleteModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="bg-[#1e1e2e] w-full max-w-md border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
-                    >
-                        <div className="p-8">
-                            <h3 className="text-2xl font-bold text-white mb-3">Delete Exam?</h3>
-                            <p className="text-white/60 mb-8 leading-relaxed">
-                                Are you sure you want to delete this exam room? This action cannot be undone and will delete all associated student logs and sessions.
-                            </p>
-                            <div className="flex justify-end gap-3 flex-col sm:flex-row">
-                                <button
-                                    onClick={() => {
-                                        setDeleteModalOpen(false);
-                                        setExamToDelete(null);
-                                    }}
-                                    className="px-6 py-2.5 rounded-xl border border-white/10 text-white/70 hover:bg-white/5 hover:text-white font-medium transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button 
-                                    onClick={confirmDelete}
-                                    className="px-6 py-2.5 rounded-xl bg-red-500/20 border border-red-500/50 text-red-400 hover:bg-red-500 hover:text-white font-medium transition-all"
-                                >
-                                    Delete Exam
-                                </button>
-                            </div>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
+            <Modal
+                isOpen={deleteModalOpen}
+                title="Delete Exam?"
+                icon="🗑️"
+                actions={[
+                    {
+                        label: 'Cancel',
+                        variant: 'ghost',
+                        onClick: () => { setDeleteModalOpen(false); setExamToDelete(null); },
+                    },
+                    {
+                        label: 'Delete Exam',
+                        variant: 'danger',
+                        onClick: confirmDelete,
+                    },
+                ]}
+                onClose={() => { setDeleteModalOpen(false); setExamToDelete(null); }}
+            >
+                Are you sure you want to delete this exam room? This action cannot be undone and will remove all associated student logs and sessions.
+            </Modal>
 
-            {/* Custom Alert Modal */}
-            {alertModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="bg-[#1e1e2e] w-full max-w-md border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
-                    >
-                        <div className="p-8">
-                            <h3 className="text-xl font-bold text-red-400 flex items-center gap-2 mb-3">
-                                Notice
-                            </h3>
-                            <p className="text-white/80 font-medium mb-8 leading-relaxed">
-                                {alertMessage}
-                            </p>
-                            <div className="flex justify-end">
-                                <button 
-                                    onClick={() => setAlertModalOpen(false)}
-                                    className="px-6 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-medium transition-colors shadow-lg shadow-indigo-500/20"
-                                >
-                                    Dismiss
-                                </button>
-                            </div>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
+            <Modal
+                isOpen={alertModalOpen}
+                title="Notice"
+                icon="⚠️"
+                actions={[
+                    {
+                        label: 'Dismiss',
+                        variant: 'primary',
+                        onClick: () => setAlertModalOpen(false),
+                    },
+                ]}
+                onClose={() => setAlertModalOpen(false)}
+            >
+                {alertMessage}
+            </Modal>
         </div>
     );
 }

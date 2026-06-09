@@ -10,17 +10,6 @@ import ExamEntry from './pages/ExamEntry';
 import ImportProject from './pages/ImportProject';
 import { ThemeProvider } from './contexts/ThemeContext';
 
-const AuthCallback: React.FC = () => {
-  const token = new URLSearchParams(window.location.search).get('token');
-  if (token) {
-    localStorage.setItem('token', token);
-    // Use window.location.href to fully reload the app to update the stale router states
-    window.location.href = '/';
-    return null;
-  }
-  return <Navigate to="/login" />;
-};
-
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = !!localStorage.getItem('token');
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
@@ -32,7 +21,6 @@ function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/login/callback" element={<AuthCallback />} />
           <Route
             path="/"
             element={<PrivateRoute><Hub /></PrivateRoute>}

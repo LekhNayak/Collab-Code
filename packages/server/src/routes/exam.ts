@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import prisma from '../db';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { executeDirectly } from '../services/executionService';
+import { examEventLimiter, executionLimiter } from '../middleware/rateLimiter';
 import crypto from 'crypto';
 
 const router = Router();
@@ -240,7 +241,7 @@ router.post('/:id/submit', async (req: Request, res: Response) => {
 });
 
 // POST /exam/:id/execute -> Execute code in exam mode and capture log
-router.post('/:id/execute', async (req: Request, res: Response) => {
+router.post('/:id/execute', executionLimiter, async (req: Request, res: Response) => {
     try {
         const { code, language, stdin, args } = req.body;
 
@@ -282,7 +283,7 @@ router.post('/:id/alert', async (req: Request, res: Response) => {
 });
 
 // POST /exam/:id/tab-switch -> Tab switch detected
-router.post('/:id/tab-switch', async (req: Request, res: Response) => {
+router.post('/:id/tab-switch', examEventLimiter, async (req: Request, res: Response) => {
     try {
         const examId = req.params.id;
         const userId = (req.user as any).id;
@@ -323,7 +324,7 @@ router.post('/:id/tab-switch', async (req: Request, res: Response) => {
 });
 
 // POST /exam/:id/fullscreen-exit -> Fullscreen exit detected
-router.post('/:id/fullscreen-exit', async (req: Request, res: Response) => {
+router.post('/:id/fullscreen-exit', examEventLimiter, async (req: Request, res: Response) => {
     try {
         const examId = req.params.id;
         const userId = (req.user as any).id;

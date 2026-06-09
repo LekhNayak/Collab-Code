@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { type WebsocketProvider } from 'y-websocket';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import Modal from './ui/Modal';
 import {
     Files,
     Search,
@@ -48,6 +49,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     const [roomBlocked, setRoomBlocked] = useState(false);
     const [roomBlockReason, setRoomBlockReason] = useState('');
     const [examOverlay, setExamOverlay] = useState<{ type: 'fullscreen' | 'tab-switch'; switchCount?: number } | null>(null);
+    const [editorAlert, setEditorAlert] = useState<string | null>(null);
 
     // Extract user ID from JWT for per-student workspace isolation
     const getUserIdFromToken = (): string | null => {
@@ -879,35 +881,31 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     // ── Room type mismatch / exam block screen ──
     if (roomBlocked) {
         return (
-            <div
-                className="w-full h-screen flex items-center justify-center p-8 relative overflow-hidden"
-                style={{ background: 'linear-gradient(135deg, #090d1f 0%, #1a1a2e 50%, #090d1f 100%)' }}
-            >
-                {/* Background glows */}
+            <div className="w-full h-screen flex items-center justify-center p-8 bg-black relative overflow-hidden">
                 <div className="absolute top-[-15%] left-[-10%] w-[40%] h-[40%] bg-red-500/10 blur-[120px] rounded-full pointer-events-none" />
                 <div className="absolute bottom-[-15%] right-[-10%] w-[40%] h-[40%] bg-orange-500/10 blur-[120px] rounded-full pointer-events-none" />
 
                 <motion.div
-                    className="max-w-lg w-full bg-white/5 backdrop-blur-xl border border-red-500/30 rounded-3xl p-10 text-center shadow-[0_8px_64px_rgba(239,68,68,0.15)]"
-                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    className="max-w-md w-full bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl p-10 text-center shadow-2xl"
+                    initial={{ opacity: 0, scale: 0.95, y: 16 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
+                    transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
                 >
                     <motion.div
-                        className="text-6xl mb-6"
+                        className="text-5xl mb-5"
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+                        transition={{ delay: 0.15, type: 'spring', stiffness: 200 }}
                     >
                         ⛔
                     </motion.div>
-                    <h1 className="text-3xl font-black text-red-400 mb-4 tracking-tight">Access Denied</h1>
-                    <p className="text-white/70 text-base leading-relaxed mb-8 font-medium">
+                    <h1 className="text-2xl font-black text-red-400 mb-3 tracking-tight">Access Denied</h1>
+                    <p className="text-white/60 text-sm leading-relaxed mb-8">
                         {roomBlockReason}
                     </p>
                     <button
                         onClick={() => navigate('/')}
-                        className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white font-bold text-base tracking-wide transition-all shadow-lg shadow-red-500/25"
+                        className="w-full py-3 rounded-xl bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500 hover:text-white font-semibold text-sm transition-all"
                     >
                         Return to Hub
                     </button>
@@ -1224,6 +1222,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                 onChange={handleEditorChange}
                                 onCursorChange={(line, col) => setCursorPos({ line, column: col })}
                                 onProviderReady={setProvider}
+                                onAlert={setEditorAlert}
                             />
                         ) : (
                             <div className="editor-welcome">
@@ -1344,76 +1343,89 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             </div>
 
             {/* ── Exam anti-cheat overlay ── */}
-            {isExamMode && examOverlay && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md">
+            <AnimatePresence>
+                {isExamMode && examOverlay && (
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        transition={{ duration: 0.3, ease: [0.34, 1.56, 0.64, 1] }}
-                        className="max-w-md w-full mx-4 rounded-2xl p-8 text-center shadow-[0_0_80px_rgba(239,68,68,0.25)]"
-                        style={{ background: '#0d1117', border: examOverlay.type === 'fullscreen' ? '1px solid rgba(239,68,68,0.4)' : '1px solid rgba(249,115,22,0.4)' }}
+                        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
                     >
-                        {examOverlay.type === 'fullscreen' ? (
-                            <>
-                                <div style={{ fontSize: 52, marginBottom: 16 }}>🔒</div>
-                                <h2 style={{ fontSize: 22, fontWeight: 900, color: '#f87171', marginBottom: 10, letterSpacing: '-0.5px' }}>
-                                    Fullscreen Required
-                                </h2>
-                                <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, lineHeight: 1.6, marginBottom: 8 }}>
-                                    You exited fullscreen mode. The exam must be taken in fullscreen at all times.
-                                </p>
-                                <p style={{ color: 'rgba(239,68,68,0.8)', fontSize: 13, fontWeight: 700, marginBottom: 24 }}>
-                                    This incident has been logged.
-                                </p>
-                                <button
-                                    onClick={() => {
-                                        document.documentElement.requestFullscreen()
-                                            .then(() => setExamOverlay(null))
-                                            .catch(() => {});
-                                    }}
-                                    style={{
-                                        width: '100%', padding: '14px 0', borderRadius: 12,
-                                        background: 'linear-gradient(90deg, #dc2626, #b91c1c)',
-                                        color: 'white', fontWeight: 700, fontSize: 15,
-                                        border: 'none', cursor: 'pointer', letterSpacing: '0.3px'
-                                    }}
-                                >
-                                    Return to Fullscreen
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                <div style={{ fontSize: 52, marginBottom: 16 }}>⚠️</div>
-                                <h2 style={{ fontSize: 22, fontWeight: 900, color: '#fb923c', marginBottom: 10, letterSpacing: '-0.5px' }}>
-                                    Tab Switch Detected
-                                </h2>
-                                <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, lineHeight: 1.6, marginBottom: 8 }}>
-                                    You switched away from the exam window.
-                                </p>
-                                {examOverlay.switchCount !== undefined && (
-                                    <p style={{ color: '#fb923c', fontSize: 14, fontWeight: 700, marginBottom: 24 }}>
-                                        {examOverlay.switchCount}/3 violations — blocked after 3.
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 16 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 16 }}
+                            transition={{ duration: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
+                            className={`max-w-md w-full bg-white/5 backdrop-blur-2xl rounded-2xl p-8 text-center shadow-2xl ${
+                                examOverlay.type === 'fullscreen'
+                                    ? 'border border-red-500/30'
+                                    : 'border border-orange-500/30'
+                            }`}
+                        >
+                            {examOverlay.type === 'fullscreen' ? (
+                                <>
+                                    <div className="text-5xl mb-5">🔒</div>
+                                    <h2 className="text-xl font-black text-red-400 mb-3 tracking-tight">
+                                        Fullscreen Required
+                                    </h2>
+                                    <p className="text-white/60 text-sm leading-relaxed mb-2">
+                                        You exited fullscreen mode. The exam must be taken in fullscreen at all times.
                                     </p>
-                                )}
-                                <button
-                                    onClick={() => {
-                                        setExamOverlay(null);
-                                        document.documentElement.requestFullscreen().catch(() => {});
-                                    }}
-                                    style={{
-                                        width: '100%', padding: '14px 0', borderRadius: 12,
-                                        background: 'linear-gradient(90deg, #ea580c, #c2410c)',
-                                        color: 'white', fontWeight: 700, fontSize: 15,
-                                        border: 'none', cursor: 'pointer', letterSpacing: '0.3px'
-                                    }}
-                                >
-                                    Return to Exam
-                                </button>
-                            </>
-                        )}
+                                    <p className="text-red-400/80 text-xs font-bold mb-7">
+                                        This incident has been logged.
+                                    </p>
+                                    <button
+                                        onClick={() => {
+                                            document.documentElement.requestFullscreen()
+                                                .then(() => setExamOverlay(null))
+                                                .catch(() => {});
+                                        }}
+                                        className="w-full py-3 rounded-xl bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500 hover:text-white font-semibold text-sm transition-all"
+                                    >
+                                        Return to Fullscreen
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="text-5xl mb-5">⚠️</div>
+                                    <h2 className="text-xl font-black text-orange-400 mb-3 tracking-tight">
+                                        Tab Switch Detected
+                                    </h2>
+                                    <p className="text-white/60 text-sm leading-relaxed mb-2">
+                                        You switched away from the exam window.
+                                    </p>
+                                    {examOverlay.switchCount !== undefined && (
+                                        <p className="text-orange-400 text-sm font-bold mb-7">
+                                            {examOverlay.switchCount}/3 violations — blocked after 3.
+                                        </p>
+                                    )}
+                                    <button
+                                        onClick={() => {
+                                            setExamOverlay(null);
+                                            document.documentElement.requestFullscreen().catch(() => {});
+                                        }}
+                                        className="w-full py-3 rounded-xl bg-orange-500/20 border border-orange-500/40 text-orange-400 hover:bg-orange-500 hover:text-white font-semibold text-sm transition-all"
+                                    >
+                                        Return to Exam
+                                    </button>
+                                </>
+                            )}
+                        </motion.div>
                     </motion.div>
-                </div>
-            )}
+                )}
+            </AnimatePresence>
+
+            {/* ── Editor alert (copy/paste violation) ── */}
+            <Modal
+                isOpen={!!editorAlert}
+                title="Exam Restriction"
+                icon="🚫"
+                actions={[{ label: 'Dismiss', variant: 'primary', onClick: () => setEditorAlert(null) }]}
+                onClose={() => setEditorAlert(null)}
+            >
+                {editorAlert}
+            </Modal>
         </div>
     );
 }

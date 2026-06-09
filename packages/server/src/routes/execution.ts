@@ -1,10 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { enqueueExecution, getExecutionResult, executeDirectly } from '../services/executionService';
+import { executionLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
 // Execute code (queued)
-router.post('/run', async (req: Request, res: Response) => {
+router.post('/run', executionLimiter, async (req: Request, res: Response) => {
     const { code, language, stdin, args } = req.body;
 
     if (!code || !language) {
@@ -20,7 +21,7 @@ router.post('/run', async (req: Request, res: Response) => {
 });
 
 // Execute code directly (synchronous, no queue)
-router.post('/run/direct', async (req: Request, res: Response) => {
+router.post('/run/direct', executionLimiter, async (req: Request, res: Response) => {
     const { code, language, stdin, args } = req.body;
 
     if (!code || !language) {

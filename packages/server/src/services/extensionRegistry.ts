@@ -487,7 +487,9 @@ const EXTENSION_REGISTRY: Extension[] = [
 ];
 
 // ---- Custom extension storage (file-based) ----
-const CUSTOM_EXT_DIR = path.join(process.cwd(), 'custom-extensions');
+const CUSTOM_EXT_DIR = process.env.DATA_DIR
+    ? path.join(process.env.DATA_DIR, 'custom-extensions')
+    : path.join(process.cwd(), 'custom-extensions');
 
 function ensureCustomDir() {
     if (!fs.existsSync(CUSTOM_EXT_DIR)) {

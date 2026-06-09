@@ -3,36 +3,32 @@ dotenv.config();
 
 import express from 'express';
 import cors from 'cors';
-import session from 'express-session';
-import passport from './config/passport';
 import authRoutes from './routes/auth';
 import gitRoutes from './routes/git';
 import executionRoutes from './routes/execution';
 import sessionRoutes from './routes/sessions';
 import examRoutes from './routes/exam';
 import { requestLogger } from './middleware/requestLogger';
+import { globalApiLimiter } from './middleware/rateLimiter';
 
 const app = express();
 const port = process.env.PORT || 3001;
 
+const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174'];
+if (process.env.FRONTEND_URL) allowedOrigins.push(process.env.FRONTEND_URL);
+
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:5174'],
+    origin: allowedOrigins,
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '5mb' }));
 
-// ── API Request Logger (logs every request for debugging) ──
+// ── Global rate limit (200 req/min per user, safety net for all routes) ──
+app.use(globalApiLimiter);
+
+// ── API Request Logger ──
 app.use(requestLogger);
-
-app.use(session({
-    secret: process.env.JWT_SECRET || 'secret',
-    resave: false,
-    saveUninitialized: false
-}));
-
-app.use(passport.initialize());
-app.use(passport.session());
 
 import { requireAuth } from './middleware/auth';
 

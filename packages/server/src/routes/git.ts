@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { GitService } from '../services/GitService';
+import { cloneLimiter } from '../middleware/rateLimiter';
+import prisma from '../db';
 import multer from 'multer';
 import AdmZip from 'adm-zip';
 import path from 'path';
@@ -8,8 +10,15 @@ import fs from 'fs';
 const router = Router();
 const gitService = new GitService();
 
+async function getUserPat(req: Request): Promise<string | undefined> {
+    const userId = (req as any).user?.id;
+    if (!userId || userId.startsWith('guest-')) return undefined;
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { githubPat: true } });
+    return user?.githubPat ?? undefined;
+}
+
 // Clone a repository
-router.post('/clone', async (req: Request, res: Response) => {
+router.post('/clone', cloneLimiter, async (req: Request, res: Response) => {
     const { repoUrl, workspaceId } = req.body;
     if (!repoUrl || !workspaceId) {
         return res.status(400).json({ error: 'repoUrl and workspaceId are required' });
@@ -212,24 +221,32 @@ router.post('/commit/:workspaceId', async (req: Request, res: Response) => {
     }
 });
 
-// Git push
+// Git push — uses PAT stored in user profile (set via /auth/github-credentials)
 router.post('/push/:workspaceId', async (req: Request, res: Response) => {
     const { workspaceId } = req.params;
-    const { token, remote, branch } = req.body;
+    const { remote, branch } = req.body;
     try {
-        await gitService.gitPush(workspaceId, token, remote, branch);
+        const pat = await getUserPat(req);
+        if (!pat) {
+            return res.status(403).json({ error: 'GitHub credentials not set up. Go to the Hub and connect your GitHub account first.' });
+        }
+        await gitService.gitPush(workspaceId, pat, remote, branch);
         res.json({ message: 'Pushed successfully' });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
 });
 
-// Git pull
+// Git pull — uses PAT stored in user profile (set via /auth/github-credentials)
 router.post('/pull/:workspaceId', async (req: Request, res: Response) => {
     const { workspaceId } = req.params;
-    const { token, remote, branch } = req.body;
+    const { remote, branch } = req.body;
     try {
-        await gitService.gitPull(workspaceId, token, remote, branch);
+        const pat = await getUserPat(req);
+        if (!pat) {
+            return res.status(403).json({ error: 'GitHub credentials not set up. Go to the Hub and connect your GitHub account first.' });
+        }
+        await gitService.gitPull(workspaceId, pat, remote, branch);
         res.json({ message: 'Pulled successfully' });
     } catch (error: any) {
         res.status(500).json({ error: error.message });

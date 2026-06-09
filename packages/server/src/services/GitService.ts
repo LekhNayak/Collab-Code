@@ -15,7 +15,9 @@ export class GitService {
     private workspacesDir: string;
 
     constructor() {
-        this.workspacesDir = path.join(process.cwd(), 'workspaces');
+        this.workspacesDir = process.env.DATA_DIR
+            ? path.join(process.env.DATA_DIR, 'workspaces')
+            : path.join(process.cwd(), 'workspaces');
         if (!fs.existsSync(this.workspacesDir)) {
             fs.mkdirSync(this.workspacesDir, { recursive: true });
         }

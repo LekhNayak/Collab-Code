@@ -1,0 +1,11 @@
+node_modules
+packages/client
+packages/*/node_modules
+packages/server/dist
+packages/server/workspaces
+packages/server/sessions
+packages/server/custom-extensions
+.git
+.env
+packages/server/.env
+*.log

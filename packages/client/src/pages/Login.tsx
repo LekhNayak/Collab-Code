@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Github, Code2, ArrowRight, Mail, Lock, User } from 'lucide-react';
+import { Code2, ArrowRight, Mail, Lock, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import LiquidEther from '../components/ui/LiquidEther';
-import { GlassCard, GlassButton, GlassInput, GlassDivider } from '../components/ui/Glass';
+import { GlassCard, GlassButton, GlassInput } from '../components/ui/Glass';
 
 const Login: React.FC = () => {
     const navigate = useNavigate();
@@ -13,11 +13,6 @@ const Login: React.FC = () => {
     const [username, setUsername] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-
-    const handleGitHubLogin = () => {
-        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-        window.location.href = `${baseUrl}/auth/github`;
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -45,6 +40,10 @@ const Login: React.FC = () => {
             if (data.token) {
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('collab-username', data.user.username);
+                localStorage.setItem('hasGithubCredentials', data.hasGithubCredentials ? 'true' : 'false');
+                if (data.isNewUser) {
+                    localStorage.setItem('needsGitHubSetup', 'true');
+                }
                 navigate('/');
             }
         } catch (err) {
@@ -157,19 +156,6 @@ const Login: React.FC = () => {
                             {!loading && <ArrowRight size={18} />}
                         </GlassButton>
                     </form>
-
-                    <GlassDivider label="or" />
-
-                    <GlassButton
-                        type="button"
-                        variant="secondary"
-                        size="lg"
-                        className="w-full justify-center"
-                        onClick={handleGitHubLogin}
-                        icon={<Github size={18} />}
-                    >
-                        Continue with GitHub
-                    </GlassButton>
 
                     <p className="mt-6 text-center text-sm text-white/40">
                         {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}

@@ -14,6 +14,7 @@ interface CodeEditorProps {
     onChange?: (value: string | undefined) => void;
     onCursorChange?: (line: number, column: number) => void;
     onProviderReady?: (provider: WebsocketProvider | null) => void;
+    onAlert?: (message: string) => void;
 }
 
 const languageMap: Record<string, string> = {
@@ -60,6 +61,7 @@ export default function CodeEditor({
     onChange,
     onCursorChange,
     onProviderReady,
+    onAlert,
 }: CodeEditorProps) {
     const providerRef = useRef<WebsocketProvider | null>(null);
     const docRef = useRef<Y.Doc | null>(null);
@@ -89,7 +91,7 @@ export default function CodeEditor({
             const selection = window.getSelection()?.toString() || '';
             if (selection.length > 50) {
                 e.preventDefault();
-                alert('Copy limit exceeded! You cannot copy more than 50 characters in exam mode.');
+                onAlert?.('Copy limit exceeded! You cannot copy more than 50 characters in exam mode.');
                 return;
             }
             if (selection.length > 20) {
@@ -101,7 +103,7 @@ export default function CodeEditor({
             const text = e.clipboardData?.getData('text/plain') || '';
             if (text.length > 50) {
                 e.preventDefault();
-                alert('Paste limit exceeded! You cannot paste more than 50 characters in exam mode.');
+                onAlert?.('Paste limit exceeded! You cannot paste more than 50 characters in exam mode.');
                 return;
             }
             if (text.length > 20) {

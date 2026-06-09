@@ -203,21 +203,31 @@ export async function gitCommit(workspaceId: string, message: string, authorName
     return res.json();
 }
 
-export async function gitPush(workspaceId: string, token?: string, remote?: string, branch?: string) {
+export async function gitPush(workspaceId: string, remote?: string, branch?: string) {
     const res = await fetch(`${API_BASE}/git/push/${workspaceId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, remote, branch }),
+        body: JSON.stringify({ remote, branch }),
     });
     if (!res.ok) throw new Error((await res.json()).error);
     return res.json();
 }
 
-export async function gitPull(workspaceId: string, token?: string, remote?: string, branch?: string) {
+export async function gitPull(workspaceId: string, remote?: string, branch?: string) {
     const res = await fetch(`${API_BASE}/git/pull/${workspaceId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, remote, branch }),
+        body: JSON.stringify({ remote, branch }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+export async function saveGithubCredentials(githubUsername: string, githubPat: string) {
+    const res = await fetch(`${API_BASE}/auth/github-credentials`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ githubUsername, githubPat }),
     });
     if (!res.ok) throw new Error((await res.json()).error);
     return res.json();

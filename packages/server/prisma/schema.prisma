@@ -22,10 +22,12 @@ model User {
   username  String   @unique
   email     String   @unique
   password  String?
-  avatarUrl String?
-  role      UserRole @default(STUDENT)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  avatarUrl      String?
+  role           UserRole @default(STUDENT)
+  githubUsername String?
+  githubPat      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   workspaces      WorkspaceMember[]
   ownedWorkspaces Workspace[]

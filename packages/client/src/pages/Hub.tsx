@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, GraduationCap, Shield, ArrowRight, Code2, Download, Github, Linkedin, Mail, Phone } from 'lucide-react';
 import { motion } from 'framer-motion';
 import LiquidEther from '../components/ui/LiquidEther';
+import GitHubOnboarding from '../components/GitHubOnboarding';
 
 const staggerContainer = {
     hidden: { opacity: 0 },
@@ -18,8 +20,17 @@ const staggerItem = {
 
 export default function Hub() {
     const navigate = useNavigate();
+    const [showOnboarding, setShowOnboarding] = useState(
+        () => localStorage.getItem('needsGitHubSetup') === 'true'
+    );
+
+    const dismissOnboarding = () => {
+        localStorage.removeItem('needsGitHubSetup');
+        setShowOnboarding(false);
+    };
 
     return (
+        <>
         <div className="h-[100dvh] w-full bg-black text-white font-sans relative overflow-hidden">
             {/* Liquid Ether Animated Background Fixed in place */}
             <LiquidEther className="absolute inset-0 z-0 opacity-100" />
@@ -186,5 +197,8 @@ export default function Hub() {
                 </footer>
             </div>
         </div>
+
+        {showOnboarding && <GitHubOnboarding onComplete={dismissOnboarding} />}
+        </>
     );
 }
