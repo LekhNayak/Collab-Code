@@ -24,6 +24,8 @@ RUN cd packages/server && npx tsc
 # ─── Production stage ────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 
+RUN apk add --no-cache openssl
+
 WORKDIR /app
 
 COPY package.json package-lock.json ./
