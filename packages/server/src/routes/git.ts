@@ -368,15 +368,27 @@ router.post('/upload/:workspaceId', upload.any(), async (req: Request, res: Resp
             const entries = zip.getEntries();
             let uploaded = 0;
 
+            // Detect common top-level folder so we can strip it (matches folder-upload behaviour)
+            const allEntryNames = entries.map(e => e.entryName.replace(/\\/g, '/'));
+            const firstSegments = new Set(allEntryNames.map(n => n.split('/')[0]));
+            const hasSingleRoot = firstSegments.size === 1 && !allEntryNames.some(n => !n.includes('/'));
+            const rootPrefix = hasSingleRoot ? ([...firstSegments][0] + '/') : '';
+
             for (const entry of entries) {
                 // Skip directories, Mac hidden files, and dot-files
                 if (entry.isDirectory) continue;
-                const entryName = entry.entryName;
-                if (entryName.includes('__MACOSX') || path.basename(entryName).startsWith('.')) continue;
+                const rawName = entry.entryName.replace(/\\/g, '/');
+                if (rawName.includes('__MACOSX') || path.basename(rawName).startsWith('.')) continue;
 
-                // Zip Slip Prevention Check (Vulnerability V12)
-                const relativePath = path.normalize(entryName).replace(/^(\.\.(\/|\\|$))+/, '');
-                if (!relativePath) continue;
+                // Strip common root folder (e.g. myproject/src/index.js → src/index.js)
+                const stripped = rootPrefix && rawName.startsWith(rootPrefix)
+                    ? rawName.slice(rootPrefix.length)
+                    : rawName;
+                if (!stripped) continue;
+
+                // Zip Slip Prevention
+                const relativePath = path.normalize(stripped).replace(/^(\.\.(\/|\\|$))+/, '');
+                if (!relativePath || path.isAbsolute(relativePath)) continue;
 
                 const buffer = entry.getData();
                 gitService.writeFileRaw(workspaceId, relativePath, buffer);

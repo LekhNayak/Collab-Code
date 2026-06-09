@@ -36,6 +36,8 @@ type SidebarPanel = 'explorer' | 'search' | 'git' | 'users' | 'extensions';
 
 // In-memory file content cache
 const fileContents = new Map<string, string>();
+// Tracks the last content successfully written to disk — used to determine real dirty state
+const lastSavedContent = new Map<string, string>();
 
 export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?: boolean }) {
     const { roomId } = useParams<{ roomId?: string }>();
@@ -45,6 +47,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     const isExamMode = manualExamMode || (roomId && roomId.startsWith('EX-'));
     const [roomBlocked, setRoomBlocked] = useState(false);
     const [roomBlockReason, setRoomBlockReason] = useState('');
+    const [examOverlay, setExamOverlay] = useState<{ type: 'fullscreen' | 'tab-switch'; switchCount?: number } | null>(null);
 
     // Extract user ID from JWT for per-student workspace isolation
     const getUserIdFromToken = (): string | null => {
@@ -87,6 +90,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     const [sessionData, setSessionData] = useState<SessionInfo | null>(null);
     const [allExtensions, setAllExtensions] = useState<ExtensionInfo[]>([]);
     const sessionSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Resolve exam room code -> exam metadata
     useEffect(() => {
@@ -115,6 +119,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
 
             if (diff <= 0) {
                 setTimeLeft('00:00:00 - Time is up!');
+                if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
                 return;
             }
 
@@ -130,6 +135,13 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
         return () => clearInterval(interval);
     }, [examData]);
 
+    // Exit fullscreen whenever the student is kicked/blocked or leaves exam
+    useEffect(() => {
+        if (roomBlocked && document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {});
+        }
+    }, [roomBlocked]);
+
     // Notify backend when student joins exam
     useEffect(() => {
         if (isExamMode && resolvedExamId) {
@@ -137,50 +149,83 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
         }
     }, [isExamMode, resolvedExamId]);
 
-    // Anti-cheat restrictions (copy-paste + tab-switch + fullscreen)
+    // Anti-cheat restrictions (copy-paste + tab-switch + fullscreen + keyboard blocking)
     useEffect(() => {
         if (!isExamMode || !resolvedExamId || roomBlocked) return;
 
-        let hasAlertedExit = false;
-
-        // ── Fullscreen enforcement ──
         const enterFullscreen = () => {
             if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-                document.documentElement.requestFullscreen().catch(err => {
-                    console.log("Could not auto-enter fullscreen:", err.message);
-                });
+                document.documentElement.requestFullscreen().catch(() => {});
             }
         };
 
+        // ── Tab-switch detection ──
         const handleVisibilityChange = async () => {
             if (document.visibilityState === 'hidden') {
                 try {
                     const data = await sendTabSwitch(resolvedExamId);
-                    if (data.session && data.session.isBlocked) {
+                    if (data.session?.isBlocked) {
                         setRoomBlocked(true);
                         setRoomBlockReason('You have been blocked from the exam for exceeding the maximum allowed tab switches (3).');
                     } else if (data.session) {
-                        // Non-blocking warning — modern, no alert()
-                        console.warn(`[Exam] Tab switch ${data.session.tabSwitchCount}/3`);
+                        setExamOverlay({ type: 'tab-switch', switchCount: data.session.tabSwitchCount });
                     }
                 } catch (e) {
                     console.error('Error logging tab switch', e);
                 }
+            } else if (document.visibilityState === 'visible') {
+                // Re-enter fullscreen whenever they come back
+                enterFullscreen();
             }
         };
 
+        // ── Fullscreen enforcement ──
         const handleFullscreenChange = async () => {
             if (!document.fullscreenElement) {
-                if (!hasAlertedExit) {
-                    hasAlertedExit = true;
-                }
+                setExamOverlay({ type: 'fullscreen' });
                 try {
                     await sendFullscreenExit(resolvedExamId);
                 } catch (e) {
                     console.error('Error logging fullscreen exit', e);
                 }
             } else {
-                hasAlertedExit = false;
+                // Back in fullscreen — dismiss any overlay
+                setExamOverlay(null);
+            }
+        };
+
+        // ── Window blur: catches Alt+Tab to another OS window (not just browser tabs) ──
+        const handleWindowBlur = () => {
+            // Only show the overlay — visibilitychange handles logging.
+            // Use a small delay so we don't flicker on benign focus transfers (e.g. dev tools).
+            setTimeout(() => {
+                if (!document.hasFocus()) {
+                    setExamOverlay(prev => prev ?? { type: 'tab-switch', switchCount: undefined });
+                }
+            }, 300);
+        };
+
+        // ── Keyboard shortcut blocking ──
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const shouldBlock =
+                // Tab switching
+                (e.ctrlKey && e.key === 'Tab') ||
+                (e.ctrlKey && e.shiftKey && e.key === 'Tab') ||
+                // Close / new tab / new window
+                (e.ctrlKey && (e.key === 'w' || e.key === 'W')) ||
+                (e.ctrlKey && (e.key === 't' || e.key === 'T')) ||
+                (e.ctrlKey && (e.key === 'n' || e.key === 'N')) ||
+                // DevTools
+                (e.ctrlKey && e.shiftKey && ['i', 'I', 'j', 'J', 'c', 'C'].includes(e.key)) ||
+                e.key === 'F12' ||
+                // Fullscreen toggle
+                e.key === 'F11' ||
+                // Close window (Windows/Linux)
+                (e.altKey && e.key === 'F4');
+
+            if (shouldBlock) {
+                e.preventDefault();
+                e.stopPropagation();
             }
         };
 
@@ -196,7 +241,6 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                     console.error('Failed to log copy event', err);
                 }
             }
-            // Copies > 50 chars are also blocked
             if (length > 50) {
                 e.preventDefault();
                 e.clipboardData?.setData('text/plain', '');
@@ -230,10 +274,10 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             }
         };
 
-        // Check if currently blocked
+        // Check if currently blocked on mount
         getMyExamSession(resolvedExamId)
             .then(data => {
-                if (data && data.isBlocked) {
+                if (data?.isBlocked) {
                     setRoomBlocked(true);
                     setRoomBlockReason(data.blockedReason || 'You are blocked from this exam.');
                 }
@@ -242,20 +286,23 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
         document.addEventListener('fullscreenchange', handleFullscreenChange);
+        // capture: true so we intercept before Monaco/other handlers
+        document.addEventListener('keydown', handleKeyDown, true);
         document.addEventListener('copy', handleCopy as unknown as EventListener);
         document.addEventListener('paste', handlePaste as unknown as EventListener);
+        window.addEventListener('blur', handleWindowBlur);
 
-        // Sometimes browsers require interaction to go fullscreen
+        // First click triggers fullscreen (browser policy)
         document.body.addEventListener('click', enterFullscreen, { once: true });
-
-        // Attempt right away
         enterFullscreen();
 
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            document.removeEventListener('keydown', handleKeyDown, true);
             document.removeEventListener('copy', handleCopy as unknown as EventListener);
             document.removeEventListener('paste', handlePaste as unknown as EventListener);
+            window.removeEventListener('blur', handleWindowBlur);
             document.body.removeEventListener('click', enterFullscreen);
         };
     }, [isExamMode, resolvedExamId, roomBlocked]);
@@ -404,8 +451,37 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
 
             if (session) {
                 setSessionData(session);
-                // Apply installed theme using the freshly loaded extensions list
                 applyThemeFromSession(session, extsList);
+
+                // Restore previously open tabs
+                if (session.openTabs && session.openTabs.length > 0) {
+                    const restoredTabs: TabInfo[] = session.openTabs.map(path => ({
+                        path,
+                        name: path.split('/').pop() || path,
+                        language: getLanguageFromFilename(path.split('/').pop() || ''),
+                        isModified: false,
+                    }));
+
+                    // Load all tab contents from disk in parallel
+                    await Promise.all(
+                        session.openTabs.map(async (path) => {
+                            try {
+                                const content = await readFile(workspaceId, path);
+                                fileContents.set(path, content);
+                                lastSavedContent.set(path, content);
+                            } catch {
+                                fileContents.set(path, '');
+                                lastSavedContent.set(path, '');
+                            }
+                        })
+                    );
+
+                    setTabs(restoredTabs);
+                    const savedActive = session.activeTab && session.openTabs.includes(session.activeTab)
+                        ? session.activeTab
+                        : restoredTabs[0].path;
+                    setActiveTab(savedActive);
+                }
             }
         };
         loadSession();
@@ -429,6 +505,22 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             if (sessionSaveTimer.current) clearTimeout(sessionSaveTimer.current);
         };
     }, [tabs, activeTab, workspaceId, sessionData]);
+
+    // Save all open files the moment the page becomes hidden (tab switch, minimize, close)
+    // This is a safety net on top of the 2s debounced auto-save
+    useEffect(() => {
+        const handleHide = () => {
+            if (document.visibilityState !== 'hidden') return;
+            tabs.forEach(tab => {
+                const content = fileContents.get(tab.path);
+                if (content !== undefined) {
+                    saveFile(workspaceId, tab.path, content).catch(() => {});
+                }
+            });
+        };
+        document.addEventListener('visibilitychange', handleHide);
+        return () => document.removeEventListener('visibilitychange', handleHide);
+    }, [tabs, workspaceId]);
 
     // Apply theme from installed theme extensions — takes extensions list as param to avoid stale closure
     const applyThemeFromSession = useCallback((session: SessionInfo, extsList?: ExtensionInfo[]) => {
@@ -688,6 +780,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             try {
                 const content = await readFile(workspaceId, file.path);
                 fileContents.set(file.path, content);
+                lastSavedContent.set(file.path, content);
             } catch (err: any) {
                 console.error('Failed to read file:', err);
                 fileContents.set(file.path, `// Error loading file: ${err.message}`);
@@ -710,11 +803,32 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     const handleEditorChange = useCallback((value: string | undefined) => {
         if (activeTab && value !== undefined) {
             fileContents.set(activeTab, value);
+
+            // Only dirty if content actually differs from what's on disk
+            const isDirty = value !== lastSavedContent.get(activeTab);
             setTabs((prev) =>
-                prev.map((t) => (t.path === activeTab ? { ...t, isModified: true } : t))
+                prev.map((t) => (t.path === activeTab ? { ...t, isModified: isDirty } : t))
             );
+
+            if (!isDirty) return;
+
+            // Auto-save 2s after last keystroke
+            const tabToSave = activeTab;
+            const wsToSave = workspaceId;
+            if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+            autoSaveTimer.current = setTimeout(async () => {
+                try {
+                    await saveFile(wsToSave, tabToSave, value);
+                    lastSavedContent.set(tabToSave, value);
+                    setTabs((prev) =>
+                        prev.map((t) => (t.path === tabToSave ? { ...t, isModified: false } : t))
+                    );
+                } catch {
+                    // silent — Ctrl+S still works as manual fallback
+                }
+            }, 2000);
         }
-    }, [activeTab]);
+    }, [activeTab, workspaceId]);
 
     // Save file to backend (Ctrl+S)
     useEffect(() => {
@@ -726,6 +840,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                     if (content !== undefined) {
                         try {
                             await saveFile(workspaceId, activeTab, content);
+                            lastSavedContent.set(activeTab, content);
                             setTabs((prev) =>
                                 prev.map((t) => (t.path === activeTab ? { ...t, isModified: false } : t))
                             );
@@ -946,31 +1061,33 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                             >
                                                 <Download size={14} />
                                             </button>
-                                            <button
-                                                className="explorer-action-btn"
-                                                onClick={() => setUploadMenuOpen(v => !v)}
-                                                title="Upload Folder or ZIP"
-                                            >
-                                                <Upload size={14} />
-                                            </button>
-                                            {uploadMenuOpen && (
-                                                <div className="upload-dropdown">
-                                                    <button
-                                                        className="upload-dropdown-item"
-                                                        onClick={() => folderInputRef.current?.click()}
-                                                    >
-                                                        <FolderArchive size={13} />
-                                                        Upload Folder
-                                                    </button>
-                                                    <button
-                                                        className="upload-dropdown-item"
-                                                        onClick={() => zipInputRef.current?.click()}
-                                                    >
-                                                        <Upload size={13} />
-                                                        Upload ZIP
-                                                    </button>
-                                                </div>
-                                            )}
+                                            <div className="upload-menu-wrapper" ref={uploadMenuRef}>
+                                                <button
+                                                    className="explorer-action-btn"
+                                                    onClick={() => setUploadMenuOpen(v => !v)}
+                                                    title="Upload Folder or ZIP"
+                                                >
+                                                    <Upload size={14} />
+                                                </button>
+                                                {uploadMenuOpen && (
+                                                    <div className="upload-dropdown">
+                                                        <button
+                                                            className="upload-dropdown-item"
+                                                            onClick={() => { setUploadMenuOpen(false); folderInputRef.current?.click(); }}
+                                                        >
+                                                            <FolderArchive size={13} />
+                                                            Upload Folder
+                                                        </button>
+                                                        <button
+                                                            className="upload-dropdown-item"
+                                                            onClick={() => { setUploadMenuOpen(false); zipInputRef.current?.click(); }}
+                                                        >
+                                                            <Upload size={13} />
+                                                            Upload ZIP
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
 
                                             {/* Hidden file inputs */}
                                             <input
@@ -1225,6 +1342,78 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                     connectedUsers={1}
                 />
             </div>
+
+            {/* ── Exam anti-cheat overlay ── */}
+            {isExamMode && examOverlay && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        transition={{ duration: 0.3, ease: [0.34, 1.56, 0.64, 1] }}
+                        className="max-w-md w-full mx-4 rounded-2xl p-8 text-center shadow-[0_0_80px_rgba(239,68,68,0.25)]"
+                        style={{ background: '#0d1117', border: examOverlay.type === 'fullscreen' ? '1px solid rgba(239,68,68,0.4)' : '1px solid rgba(249,115,22,0.4)' }}
+                    >
+                        {examOverlay.type === 'fullscreen' ? (
+                            <>
+                                <div style={{ fontSize: 52, marginBottom: 16 }}>🔒</div>
+                                <h2 style={{ fontSize: 22, fontWeight: 900, color: '#f87171', marginBottom: 10, letterSpacing: '-0.5px' }}>
+                                    Fullscreen Required
+                                </h2>
+                                <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, lineHeight: 1.6, marginBottom: 8 }}>
+                                    You exited fullscreen mode. The exam must be taken in fullscreen at all times.
+                                </p>
+                                <p style={{ color: 'rgba(239,68,68,0.8)', fontSize: 13, fontWeight: 700, marginBottom: 24 }}>
+                                    This incident has been logged.
+                                </p>
+                                <button
+                                    onClick={() => {
+                                        document.documentElement.requestFullscreen()
+                                            .then(() => setExamOverlay(null))
+                                            .catch(() => {});
+                                    }}
+                                    style={{
+                                        width: '100%', padding: '14px 0', borderRadius: 12,
+                                        background: 'linear-gradient(90deg, #dc2626, #b91c1c)',
+                                        color: 'white', fontWeight: 700, fontSize: 15,
+                                        border: 'none', cursor: 'pointer', letterSpacing: '0.3px'
+                                    }}
+                                >
+                                    Return to Fullscreen
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <div style={{ fontSize: 52, marginBottom: 16 }}>⚠️</div>
+                                <h2 style={{ fontSize: 22, fontWeight: 900, color: '#fb923c', marginBottom: 10, letterSpacing: '-0.5px' }}>
+                                    Tab Switch Detected
+                                </h2>
+                                <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, lineHeight: 1.6, marginBottom: 8 }}>
+                                    You switched away from the exam window.
+                                </p>
+                                {examOverlay.switchCount !== undefined && (
+                                    <p style={{ color: '#fb923c', fontSize: 14, fontWeight: 700, marginBottom: 24 }}>
+                                        {examOverlay.switchCount}/3 violations — blocked after 3.
+                                    </p>
+                                )}
+                                <button
+                                    onClick={() => {
+                                        setExamOverlay(null);
+                                        document.documentElement.requestFullscreen().catch(() => {});
+                                    }}
+                                    style={{
+                                        width: '100%', padding: '14px 0', borderRadius: 12,
+                                        background: 'linear-gradient(90deg, #ea580c, #c2410c)',
+                                        color: 'white', fontWeight: 700, fontSize: 15,
+                                        border: 'none', cursor: 'pointer', letterSpacing: '0.3px'
+                                    }}
+                                >
+                                    Return to Exam
+                                </button>
+                            </>
+                        )}
+                    </motion.div>
+                </div>
+            )}
         </div>
     );
 }

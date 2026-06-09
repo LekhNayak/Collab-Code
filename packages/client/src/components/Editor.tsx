@@ -139,26 +139,12 @@ export default function CodeEditor({
 
                 const type = doc.getText('monaco');
 
-                // Wait for sync in ALL modes before touching the Yjs document.
-                // This prevents race conditions where local writes conflict with remote state.
+                // Wait for sync before touching the Yjs document.
+                // Only populate if the doc is empty — never wipe on reconnect.
                 wsProvider.on('sync', (isSynced: boolean) => {
                     if (!isSynced) return;
-
-                    if (roomId.startsWith('EX-')) {
-                        // Exam mode: push the current file content into the Yjs doc
-                        // so the admin monitor can see what the student is editing.
-                        if (type.length > 0) {
-                            type.delete(0, type.length);
-                        }
-                        if (content) {
-                            type.insert(0, content);
-                        }
-                    } else {
-                        // Collab mode: only populate if the Yjs doc is empty
-                        // (first user to open a newly imported file)
-                        if (type.length === 0 && content) {
-                            type.insert(0, content);
-                        }
+                    if (type.length === 0 && content) {
+                        type.insert(0, content);
                     }
                 });
 
@@ -189,24 +175,37 @@ export default function CodeEditor({
                         if (clientId === wsProvider.awareness.clientID) return;
                         const user = state.user;
                         if (!user) return;
-                        const idx = clientId % 10;
-                        const uColor = user.color || 'orange';
+                        const uColor = user.color || '#f44747';
                         const name = user.name || 'Anonymous';
-                        // Escape CSS content value
                         const safeName = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
                         css += `
-                      .yRemoteSelectionHead-${idx} {
-                        border-color: ${uColor} !important;
-                      }
-                      .yRemoteSelectionHead-${idx}::after {
-                        content: "${safeName}";
-                        background: ${uColor};
-                        opacity: 1;
-                      }
-                      .yRemoteSelection-${idx} {
-                        background-color: ${uColor}33 !important;
-                      }
-                    `;
+                          .yRemoteSelectionHead-${clientId} {
+                            position: relative;
+                            border-left: 2px solid ${uColor} !important;
+                            border-top: 2px solid ${uColor} !important;
+                            margin-left: -1px;
+                          }
+                          .yRemoteSelectionHead-${clientId}::after {
+                            content: "${safeName}";
+                            position: absolute;
+                            top: -18px;
+                            left: -1px;
+                            background: ${uColor};
+                            color: #fff;
+                            font-size: 10px;
+                            font-weight: 700;
+                            font-family: system-ui, sans-serif;
+                            padding: 1px 6px;
+                            border-radius: 3px 3px 3px 0;
+                            white-space: nowrap;
+                            pointer-events: none;
+                            line-height: 16px;
+                            z-index: 100;
+                          }
+                          .yRemoteSelection-${clientId} {
+                            background-color: ${uColor}33 !important;
+                          }
+                        `;
                     });
                     styleEl.textContent = css;
                 };

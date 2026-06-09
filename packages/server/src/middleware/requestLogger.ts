@@ -98,7 +98,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
         return originalJson(body);
     };
 
-    // When the response finishes, log everything
+    // When the response finishes, log a single compact line (+ error detail if needed)
     res.on('finish', () => {
         const endTime = process.hrtime.bigint();
         const durationMs = Number(endTime - startTime) / 1e6;
@@ -107,54 +107,22 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
         const methodColor = getMethodColor(req.method);
         const statusColor = getStatusColor(status);
         const emoji = getStatusEmoji(status);
+        const durationColor = durationMs > 1000 ? colors.red : durationMs > 200 ? colors.yellow : colors.green;
 
-        // ── Header line ──
-        const separator = `${colors.gray}${'─'.repeat(70)}${colors.reset}`;
-        console.log(separator);
+        // ── Single summary line ──
         console.log(
-            `${emoji} ${colors.gray}[${timestamp}]${colors.reset} ` +
-            `${methodColor}${colors.bright}${req.method.padEnd(7)}${colors.reset} ` +
-            `${colors.white}${req.originalUrl}${colors.reset}`
+            `${emoji}  ${colors.gray}${timestamp.slice(11, 19)}${colors.reset}  ` +
+            `${methodColor}${colors.bright}${req.method.padEnd(6)}${colors.reset}` +
+            `${statusColor}${colors.bright}${status}${colors.reset}  ` +
+            `${durationColor}${formatDuration(durationMs).padStart(6)}${colors.reset}  ` +
+            `${colors.white}${req.originalUrl}${colors.reset}  ` +
+            `${colors.gray}${getUserInfo(req)}${colors.reset}`
         );
 
-        // ── Status & Duration ──
-        console.log(
-            `   ${colors.gray}Status:${colors.reset} ${statusColor}${colors.bright}${status}${colors.reset} ` +
-            `${colors.gray}│ Duration:${colors.reset} ${durationMs > 1000 ? colors.red : durationMs > 200 ? colors.yellow : colors.green}${formatDuration(durationMs)}${colors.reset} ` +
-            `${colors.gray}│ User:${colors.reset} ${getUserInfo(req)}`
-        );
-
-        // ── Query Params ──
-        const queryKeys = Object.keys(req.query);
-        if (queryKeys.length > 0) {
-            console.log(
-                `   ${colors.gray}Query:${colors.reset}  ${colors.cyan}${JSON.stringify(req.query)}${colors.reset}`
-            );
-        }
-
-        // ── Request Body (for POST/PUT/PATCH) ──
-        if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body && Object.keys(req.body).length > 0) {
-            // Disabled heavy synchronously-blocking body log for performance
-        }
-
-        // ── Route Params ──
-        const paramKeys = Object.keys(req.params || {});
-        if (paramKeys.length > 0) {
-            console.log(
-                `   ${colors.gray}Params:${colors.reset} ${colors.dim}${JSON.stringify(req.params)}${colors.reset}`
-            );
-        }
-
-        // ── Auth Header presence ──
-        const hasAuth = !!(req.headers.authorization || req.query.token);
-        console.log(
-            `   ${colors.gray}Auth:${colors.reset}   ${hasAuth ? `${colors.green}Token present` : `${colors.red}No token`}${colors.reset}`
-        );
-
-        // ── Error Response Body (for 4xx/5xx) ──
+        // ── Error detail line (4xx/5xx only) ──
         if (status >= 400 && responseBody) {
             console.log(
-                `   ${colors.red}${colors.bright}Error:${colors.reset}  ${colors.red}${JSON.stringify(responseBody)}${colors.reset}`
+                `   ${colors.red}↳ ${JSON.stringify(responseBody)}${colors.reset}`
             );
         }
     });

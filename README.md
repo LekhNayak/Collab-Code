@@ -1,6 +1,6 @@
 # Colab Code Editor
 
-A **collaborative, in-browser code editor** with real-time multi-user editing, workspaces, GitHub authentication, code execution, and Git integration. Think of it as a lightweight, self-hosted alternative to shared coding environments—great for pair programming, teaching, or remote interviews.
+A **collaborative, in-browser code editor** with real-time multi-user editing, isolated exam rooms, GitHub authentication, code execution, and Git integration. Think of it as a lightweight, self-hosted alternative to shared coding environments — great for pair programming, remote interviews, and live coding assessments.
 
 ---
 
@@ -14,6 +14,8 @@ A **collaborative, in-browser code editor** with real-time multi-user editing, w
 - [Environment Variables](#environment-variables)
 - [Database Setup](#database-setup)
 - [How to Run](#how-to-run)
+- [User Roles](#user-roles)
+- [Exam Portal](#exam-portal)
 - [Code Execution (Piston)](#code-execution-piston)
 - [Available Scripts](#available-scripts)
 - [API Overview](#api-overview)
@@ -23,57 +25,51 @@ A **collaborative, in-browser code editor** with real-time multi-user editing, w
 
 ## Features
 
-- **Real-time collaboration** – Multiple users edit the same file at once (powered by [Yjs](https://yjs.dev/) + WebSockets).
-- **Monaco Editor** – Same editor as VS Code: syntax highlighting, multi-cursor, and language support.
-- **Workspaces** – Create workspaces, manage files and folders, and share with team members (roles: Owner, Editor, Viewer).
-- **Exam Portal** – Secure, role-based exam environments with isolated student workspaces, real-time proctor monitoring, logging, and automatic copy-paste cheat detection.
-- **GitHub OAuth** – Sign in with your GitHub account; JWT-based sessions.
-- **Code execution** – Run code in multiple languages via [Piston](https://github.com/engineer-man/piston) (optional). Supports Python, JavaScript/TypeScript, Java, C/C++, Go, Rust, Bash, and more. Uses a Redis-backed job queue (BullMQ) for async runs.
-- **Git integration** – Clone repos, init, status, add, commit, push, pull, branches, and remotes (via [isomorphic-git](https://isomorphic-git.org/) on the server).
-- **File system** – Create, edit, delete, rename, and move files/folders inside a workspace. File tree and tabbed editor.
-- **Sessions** – Save and restore editor sessions (open tabs, active file, settings). Optional extension registry (built-in + custom extensions).
-- **GitHub Import** – Clone public and private repositories straight into your IDE workspace instantly.
-- **Terminal-style UI** – In-app “terminal” with commands like `ls`, `cat`, `touch`, `mkdir`, `rm` for file operations.
+- **Real-time collaboration** — Multiple users edit the same file simultaneously (Yjs CRDT + WebSockets). Named cursor labels show exactly who is typing where.
+- **Monaco Editor** — Same editor as VS Code: syntax highlighting, multi-cursor, bracket colorization, and broad language support.
+- **Auto-save** — File content is automatically saved to disk 2 seconds after the last keystroke. A save-on-hide fallback fires the moment the browser tab loses focus, so no work is lost if users close without pressing Ctrl+S.
+- **Session restore** — Open tabs and the active file are restored exactly as left on every page reload.
+- **Workspaces** — Per-room file systems stored on disk. Create, rename, move, and delete files and folders. Full ZIP/folder upload and workspace download.
+- **Exam Portal** — Role-based secure exam rooms with per-student workspace isolation, real-time proctor monitoring, anti-cheat enforcement, and a full audit log.
+- **Anti-cheat** — Fullscreen enforcement with a blocking overlay, tab-switch and Alt+Tab detection (3-strike auto-block), keyboard shortcut blocking (Ctrl+W/T/N, F12, DevTools), and copy/paste size limits with server-side logging.
+- **GitHub OAuth** — Sign in with GitHub; JWT-based sessions with role embedded in token.
+- **Email/password auth** — Register and log in with username + email + password.
+- **Code execution** — Run code in the integrated terminal via [Piston](https://github.com/engineer-man/piston). Supports Python, JavaScript/TypeScript, Java, C/C++, Go, Rust, Bash, and more.
+- **Git integration** — `init`, `status`, `add`, `commit`, `push`, `pull`, branches, and remotes via [isomorphic-git](https://isomorphic-git.org/) (no system Git required).
+- **GitHub Import** — Clone any public GitHub repository straight into a new collaborative workspace.
+- **Terminal** — In-app terminal with `ls`, `cat`, `touch`, `mkdir`, `rm`, `mv`, `cd`, `run`, and language execution commands.
+- **Extensions** — Installable editor themes and extensions stored per-session.
 
 ---
 
 ## Tech Stack
 
-| Layer        | Technologies |
-|-------------|--------------|
-| **Frontend** | React 19, React Router 7, Vite 8, Monaco Editor, Yjs (y-monaco, y-websocket), Lucide React |
-| **Backend**  | Node.js, Express, TypeScript, Prisma, Passport (GitHub OAuth), JWT, express-session |
-| **Real-time**| WebSockets (ws), y-websocket, Yjs |
-| **Database** | PostgreSQL |
-| **Queue**    | BullMQ (Redis) for code execution jobs |
-| **Code run**| Piston API (external service) |
-| **Git**      | isomorphic-git (in-process, no system Git required) |
+| Layer | Technologies |
+|---|---|
+| **Frontend** | React 19, React Router 7, Vite 8, Monaco Editor (`@monaco-editor/react`), Yjs (`y-monaco`, `y-websocket`), Framer Motion, Lucide React, Tailwind CSS |
+| **Backend** | Node.js, Express, TypeScript, Prisma ORM, Passport (GitHub OAuth), JWT (`jsonwebtoken`), bcryptjs |
+| **Real-time** | WebSockets (`ws`), `y-websocket`, Yjs CRDT |
+| **Database** | PostgreSQL (hosted on [Neon](https://neon.tech/) or any Postgres provider) |
+| **Queue** | BullMQ + Redis for async code execution jobs |
+| **Code execution** | Piston API (self-hosted via Docker) |
+| **Git** | isomorphic-git (in-process, no system Git required) |
 
 The repo is an **npm workspaces** monorepo: `packages/client`, `packages/server`, and `packages/shared`.
 
 ---
 
-## Design Architecture (Neo-Brutalism)
-
-The Colab Cloud UI heavily emphasizes a modern **Neo-Brutalist** design aesthetic. This translates to bold typography, high-contrast borders, solid drop shadows, and vivid functional colors.
-
-- **Libraries Chosen**: `framer-motion` & `lucide-react`
-- **Animation Strategy**: We rely heavily on micro-interactions. Elements have slight bounce on hover, push effects on click/tap, and we utilize Framer Motion to handle layout transitions (like moving and resizing editor tabs) flawlessly.
-- **Component Primitives**: Specialized `BrutalButton`, `BrutalCard`, and `BrutalInput` wrappers enforce strict 4px borders and solid box-shadow displacements to keep the ecosystem cohesive.
-- **Dynamic Adaptability**: The platform ships with `next-themes` style toggling, supporting both sleek dark mode and glaring light mode while maintaining brutalist design laws contextually.
-
----
-
 ## Prerequisites
 
-- **Node.js** – v18+ (v20+ recommended). [Download](https://nodejs.org/)
-- **npm** – v7+ (comes with Node; needed for workspaces).
-- **PostgreSQL** – Any recent version (e.g. 14+). Used for users, workspaces, and file metadata.
-- **Redis** – Required for the code execution queue (BullMQ). [Download](https://redis.io/) or use Docker.
+- **Node.js** v18+ (v20+ recommended)
+- **npm** v7+ (comes with Node; needed for workspaces)
+- **PostgreSQL** — any recent version (14+). Can use [Neon](https://neon.tech/) free tier for cloud Postgres.
+- **Redis** — required for the code execution queue (BullMQ). Run locally or via Docker.
 
-Optional for **running code**:
+Optional for code execution:
 
-- **Piston** – Code execution engine. Easiest: run via Docker (see [Code Execution (Piston)](#code-execution-piston)).
+- **Piston** — sandboxed code execution engine, easiest to run via Docker.
+
+> **Note on Neon free tier:** Neon auto-suspends the DB after inactivity. The first request after a cold start may time out (~30s) while it wakes up. Subsequent requests succeed normally. This is expected behavior on the free tier.
 
 ---
 
@@ -81,58 +77,74 @@ Optional for **running code**:
 
 ```
 Colab Code Editor/
-├── package.json                 # Root workspace config (dev, build, test)
+├── package.json                   # Root workspace config
 ├── packages/
-│   ├── client/                  # React + Vite frontend
+│   ├── client/                    # React + Vite frontend
+│   │   └── src/
+│   │       ├── App.tsx            # All route definitions
+│   │       ├── pages/
+│   │       │   ├── Hub.tsx        # Home — 4-card destination picker
+│   │       │   ├── Login.tsx      # GitHub OAuth + email/password login
+│   │       │   ├── Room.tsx       # Create/join a collab room (/collab)
+│   │       │   ├── ExamEntry.tsx  # Student exam entry (/take-exam)
+│   │       │   ├── ImportProject.tsx  # GitHub repo import (/import)
+│   │       │   ├── AdminDashboard.tsx # Proctor dashboard (/admin)
+│   │       │   ├── AdminMonitor.tsx   # Live exam monitor (/exam/:id/monitor)
+│   │       │   └── CollabAdmin.tsx    # Collab room admin (/collab-admin/:roomId)
+│   │       └── components/
+│   │           ├── IDELayout.tsx  # Main IDE shell (collab + exam modes)
+│   │           ├── Editor.tsx     # Monaco + Yjs binding + cursor labels
+│   │           ├── Terminal.tsx   # In-app terminal + code execution
+│   │           ├── FileExplorer.tsx
+│   │           ├── GitPanel.tsx
+│   │           ├── ExtensionPanel.tsx
+│   │           └── ui/LiquidEther.tsx  # Three.js animated background
+│   ├── server/                    # Express API + WebSocket server
 │   │   ├── src/
-│   │   │   ├── App.tsx          # Routes: /login, /auth/callback, /, /room/:roomId
-│   │   │   ├── main.tsx
-│   │   │   ├── pages/           # Login, Room list
-│   │   │   └── components/       # IDELayout, FileExplorer, Editor, Terminal, GitPanel, etc.
-│   │   ├── vite.config.ts
-│   │   └── package.json
-│   ├── server/                  # Express API + WebSocket
-│   │   ├── src/
-│   │   │   ├── index.ts         # Express app, CORS, session, routes, WebSocket
-│   │   │   ├── config/          # Passport (GitHub)
-│   │   │   ├── routes/          # auth, git, execution, sessions
-│   │   │   ├── services/        # GitService, executionService, sessionService, etc.
-│   │   │   └── socket/          # Yjs WebSocket server
+│   │   │   ├── index.ts           # App entry, routes, middleware
+│   │   │   ├── middleware/
+│   │   │   │   ├── auth.ts        # requireAuth / requireRole (reads role from JWT)
+│   │   │   │   └── requestLogger.ts  # Compact single-line request logger
+│   │   │   ├── routes/
+│   │   │   │   ├── auth.ts        # /auth — login, register, GitHub OAuth
+│   │   │   │   ├── exam.ts        # /exam — create, sessions, logs, anti-cheat events
+│   │   │   │   ├── git.ts         # /git — file CRUD, Git operations
+│   │   │   │   ├── sessions.ts    # /sessions — session state + extensions
+│   │   │   │   └── execution.ts   # /execute — code execution (queued + direct)
+│   │   │   ├── services/
+│   │   │   │   ├── GitService.ts  # isomorphic-git wrapper
+│   │   │   │   ├── executionService.ts  # Piston API integration
+│   │   │   │   └── sessionService.ts    # Session JSON persistence
+│   │   │   └── socket/index.ts    # Yjs WebSocket — collab, exam, admin-monitor modes
 │   │   ├── prisma/
-│   │   │   └── schema.prisma    # User, Workspace, WorkspaceMember, File
-│   │   └── package.json
-│   └── shared/                  # Shared TypeScript types (User, Workspace)
-│       └── src/index.ts
-├── markdown files/              # Documentation and reports
-│   ├── API_REFERENCE.md
-│   ├── SECURITY_HARDENING_REPORT.md
-│   ├── SOURCE_CONTROL_GUIDE.md
-│   └── bug_log.md
-├── README.md
-└── .env files (see below)
+│   │   │   └── schema.prisma
+│   │   └── workspaces/            # Per-room file storage (created at runtime)
+│   └── shared/                    # Shared TypeScript types
+└── README.md
 ```
 
 ---
 
 ## Installation
 
-1. **Clone the repository** (or unzip the project):
+1. **Clone the repository:**
 
    ```bash
-   cd "c:\Users\Nayak\Desktop\Colab Code Editor"
+   git clone <repo-url>
+   cd "Colab Code Editor"
    ```
 
-2. **Install dependencies** (from repo root; this installs all workspaces):
+2. **Install all dependencies** (installs all workspaces from the root):
 
    ```bash
    npm install
    ```
 
-3. **Set up environment variables** for client and server (see [Environment Variables](#environment-variables)).
+3. **Set up environment variables** (see [Environment Variables](#environment-variables)).
 
 4. **Set up the database** (see [Database Setup](#database-setup)).
 
-5. **Optional:** Start Redis and Piston if you want code execution (see [Code Execution (Piston)](#code-execution-piston)).
+5. **Optionally start Redis and Piston** for code execution.
 
 ---
 
@@ -140,29 +152,29 @@ Colab Code Editor/
 
 ### Server (`packages/server/.env`)
 
-Create or edit `packages/server/.env`:
-
 | Variable | Required | Description |
-|----------|----------|-------------|
-| `PORT` | No | API server port (default: `3001`). |
-| `DATABASE_URL` | **Yes** | PostgreSQL connection string, e.g. `postgresql://USER:PASSWORD@localhost:5432/DBNAME?schema=public`. |
-| `JWT_SECRET` | **Yes** | Secret used to sign JWTs (use a long random string in production). |
-| `GITHUB_CLIENT_ID` | For GitHub login | From [GitHub OAuth App](https://github.com/settings/developers). |
-| `GITHUB_CLIENT_SECRET` | For GitHub login | From the same OAuth app. |
-| `CallbackURL` | For GitHub login | Callback URL, e.g. `http://localhost:3001/auth/github/callback`. |
-| `REDIS_HOST` | For code execution | Redis host (default: `localhost`). |
-| `REDIS_PORT` | For code execution | Redis port (default: `6379`). |
-| `PISTON_URL` | For code execution | Piston API base URL (default: `http://localhost:2000`). |
+|---|---|---|
+| `PORT` | No | API server port (default: `3001`) |
+| `DATABASE_URL` | **Yes** | PostgreSQL connection string |
+| `JWT_SECRET` | **Yes** | Secret for signing JWTs — use a long random string in production |
+| `GITHUB_CLIENT_ID` | For GitHub login | From [GitHub OAuth Apps](https://github.com/settings/developers) |
+| `GITHUB_CLIENT_SECRET` | For GitHub login | From the same OAuth app |
+| `CallbackURL` | For GitHub login | e.g. `http://localhost:3001/auth/github/callback` |
+| `REDIS_HOST` | For code execution | Redis host (default: `localhost`) |
+| `REDIS_PORT` | For code execution | Redis port (default: `6379`) |
+| `PISTON_URL` | For code execution | Piston API base URL (default: `http://localhost:2000`) |
+| `FRONTEND_URL` | No | Frontend origin for OAuth redirect (default: `http://localhost:5173`) |
 
-**Example `.env` (minimal for local dev):**
+**Example `packages/server/.env`:**
 
 ```env
 PORT=3001
-DATABASE_URL="postgresql://admin:password@localhost:5433/collaborative_ide?schema=public"
+DATABASE_URL="postgresql://user:password@host/dbname?sslmode=require"
 JWT_SECRET="your-super-secret-jwt-key-change-in-production"
 GITHUB_CLIENT_ID="your_github_client_id"
 GITHUB_CLIENT_SECRET="your_github_client_secret"
 CallbackURL="http://localhost:3001/auth/github/callback"
+FRONTEND_URL="http://localhost:5173"
 REDIS_HOST=localhost
 REDIS_PORT=6379
 PISTON_URL=http://localhost:2000
@@ -170,21 +182,19 @@ PISTON_URL=http://localhost:2000
 
 ### Client (`packages/client/.env`)
 
-Create or edit `packages/client/.env`:
-
 | Variable | Required | Description |
-|----------|----------|-------------|
-| `VITE_API_URL` | **Yes** | Backend API base URL (e.g. `http://localhost:3001`). |
-| `VITE_WS_URL` | **Yes** | WebSocket URL for real-time collaboration (e.g. `ws://localhost:3001`). |
+|---|---|---|
+| `VITE_API_URL` | **Yes** | Backend API base URL e.g. `http://localhost:3001` |
+| `VITE_WS_URL` | **Yes** | WebSocket URL e.g. `ws://localhost:3001` |
 
-**Example:**
+**Example `packages/client/.env`:**
 
 ```env
 VITE_API_URL=http://localhost:3001
 VITE_WS_URL=ws://localhost:3001
 ```
 
-For production, replace `localhost` with your server hostname and use `wss://` for WebSockets if you use HTTPS.
+For production replace `localhost` with your server hostname and use `wss://` if serving over HTTPS.
 
 ---
 
@@ -194,194 +204,248 @@ The server uses **Prisma** with PostgreSQL.
 
 1. Ensure PostgreSQL is running and `DATABASE_URL` in `packages/server/.env` is correct.
 
-2. Generate the Prisma client and run migrations:
-
-   ```bash
-   cd packages/server
-   npx prisma generate
-   npx prisma migrate dev
-   ```
-
-   Or from the repo root:
-
-   ```bash
-   npm run dev --workspace=@collaborative-ide/server
-   ```
-
-   You only need to run migrations once (or when schema changes). If you prefer to push the schema without migration history:
+2. Push the schema to the database:
 
    ```bash
    cd packages/server
    npx prisma db push
    ```
 
-3. (Optional) Open Prisma Studio to inspect data:
+   Or use migrations (recommended for production):
+
+   ```bash
+   cd packages/server
+   npx prisma migrate dev
+   ```
+
+3. Optionally open Prisma Studio to inspect data:
 
    ```bash
    cd packages/server
    npx prisma studio
    ```
 
+> **If you add fields to `schema.prisma`** (e.g. new columns on `ExamSession`), re-run `npx prisma db push` to sync the DB. Forgetting this causes `column does not exist` errors at runtime.
+
 ---
 
 ## How to Run
 
-### Development (recommended)
+### Development
 
-From the **project root**:
+From the **project root:**
 
 ```bash
 npm run dev
 ```
-
-This runs both the client and server in development mode:
 
 - **Client:** Vite dev server at **http://localhost:5173**
 - **Server:** Express + WebSocket at **http://localhost:3001**
 
-Open [http://localhost:5173](http://localhost:5173) in your browser. Log in with GitHub (if configured), then create or open a room to use the collaborative editor.
-
 ### Run client and server separately
 
-**Terminal 1 – server:**
-
 ```bash
-cd packages/server
-npm run dev
+# Terminal 1 — server
+cd packages/server && npm run dev
+
+# Terminal 2 — client
+cd packages/client && npm run dev
 ```
-
-**Terminal 2 – client:**
-
-```bash
-cd packages/client
-npm run dev
-```
-
-Again: client at **http://localhost:5173**, API at **http://localhost:3001**. Ensure `.env` in both packages is set (especially `VITE_API_URL` and `VITE_WS_URL` for the client).
 
 ### Production build
-
-From the project root:
 
 ```bash
 npm run build
 ```
 
-This builds the client (and any other workspaces that define a `build` script). Serve the client build (e.g. `packages/client/dist`) with a static file server or reverse proxy, and run the server with Node in production (e.g. `node` with compiled JS or `ts-node`/compiled TS).
+Builds the client to `packages/client/dist`. Serve with any static host or reverse proxy (nginx, Caddy, etc.) and run the server with Node.
 
 ---
 
-## Exam Portal 
+## User Roles
 
-The platform supports a secure, role-based exam feature that integrates seamlessly with real-time collaboration endpoints without disrupting regular usage:
+The platform uses two roles stored in the database and embedded in the JWT at login time:
 
-1. **Admin/Teacher Dashboard (`/admin`)**: 
-   - Deploy new exam rooms with custom URLs.
-   - Access the **Live Monitoring Suite** (`/exam/:id/monitor`) which acts as an operational command center.
-2. **Student Portal (`/e/:examId`)**:
-   - WebSockets automatically connect to an isolated student-specific namespace.
-   - Built-in **anti-cheating mechanisms** intercept any mass copy-pasting. 
-3. **Audit Log System**:
-   - All code compilations, success/failure statuses, exit codes, and mass-paste events are actively broadcasted and permanently logged against the student's ID via the Prisma backend APIs.
+| Role | Access |
+|---|---|
+| `STUDENT` | Default for all new registrations. Can join collab rooms, take exams, import projects. |
+| `ADMIN` | Can create and delete exam rooms, access the proctor dashboard, monitor live student sessions, block/unblock/remove students. |
+
+**Assigning ADMIN role:**
+
+There is no self-service admin signup. To promote a user to admin, update their record directly:
+
+```sql
+UPDATE "User" SET role = 'ADMIN' WHERE email = 'your@email.com';
+```
+
+Or use Prisma Studio (`npx prisma studio` in `packages/server`).
+
+After updating the DB, the user must **log out and log back in** to get a new JWT that includes the updated role.
+
+> **Why log out?** The role is embedded in the JWT at login. The server reads the role from the token directly — no DB lookup per request — so a role change only takes effect when a new token is issued.
+
+---
+
+## Exam Portal
+
+### For Admins (Proctors)
+
+1. Go to **`/admin`** (Proctor Dashboard).
+2. Enter an exam title and click **Create Room**. An exam code in the format `EX-XXXXXXXX` is generated.
+3. Share the exam code with students.
+4. Click any exam card to open the **Live Monitor** (`/exam/:id/monitor`):
+   - See each student's live code in a read-only Monaco editor panel (via Yjs).
+   - View real-time event logs: joins, tab switches, fullscreen exits, code executions, paste alerts.
+   - **Block**, **Unblock**, or **Remove** individual students.
+   - Stats bar shows total students, blocked count, tab-switch violations, and paste alerts.
+
+### For Students
+
+1. Go to **`/take-exam`** from the Hub.
+2. Enter the exam code (`EX-XXXXXXXX`) and your display name.
+3. The IDE opens in exam mode with these restrictions enforced:
+   - **Fullscreen required** — exiting fullscreen shows a blocking overlay and logs the event.
+   - **Tab switching blocked** — switching away triggers an overlay with violation count. 3 violations = auto-blocked.
+   - **Alt+Tab detection** — `window.blur` catches focus leaving to other OS windows.
+   - **Keyboard blocking** — Ctrl+W, Ctrl+T, Ctrl+N, Ctrl+Tab, F12, F11, Alt+F4, and DevTools shortcuts are intercepted.
+   - **Copy/paste limits** — copying or pasting >50 characters is blocked and logged. 20–50 characters are logged silently.
+4. Each student gets an **isolated workspace** (`EX-XXXXXXXX__userId`) — students cannot see each other's code.
+
+### Room Code Format
+
+- Collab rooms: `CR-xxxxxxxx` (lowercase random hex)
+- Exam rooms: `EX-XXXXXXXX` (uppercase — always enter in uppercase)
 
 ---
 
 ## Code Execution (Piston)
 
-Code execution is optional. If you skip it, the “Run” feature in the IDE will not work until Piston (and optionally Redis) is set up.
+Code execution is optional. Without it the `run` command in the terminal returns an error.
 
-1. **Redis** – Required for the execution queue (BullMQ). Start Redis locally or set `REDIS_HOST` / `REDIS_PORT` in `packages/server/.env`.
-
-   Example with Docker:
+1. **Start Redis:**
 
    ```bash
    docker run -d -p 6379:6379 redis:alpine
    ```
 
-2. **Piston** – Run the [Piston](https://github.com/engineer-man/piston) API (default port 2000). Example with Docker:
+2. **Start Piston:**
 
    ```bash
    docker run -d -p 2000:2000 ghcr.io/engineer-man/piston
    ```
 
-   If Piston runs elsewhere, set `PISTON_URL` in `packages/server/.env` to that base URL.
+   If Piston runs on a different host, set `PISTON_URL` accordingly.
 
-Supported languages (by alias) include: `python`, `py`, `javascript`, `js`, `node`, `typescript`, `ts`, `java`, `c`, `cpp`, `c++`, `go`, `rust`, `bash`, `shell`. The server maps these to Piston runtime names and versions.
+Supported languages: `python`, `javascript` / `node`, `typescript`, `java`, `c`, `cpp`, `go`, `rust`, `bash`.
+
+In the terminal, use:
+- `run` — execute the currently open file
+- `python <file>`, `node <file>`, `go <file>` etc. — execute by language
 
 ---
 
 ## Available Scripts
 
-From the **root** `package.json`:
+**Root:**
 
 | Script | Description |
-|--------|-------------|
-| `npm run dev` | Run all workspaces in dev mode (client + server). |
-| `npm run build` | Build all workspaces that define a `build` script (e.g. client). |
-| `npm run test` | Run tests in all workspaces (if defined). |
+|---|---|
+| `npm run dev` | Start client + server in dev mode |
+| `npm run build` | Build all workspaces |
 
-**Client** (`packages/client`):
-
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Start Vite dev server (default port 5173). |
-| `npm run build` | TypeScript build + Vite production build. |
-| `npm run preview` | Preview the production build locally. |
-| `npm run lint` | Run ESLint. |
-
-**Server** (`packages/server`):
+**Client (`packages/client`):**
 
 | Script | Description |
-|--------|-------------|
-| `npm run dev` | Start server with nodemon + ts-node (restarts on file changes). |
-| `npm run type-check` | Run `tsc --noEmit`. |
+|---|---|
+| `npm run dev` | Vite dev server (port 5173) |
+| `npm run build` | TypeScript check + Vite production build |
+| `npm run preview` | Preview production build locally |
+| `npm run lint` | ESLint |
+
+**Server (`packages/server`):**
+
+| Script | Description |
+|---|---|
+| `npm run dev` | nodemon + ts-node (restarts on changes) |
+| `npm run type-check` | `tsc --noEmit` |
 
 ---
 
 ## API Overview
 
-- **`/auth`** – GitHub OAuth: `GET /auth/github`, `GET /auth/github/callback`, `GET /auth/me`.
-- **`/git`** – File and Git operations: clone, init, file CRUD, tree, and Git actions (status, add, commit, push, pull, branches, remotes, etc.).
-- **`/execute`** – Code execution: `POST /execute/run` (queued), `POST /execute/run/direct` (sync), `GET /execute/result/:jobId`.
-- **`/sessions`** – Sessions CRUD and extension registry: create/list/get/update/delete sessions, install/uninstall extensions, list extensions by category.
-- **`/exam`** – Exam Portal APIs: Room creation, secure log fetching, execution, and copy-paste alerts.
+| Prefix | Description |
+|---|---|
+| `POST /auth/register` | Register with username, email, password. Returns JWT with role. |
+| `POST /auth/login` | Login with email + password. Returns JWT with role. |
+| `GET /auth/github` | Initiate GitHub OAuth flow. |
+| `GET /auth/github/callback` | OAuth callback — redirects to frontend with JWT. |
+| `GET /git/tree/:workspaceId` | Get file tree for a workspace. |
+| `GET /git/file/:workspaceId/*` | Read a file. |
+| `PUT /git/file/:workspaceId/*` | Write/save a file. |
+| `POST /git/clone` | Clone a GitHub repo into a workspace. |
+| `POST /exam/create` | Create an exam room (ADMIN only). |
+| `GET /exam` | List all exams owned by current user (ADMIN only). |
+| `GET /exam/:id/sessions` | Get all student sessions for an exam (ADMIN only). |
+| `GET /exam/:id/logs` | Get all event logs for an exam (ADMIN only). |
+| `POST /exam/:id/join` | Student joins exam — creates session and logs JOIN event. |
+| `POST /exam/:id/tab-switch` | Log a tab switch; auto-blocks at 3 violations. |
+| `POST /exam/:id/fullscreen-exit` | Log a fullscreen exit. |
+| `POST /exam/:id/block` | Block a student (ADMIN only). |
+| `POST /exam/:id/unblock` | Unblock a student and reset violation count (ADMIN only). |
+| `POST /exam/:id/remove-student` | Remove student from exam (ADMIN only). |
+| `GET /sessions/:id` | Get session state (open tabs, active tab, extensions). |
+| `PUT /sessions/:id` | Save session state. |
+| `POST /execute/run/direct` | Execute code synchronously via Piston. |
 
-WebSocket connections (e.g. `ws://localhost:3001/<roomId>`) are used for Yjs-based real-time collaboration; the path segment is the document/room ID.
+**WebSocket** — connect to `ws://localhost:3001/<roomId>?token=<jwt>`:
+
+| Mode | Path / Params | Description |
+|---|---|---|
+| Collab | `/<CR-roomId>` | Shared Yjs doc — all users edit together |
+| Exam student | `/<EX-roomId>` | Per-student isolated Yjs doc |
+| Admin monitor | `/?mode=admin-monitor&examId=&studentId=` | Read-only view of a student's doc |
 
 ---
 
 ## Troubleshooting
 
-- **“Cannot connect to API” or CORS errors**  
-  - Ensure the server is running on the port in `VITE_API_URL`.  
-  - In dev, the client often proxies `/api` and `/auth` to the server (see `packages/client/vite.config.ts`). If you use full URLs, ensure CORS on the server allows your client origin (e.g. `http://localhost:5173`).
+**"Cannot connect to API" or CORS errors**
+- Ensure the server is running on the port in `VITE_API_URL`.
+- Check that CORS on the server allows `http://localhost:5173` (or your frontend origin).
 
-- **WebSocket connection fails**  
-  - Check `VITE_WS_URL` (e.g. `ws://localhost:3001`).  
-  - Ensure the same server process that serves the HTTP API also handles WebSocket upgrades (as in `packages/server/src/index.ts`).
+**WebSocket connection fails**
+- Check `VITE_WS_URL` — must point to the same server as the API.
+- Ensure the server process handles both HTTP and WebSocket upgrades (they share the same port).
 
-- **Database connection errors**  
-  - Verify PostgreSQL is running and `DATABASE_URL` is correct.  
-  - Run `npx prisma generate` and `npx prisma migrate dev` in `packages/server`.
+**Database errors on first request (Neon)**
+- Neon free tier suspends after inactivity. The first request after a cold start times out while the DB wakes (~30s). Retry the request — it will succeed.
 
-- **GitHub login redirect or “failureRedirect”**  
-  - Confirm `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and `CallbackURL` match your [GitHub OAuth App](https://github.com/settings/developers) settings.  
-  - Callback URL must be exactly what GitHub has (e.g. `http://localhost:3001/auth/github/callback`).
+**"Column does not exist" errors (Prisma)**
+- The DB schema is out of sync with `schema.prisma`. Run `npx prisma db push` in `packages/server`.
 
-- **Code execution fails or “Job not found”**  
-  - Ensure Redis is running and `REDIS_HOST`/`REDIS_PORT` are correct.  
-  - Ensure Piston is running and `PISTON_URL` is correct.  
-  - Check server logs for BullMQ worker and Piston API errors.
+**Admin can't create exams / gets 403**
+- Confirm the user's `role` is `ADMIN` in the DB.
+- Log out and log back in — the role must be in the JWT, which is only issued at login.
 
-- **Passport or “Strategy not found”**  
-  - The server uses `passport-github2` and `jsonwebtoken`; they may be hoisted to the root `node_modules`. If you only install in `packages/server`, add `passport`, `passport-github2`, and `jsonwebtoken` to `packages/server/package.json` dependencies and run `npm install` from the root.
+**Exam room code "Room not found" for students**
+- Exam codes are always uppercase (`EX-XXXXXXXX`). The student entry form auto-uppercases, but verify there are no extra spaces.
+
+**Code disappears after code execution**
+- Fixed in current version. The Yjs WebSocket `sync` event previously wiped the editor on every reconnect. Now the doc is only seeded when empty.
+
+**Unsaved dot appears on reload with no changes**
+- Fixed in current version. The modified indicator now compares against last-saved disk content, so the Yjs initial sync (which inserts the same bytes already on disk) no longer triggers the dot.
+
+**GitHub login redirect or "failureRedirect"**
+- Confirm `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and `CallbackURL` match your [GitHub OAuth App](https://github.com/settings/developers).
+- The callback URL must match exactly (e.g. `http://localhost:3001/auth/github/callback`).
+
+**Code execution fails**
+- Ensure Redis is running (`REDIS_HOST` / `REDIS_PORT` correct).
+- Ensure Piston is running (`PISTON_URL` correct).
+- Check server logs for Piston API errors.
 
 ---
 
-## License
-
-See the repository for license information (if any). Otherwise, use at your own discretion.
-
----
-
-**Enjoy building and collaborating with Colab Code Editor.**
+**Built by Lekh Sanatan Nayak**

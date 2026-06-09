@@ -62,12 +62,12 @@ router.post('/register', async (req, res) => {
         });
 
         const token = jwt.sign(
-            { id: user.id, username: user.username },
+            { id: user.id, username: user.username, role: (user as any).role },
             process.env.JWT_SECRET || 'secret',
             { expiresIn: '7d' }
         );
 
-        res.json({ token, user: { id: user.id, username: user.username, email: user.email } });
+        res.json({ token, user: { id: user.id, username: user.username, email: user.email, role: (user as any).role } });
     } catch (err: any) {
         console.error('Registration error:', err);
         res.status(500).json({ error: 'Failed to register' });
@@ -92,12 +92,12 @@ router.post('/login', async (req, res) => {
         }
 
         const token = jwt.sign(
-            { id: user.id, username: user.username },
+            { id: user.id, username: user.username, role: (user as any).role },
             process.env.JWT_SECRET || 'secret',
             { expiresIn: '7d' }
         );
 
-        res.json({ token, user: { id: user.id, username: user.username, email: user.email } });
+        res.json({ token, user: { id: user.id, username: user.username, email: user.email, role: (user as any).role } });
     } catch (err: any) {
         console.error('Login error:', err);
         res.status(500).json({ error: 'Failed to login' });

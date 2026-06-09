@@ -54,11 +54,12 @@ const Login: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden bg-[#02040f]">
-            <LiquidEther />
-
-            <motion.div
-                className="w-full max-w-[440px] relative z-10"
+        <div className="h-[100dvh] w-full flex font-sans relative overflow-hidden bg-black">
+            <LiquidEther className="absolute inset-0 z-0 opacity-100" />
+            
+            <div className="absolute inset-0 z-10 overflow-x-hidden overflow-y-auto flex flex-col items-center justify-center p-6">
+                <motion.div
+                    className="w-full max-w-[440px] relative z-10"
                 initial={{ opacity: 0, y: 32 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
@@ -182,8 +183,9 @@ const Login: React.FC = () => {
                     </p>
                 </GlassCard>
             </motion.div>
+            </div>
         </div>
     );
-};
+}
 
 export default Login;

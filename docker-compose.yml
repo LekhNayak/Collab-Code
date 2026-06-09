@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   redis:
     image: redis:7-alpine
@@ -9,6 +7,20 @@ services:
 
   piston:
     image: ghcr.io/engineer-man/piston
+    privileged: true
     restart: always
+
     ports:
       - "2000:2000"
+
+    tmpfs:
+      - /piston/jobs:exec,size=256m
+
+    volumes:
+      - piston_packages:/piston/packages
+
+    security_opt:
+      - label=disable
+
+volumes:
+  piston_packages:

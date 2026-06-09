@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Users, RefreshCw, Clock, Code2, Puzzle, Circle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getSessions, type SessionInfo } from '../api';
+import LiquidEther from '../components/ui/LiquidEther';
 
 // ─────────────────────────────────────────────────────
 // CollabAdmin — Admin view for a collaboration room
@@ -55,12 +56,11 @@ export default function CollabAdmin() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#090d1f] via-[#0f172a] to-[#090d1f] text-white p-6 md:p-10 font-sans relative overflow-hidden">
-            {/* BG glows */}
-            <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/15 blur-[120px] rounded-full pointer-events-none" />
-            <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-violet-500/15 blur-[120px] rounded-full pointer-events-none" />
+        <div className="h-[100dvh] w-full bg-black text-white font-sans relative overflow-hidden">
+            <LiquidEther className="absolute inset-0 z-0 opacity-100" />
 
-            <div className="max-w-4xl mx-auto relative z-10">
+            <div className="absolute inset-0 z-10 overflow-x-hidden overflow-y-auto w-full h-full p-6 md:p-10">
+                <div className="max-w-4xl mx-auto relative z-10">
                 {/* Header */}
                 <motion.div
                     className="flex items-center gap-4 mb-8"
@@ -246,6 +246,7 @@ export default function CollabAdmin() {
                         </motion.div>
                     </AnimatePresence>
                 )}
+                </div>
             </div>
         </div>
     );

@@ -16,7 +16,7 @@ router.post('/create', requireRole('ADMIN'), async (req: Request, res: Response)
         const { title, startTime, endTime } = req.body;
 
         // Generate a short, human-friendly exam room code
-        const roomCode = `EX-${crypto.randomBytes(4).toString('hex')}`;
+        const roomCode = `EX-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 
         const exam = await prisma.exam.create({
             data: {
@@ -151,7 +151,7 @@ router.post('/:id/create-room', requireRole('ADMIN'), async (req: Request, res: 
     try {
         const randomId = crypto.randomBytes(4).toString('hex');
         const examId = req.params.id;
-        const roomName = `EX-${randomId}`;
+        const roomName = `EX-${randomId.toUpperCase()}`;
 
         const exam = await prisma.exam.findUnique({ where: { id: examId } });
         if (!exam) return res.status(404).json({ error: 'Exam not found' });

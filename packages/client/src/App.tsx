@@ -6,6 +6,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminMonitor from './pages/AdminMonitor';
 import Hub from './pages/Hub';
 import CollabAdmin from './pages/CollabAdmin';
+import ExamEntry from './pages/ExamEntry';
+import ImportProject from './pages/ImportProject';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 const AuthCallback: React.FC = () => {
@@ -38,6 +40,14 @@ function App() {
           <Route
             path="/collab"
             element={<PrivateRoute><RoomPage /></PrivateRoute>}
+          />
+          <Route
+            path="/take-exam"
+            element={<PrivateRoute><ExamEntry /></PrivateRoute>}
+          />
+          <Route
+            path="/import"
+            element={<PrivateRoute><ImportProject /></PrivateRoute>}
           />
           <Route
             path="/room/:roomId"

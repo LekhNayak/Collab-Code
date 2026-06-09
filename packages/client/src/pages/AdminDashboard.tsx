@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Clock, ChevronRight, LogOut, Code2, Trash2, Copy } from 'lucide-react';
+import { Plus, Users, Clock, ChevronRight, LogOut, Code2, Trash2, Copy, ArrowLeft } from 'lucide-react';
 import { motion, type Variants } from 'framer-motion';
 import { getExams, createExam, deleteExam } from '../api';
 import type { ExamRoom } from '../api';
-import ThemeToggle from '../components/ThemeToggle';
+import LiquidEther from '../components/ui/LiquidEther';
 
 const staggerContainer: Variants = {
     hidden: { opacity: 0 },
@@ -88,16 +88,23 @@ export default function AdminDashboard() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#0f172a] text-white p-6 md:p-12 overflow-y-auto font-sans relative">
-            {/* Ethereal background blurs */}
-            <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/20 blur-[120px] rounded-full pointer-events-none" />
-            <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-fuchsia-500/20 blur-[120px] rounded-full pointer-events-none" />
-            
-            <div className="absolute top-6 right-6 flex items-center gap-4 z-20">
-                <ThemeToggle />
+        <div className="h-[100dvh] w-full bg-black text-white font-sans relative overflow-hidden">
+            <LiquidEther className="absolute inset-0 z-0 opacity-100" />
+
+            <div className="absolute top-6 left-6 z-20">
+                <button
+                    onClick={() => navigate('/')}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 text-white hover:bg-white/10 hover:border-white/20 transition-all font-semibold shadow-sm group"
+                >
+                    <ArrowLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
+                    Back to Hub
+                </button>
             </div>
 
-            <div className="max-w-6xl mx-auto w-full relative z-10">
+            <div className="absolute inset-0 z-10 overflow-x-hidden overflow-y-auto flex flex-col p-6 md:p-12 pt-20 md:pt-24">
+            {/* No Top Nav elements required here presently */}
+
+                <div className="max-w-6xl mx-auto w-full relative z-10">
                 <motion.div
                     className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 border-b border-white/10 pb-6 mt-4 backdrop-blur-sm"
                     initial={{ opacity: 0, y: -10 }}
@@ -246,6 +253,7 @@ export default function AdminDashboard() {
                         ))}
                     </motion.div>
                 )}
+            </div>
             </div>
 
             {/* Custom Delete Confirmation Modal */}

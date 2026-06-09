@@ -176,7 +176,7 @@ export default function AdminMonitor() {
 
     useEffect(() => {
         fetchData();
-        const interval = setInterval(fetchData, 3000);
+        const interval = setInterval(fetchData, 10000);
         return () => clearInterval(interval);
     }, [examId]);
 
@@ -395,7 +395,12 @@ export default function AdminMonitor() {
                                 bg: 'bg-white/5', border: 'border-white/10',
                                 icon: <Terminal size={15} />
                             };
-                            const details = log.details ? JSON.parse(log.details) : {};
+                            let details: any = {};
+                            try {
+                                details = log.details ? JSON.parse(log.details) : {};
+                            } catch (e) {
+                                details = { message: log.details };
+                            }
 
                             return (
                                 <motion.div
