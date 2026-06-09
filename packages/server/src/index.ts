@@ -15,7 +15,9 @@ const app = express();
 const port = process.env.PORT || 3001;
 
 const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174'];
-if (process.env.FRONTEND_URL) allowedOrigins.push(process.env.FRONTEND_URL);
+if (process.env.FRONTEND_URL) {
+    process.env.FRONTEND_URL.split(',').map(u => u.trim()).filter(Boolean).forEach(u => allowedOrigins.push(u));
+}
 
 app.use(cors({
     origin: allowedOrigins,
