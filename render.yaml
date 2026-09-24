@@ -1,0 +1,61 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# Backend only. The frontend (packages/client) is deployed on Vercel.
+#
+# Deploy: Render Dashboard → New → Blueprint → pick this repo. Render creates:
+#   colab-db   PostgreSQL
+#   colab-api  Express + WebSocket server (Docker, ./Dockerfile)
+#
+# On first sync Render prompts for FRONTEND_URL: enter your Vercel URL(s), e.g.
+# https://your-app.vercel.app. Then set VITE_API_URL in the Vercel project to this
+# service's URL (e.g. https://colab-api.onrender.com) and redeploy the frontend.
+
+databases:
+  - name: colab-db
+    plan: free
+    databaseName: colab
+    user: colab
+    ipAllowList: []            # reachable only from Render services, not the public internet
+
+services:
+  # ── Backend: REST API + Yjs WebSocket server ──────────────────────────────────
+  - type: web
+    name: colab-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - packages/server/**
+        - packages/shared/**
+        - Dockerfile
+        - start.sh
+        - package-lock.json
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: colab-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL          # client origin(s) allowed by CORS, comma-separated
+        sync: false
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /data
+      # Optional: point at a self-hosted Piston (e.g. https://piston.example.com/api/v2).
+      # When unset, code runs on the free Wandbox API.
+      - key: PISTON_URL
+        sync: false
+    # Workspace files live under DATA_DIR. On the free plan that directory is wiped whenever
+    # the service restarts, redeploys or spins down after 15 idle minutes. To keep files, switch
+    # to a paid plan (starter or higher) and uncomment:
+    # disk:
+    #   name: colab-data
+    #   mountPath: /data
+    #   sizeGB: 1
+

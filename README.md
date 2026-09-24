@@ -160,10 +160,10 @@ Colab Code Editor/
 | `GITHUB_CLIENT_ID` | For GitHub login | From [GitHub OAuth Apps](https://github.com/settings/developers) |
 | `GITHUB_CLIENT_SECRET` | For GitHub login | From the same OAuth app |
 | `CallbackURL` | For GitHub login | e.g. `http://localhost:3001/auth/github/callback` |
-| `REDIS_HOST` | For code execution | Redis host (default: `localhost`) |
-| `REDIS_PORT` | For code execution | Redis port (default: `6379`) |
-| `PISTON_URL` | For code execution | Piston API base URL (default: `http://localhost:2000`) |
-| `FRONTEND_URL` | No | Frontend origin for OAuth redirect (default: `http://localhost:5173`) |
+| `PISTON_URL` | No | Self-hosted Piston API base, e.g. `http://localhost:2000/api/v2`. When unset, code runs on the free [Wandbox](https://wandbox.org) API |
+| `FRONTEND_URL` | In production | Frontend origin(s) allowed by CORS, comma-separated (`localhost:5173/5174` are always allowed) |
+| `DATA_DIR` | No | Where workspaces, sessions and custom extensions are stored (default: inside `packages/server`) |
+| `TRUST_PROXY` | No | Number of reverse-proxy hops to trust for client IPs (default: `1` in production, `0` otherwise) |
 
 **Example `packages/server/.env`:**
 
@@ -175,17 +175,15 @@ GITHUB_CLIENT_ID="your_github_client_id"
 GITHUB_CLIENT_SECRET="your_github_client_secret"
 CallbackURL="http://localhost:3001/auth/github/callback"
 FRONTEND_URL="http://localhost:5173"
-REDIS_HOST=localhost
-REDIS_PORT=6379
-PISTON_URL=http://localhost:2000
+# PISTON_URL=http://localhost:2000/api/v2
 ```
 
 ### Client (`packages/client/.env`)
 
 | Variable | Required | Description |
 |---|---|---|
-| `VITE_API_URL` | **Yes** | Backend API base URL e.g. `http://localhost:3001` |
-| `VITE_WS_URL` | **Yes** | WebSocket URL e.g. `ws://localhost:3001` |
+| `VITE_API_URL` | **Yes** | Backend API base URL e.g. `http://localhost:3001` (a bare host gets `https://`) |
+| `VITE_WS_URL` | No | WebSocket URL; defaults to `VITE_API_URL` with `http(s)` → `ws(s)` |
 
 **Example `packages/client/.env`:**
 
@@ -194,7 +192,20 @@ VITE_API_URL=http://localhost:3001
 VITE_WS_URL=ws://localhost:3001
 ```
 
-For production replace `localhost` with your server hostname and use `wss://` if serving over HTTPS.
+For production set `VITE_API_URL` to your server's `https://` URL; the `wss://` WebSocket URL is derived from it.
+
+### Deploying (Vercel + Render)
+
+The frontend is deployed on **Vercel** and the backend on **Render**.
+
+**Backend:** `render.yaml` is a [Render Blueprint](https://render.com/docs/blueprint-spec) that creates the Postgres database and the API (Docker).
+
+1. Render Dashboard → **New → Blueprint** → select this repo.
+2. When prompted, set `FRONTEND_URL` to your Vercel URL, e.g. `https://your-app.vercel.app`. Add several comma-separated URLs to allow preview deployments too. Leave `PISTON_URL` empty to use Wandbox.
+
+**Frontend:** in the Vercel project (root directory `packages/client`), set `VITE_API_URL` to the Render API URL, e.g. `https://colab-api.onrender.com`, then redeploy. `VITE_WS_URL` is optional because the `wss://` URL is derived automatically. Vite reads these at build time, so changing them needs a new build.
+
+On the free plan, workspace files under `DATA_DIR` are lost whenever the API restarts or spins down, and the free database expires after 30 days. Use a paid plan with the `disk` block in `render.yaml` to keep files.
 
 ---
 
@@ -321,21 +332,15 @@ After updating the DB, the user must **log out and log back in** to get a new JW
 
 ## Code Execution (Piston)
 
-Code execution is optional. Without it the `run` command in the terminal returns an error.
+Code runs on the free [Wandbox](https://wandbox.org) API by default, with no setup needed. The public emkc.org Piston API is whitelist-only.
 
-1. **Start Redis:**
+To use your own Piston instead:
 
-   ```bash
-   docker run -d -p 6379:6379 redis:alpine
-   ```
+```bash
+docker compose up -d piston
+```
 
-2. **Start Piston:**
-
-   ```bash
-   docker run -d -p 2000:2000 ghcr.io/engineer-man/piston
-   ```
-
-   If Piston runs on a different host, set `PISTON_URL` accordingly.
+Then set `PISTON_URL=http://localhost:2000/api/v2` and install the runtimes you need in Piston.
 
 Supported languages: `python`, `javascript` / `node`, `typescript`, `java`, `c`, `cpp`, `go`, `rust`, `bash`.
 

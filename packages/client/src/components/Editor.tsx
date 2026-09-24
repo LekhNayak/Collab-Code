@@ -4,6 +4,7 @@ import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { MonacoBinding } from 'y-monaco';
 import { sendExamAlert } from '../api';
+import { WS_BASE } from '../config';
 
 interface CodeEditorProps {
     content: string;
@@ -132,7 +133,7 @@ export default function CodeEditor({
                 const doc = new Y.Doc();
                 docRef.current = doc;
 
-                const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3001';
+                const wsUrl = WS_BASE;
                 const token = localStorage.getItem('token') || '';
                 const wsProvider = new WebsocketProvider(wsUrl, roomId, doc, {
                     params: token ? { token } : {}

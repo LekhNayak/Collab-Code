@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_BASE } from './config';
 
 const fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const token = localStorage.getItem('token');

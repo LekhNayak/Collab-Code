@@ -4,6 +4,7 @@ import { Code2, ArrowRight, Mail, Lock, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import LiquidEther from '../components/ui/LiquidEther';
 import { GlassCard, GlassButton, GlassInput } from '../components/ui/Glass';
+import { API_BASE } from '../config';
 
 const Login: React.FC = () => {
     const navigate = useNavigate();
@@ -19,7 +20,7 @@ const Login: React.FC = () => {
         setError('');
         setLoading(true);
 
-        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        const baseUrl = API_BASE;
         const url = isLogin ? `${baseUrl}/auth/login` : `${baseUrl}/auth/register`;
         const body = isLogin ? { email, password } : { username, email, password };
 

@@ -6,6 +6,7 @@ import Editor from '@monaco-editor/react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { MonacoBinding } from 'y-monaco';
+import { WS_BASE } from '../config';
 import {
     ShieldAlert, Terminal, ArrowLeft, Filter, UserPlus, MonitorOff,
     AppWindow, Ban, CheckCircle, UserX, Users, RefreshCw, ChevronDown
@@ -43,7 +44,7 @@ const StudentPreview = ({
         const doc = new Y.Doc();
         docRef.current = doc;
 
-        const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3001';
+        const wsUrl = WS_BASE;
         const token = localStorage.getItem('token') || '';
 
         const wsProvider = new WebsocketProvider(wsUrl, `admin-monitor-${studentId}`, doc, {
