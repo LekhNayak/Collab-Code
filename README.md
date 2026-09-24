@@ -198,14 +198,14 @@ For production set `VITE_API_URL` to your server's `https://` URL; the `wss://` 
 
 The frontend is deployed on **Vercel** and the backend on **Render**.
 
-**Backend:** `render.yaml` is a [Render Blueprint](https://render.com/docs/blueprint-spec) that creates the Postgres database and the API (Docker).
+**Backend:** `render.yaml` is a [Render Blueprint](https://render.com/docs/blueprint-spec) that creates the API (Docker). The database is Neon Postgres, so no Render database is created.
 
 1. Render Dashboard → **New → Blueprint** → select this repo.
-2. When prompted, set `FRONTEND_URL` to your Vercel URL, e.g. `https://your-app.vercel.app`. Add several comma-separated URLs to allow preview deployments too. Leave `PISTON_URL` empty to use Wandbox.
+2. When prompted, set `DATABASE_URL` to your Neon connection string and `FRONTEND_URL` to your Vercel URL, e.g. `https://your-app.vercel.app`. Add several comma-separated URLs to allow preview deployments too. Leave `PISTON_URL` empty to use Wandbox.
 
 **Frontend:** in the Vercel project (root directory `packages/client`), set `VITE_API_URL` to the Render API URL, e.g. `https://colab-api.onrender.com`, then redeploy. `VITE_WS_URL` is optional because the `wss://` URL is derived automatically. Vite reads these at build time, so changing them needs a new build.
 
-On the free plan, workspace files under `DATA_DIR` are lost whenever the API restarts or spins down, and the free database expires after 30 days. Use a paid plan with the `disk` block in `render.yaml` to keep files.
+On the free plan, workspace files under `DATA_DIR` are lost whenever the API restarts or spins down, so use a paid plan with the `disk` block in `render.yaml` to keep files.
 
 ---
 
