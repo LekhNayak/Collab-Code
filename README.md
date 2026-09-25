@@ -178,14 +178,14 @@ FRONTEND_URL="http://localhost:5173"
 # PISTON_URL=http://localhost:2000/api/v2
 ```
 
-### Client (`packages/client/.env`)
+### Client (`packages/client/.env.development` locally, Vercel env vars in production)
 
 | Variable | Required | Description |
 |---|---|---|
 | `VITE_API_URL` | **Yes** | Backend API base URL e.g. `http://localhost:3001` (a bare host gets `https://`) |
 | `VITE_WS_URL` | No | WebSocket URL; defaults to `VITE_API_URL` with `http(s)` → `ws(s)` |
 
-**Example `packages/client/.env`:**
+**Example `packages/client/.env.development`:**
 
 ```env
 VITE_API_URL=http://localhost:3001
