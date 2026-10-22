@@ -58,6 +58,9 @@ app.get('/', (req, res) => {
 });
 
 import { setupWebSocket } from './socket/index';
+import { flushAll } from './collab/persistence';
+import { importLegacySessions } from './services/sessionService';
+import { loadCustomExtensions } from './services/extensionRegistry';
 
 const server = app.listen(port, () => {
     console.log(`Server running on port ${port}`);
@@ -65,3 +68,21 @@ const server = app.listen(port, () => {
 });
 
 setupWebSocket(server);
+
+importLegacySessions().catch(err => console.error('[Init] Failed to import legacy sessions:', err));
+loadCustomExtensions().catch(err => console.error('[Init] Failed to load custom extensions:', err));
+
+// Save open documents before exiting. The server runs as PID 1 in the container (exec in start.sh),
+// so without a handler SIGTERM is ignored and the platform eventually SIGKILLs it mid-edit.
+const SHUTDOWN_TIMEOUT_MS = 20000;
+let shuttingDown = false;
+const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`[Shutdown] ${signal} received, saving open documents...`);
+    await Promise.race([flushAll(), new Promise(resolve => setTimeout(resolve, SHUTDOWN_TIMEOUT_MS))]);
+    process.exit(0);
+};
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));
+process.on('unhandledRejection', err => console.error('[Process] Unhandled rejection:', err));

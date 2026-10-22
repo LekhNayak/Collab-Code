@@ -38,11 +38,12 @@ model User {
   examSessions    ExamSession[]
 }
 
+// id is the workspace id used on disk (room code, or EX-xxxx__userId for exams)
 model Workspace {
   id        String   @id @default(uuid())
   name      String
-  ownerId   String
-  owner     User     @relation(fields: [ownerId], references: [id])
+  ownerId   String?
+  owner     User?    @relation(fields: [ownerId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -67,17 +68,39 @@ enum Role {
   VIEWER
 }
 
+// Durable copy of a workspace file, so workspaces survive an ephemeral disk (Render free plan).
+// The disk stays the working copy; WorkspaceStore restores missing files from here.
 model File {
   id          String    @id @default(uuid())
   workspaceId String
-  path        String
+  path        String    // normalized, e.g. "/src/index.ts"
   name        String
   type        FileType
   content     String?
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  data        Bytes?    // raw file bytes
+  sha1        String?
+  size        Int       @default(0)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([workspaceId, path])
+}
+
+// IDE session state (open tabs, active tab, installed extensions), keyed by room id
+model IdeSession {
+  id        String   @id
+  owner     String
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CustomExtension {
+  id        String   @id
+  data      Json
+  createdAt DateTime @default(now())
 }
 
 enum FileType {

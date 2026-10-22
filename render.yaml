@@ -47,8 +47,9 @@ services:
       - key: PISTON_URL
         sync: false
     # Workspace files live under DATA_DIR. On the free plan that directory is wiped whenever
-    # the service restarts, redeploys or spins down after 15 idle minutes. To keep files, switch
-    # to a paid plan (starter or higher) and uncomment:
+    # the service restarts, redeploys or spins down after 15 idle minutes; files, sessions and
+    # custom extensions are restored from Postgres, but git history (.git) is not. To keep git
+    # history too, switch to a paid plan (starter or higher) and uncomment:
     # disk:
     #   name: colab-data
     #   mountPath: /data

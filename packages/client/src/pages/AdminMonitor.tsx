@@ -2,10 +2,12 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getExamLogs, getExamSessions, blockStudent, unblockStudent, removeStudent } from '../api';
 import type { ExamLog } from '../api';
-import Editor from '@monaco-editor/react';
+import Editor, { type OnMount } from '@monaco-editor/react';
+import type * as Monaco from 'monaco-editor';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
-import { MonacoBinding } from 'y-monaco';
+import { MonacoBinding } from '../collab/monacoBinding';
+import { getLanguageFromFilename } from '../components/Editor';
 import { WS_BASE } from '../config';
 import {
     ShieldAlert, Terminal, ArrowLeft, Filter, UserPlus, MonitorOff,
@@ -28,19 +30,20 @@ const StudentPreview = ({
     onRemove: (id: string) => void;
 }) => {
     const [connected, setConnected] = useState(false);
-    const editorRef = useRef<any>(null);
+    const [viewingFile, setViewingFile] = useState<string | null>(null);
     const providerRef = useRef<WebsocketProvider | null>(null);
     const docRef = useRef<Y.Doc | null>(null);
+    const stopFollowingRef = useRef<(() => void) | null>(null);
 
     useEffect(() => {
         return () => {
+            stopFollowingRef.current?.();
             providerRef.current?.destroy();
             docRef.current?.destroy();
         };
     }, []);
 
-    const handleMount = (editor: any) => {
-        editorRef.current = editor;
+    const handleMount: OnMount = (editor, monaco) => {
         const doc = new Y.Doc();
         docRef.current = doc;
 
@@ -48,7 +51,8 @@ const StudentPreview = ({
         const token = localStorage.getItem('token') || '';
 
         const wsProvider = new WebsocketProvider(wsUrl, `admin-monitor-${studentId}`, doc, {
-            params: { token, examId, studentId, mode: 'admin-monitor' }
+            params: { token, examId, studentId, mode: 'admin-monitor' },
+            disableBc: true,
         });
         providerRef.current = wsProvider;
 
@@ -56,10 +60,50 @@ const StudentPreview = ({
             setConnected(event.status === 'connected');
         });
 
-        const type = doc.getText('monaco');
-        new MonacoBinding(type, editor.getModel(), new Set([editor]), wsProvider.awareness);
-
         editor.updateOptions({ readOnly: true });
+
+        // Show whichever file the student's editor has open (it publishes activeFile in awareness)
+        const files = doc.getMap<Y.Text>('files');
+        let current: { ytext: Y.Text; model: Monaco.editor.ITextModel } | null = null;
+        const studentActiveFile = (): string | null => {
+            for (const [clientId, state] of wsProvider.awareness.getStates()) {
+                if (clientId !== doc.clientID && state.user?.id === studentId && state.activeFile) return state.activeFile;
+            }
+            return null;
+        };
+        const follow = () => {
+            const activeFile = studentActiveFile();
+            const ytext = activeFile ? files.get(activeFile) ?? null : null;
+            if (current?.ytext === ytext) return;
+
+            current?.model.dispose(); // also destroys its binding
+            current = null;
+            setViewingFile(ytext ? activeFile : null);
+            if (!activeFile || !ytext) {
+                editor.setModel(null);
+                return;
+            }
+            const uri = monaco.Uri.from({ scheme: 'student', authority: studentId, path: activeFile });
+            monaco.editor.getModel(uri)?.dispose();
+            const model = monaco.editor.createModel(ytext.toString(), getLanguageFromFilename(activeFile), uri);
+            model.setEOL(monaco.editor.EndOfLineSequence.LF);
+            new MonacoBinding(monaco, ytext, model, editor, wsProvider.awareness, { shareSelection: false });
+            editor.setModel(model);
+            current = { ytext, model };
+        };
+
+        // Drop the wrapper's placeholder model
+        const placeholder = editor.getModel();
+        editor.setModel(null);
+        placeholder?.dispose();
+
+        wsProvider.awareness.on('change', follow);
+        files.observe(follow);
+        stopFollowingRef.current = () => {
+            wsProvider.awareness.off('change', follow);
+            files.unobserve(follow);
+            current?.model.dispose();
+        };
     };
 
     const isRemoved = session?.status === 'REMOVED';
@@ -129,12 +173,15 @@ const StudentPreview = ({
                 </div>
             </div>
 
-            {/* Monaco Editor (read-only live preview) */}
+            {/* Monaco Editor (read-only live preview of the student's open file) */}
+            <div className="px-4 py-1 text-xs text-white/50 font-mono truncate border-b border-white/5">
+                {viewingFile ?? 'No file open'}
+            </div>
             <div className="flex-1 bg-black/40">
                 <Editor
                     height="100%"
-                    language="javascript"
                     theme="vs-dark"
+                    keepCurrentModel
                     onMount={handleMount}
                     options={{
                         minimap: { enabled: false },

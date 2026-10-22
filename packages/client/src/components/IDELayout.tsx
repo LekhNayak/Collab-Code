@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { type WebsocketProvider } from 'y-websocket';
+import type * as Y from 'yjs';
 import { motion, AnimatePresence } from 'framer-motion';
 import Modal from './ui/Modal';
 import {
@@ -30,15 +30,11 @@ import Terminal from './Terminal';
 import GitPanel from './GitPanel';
 import ExtensionPanel from './ExtensionPanel';
 import UserPresence from './UserPresence';
-import { getFileTree, readFile, saveFile, initWorkspace, createFile as apiCreateFile, moveFile as apiMoveFile, deleteFile as apiDeleteFile, getSession, saveSession, createSession, getExtensions, uploadZip, uploadFolder, joinExam, downloadWorkspace, resolveExamRoom, sendTabSwitch, sendFullscreenExit, sendExamAlert, getMyExamSession, type SessionInfo, type ExtensionInfo, type ExamRoom } from '../api';
+import { useCollabWorkspace, useDirtyPaths, openCollabFile } from '../collab/useCollabWorkspace';
+import { getFileTree, readFile, flushWorkspace, initWorkspace, createFile as apiCreateFile, moveFile as apiMoveFile, deleteFile as apiDeleteFile, getSession, saveSession, createSession, getExtensions, uploadZip, uploadFolder, joinExam, downloadWorkspace, resolveExamRoom, sendTabSwitch, sendFullscreenExit, sendExamAlert, getMyExamSession, type SessionInfo, type ExtensionInfo, type ExamRoom } from '../api';
 import '../ide.css';
 
 type SidebarPanel = 'explorer' | 'search' | 'git' | 'users' | 'extensions';
-
-// In-memory file content cache
-const fileContents = new Map<string, string>();
-// Tracks the last content successfully written to disk — used to determine real dirty state
-const lastSavedContent = new Map<string, string>();
 
 export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?: boolean }) {
     const { roomId } = useParams<{ roomId?: string }>();
@@ -68,6 +64,10 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
         ? `${roomId}__${currentUserId}`
         : (roomId || 'default');
 
+    // Shared editor doc for this workspace: one WebSocket for the whole session, file contents
+    // loaded and autosaved by the server
+    const collab = useCollabWorkspace(roomId, { name: username, id: currentUserId }, !roomBlocked);
+
     const [activePanel, setActivePanel] = useState<SidebarPanel>('explorer');
     const [sidebarVisible, setSidebarVisible] = useState(true);
     const [tabs, setTabs] = useState<TabInfo[]>([]);
@@ -75,7 +75,6 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     const [panelOpen, setPanelOpen] = useState(false);
     const [panelHeight, setPanelHeight] = useState(200);
     const [cursorPos, setCursorPos] = useState({ line: 1, column: 1 });
-    const [provider, setProvider] = useState<WebsocketProvider | null>(null);
     const [copied, setCopied] = useState(false);
     const [files, setFiles] = useState<FileNode[]>([]);
     const [loading, setLoading] = useState(true);
@@ -92,7 +91,15 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     const [sessionData, setSessionData] = useState<SessionInfo | null>(null);
     const [allExtensions, setAllExtensions] = useState<ExtensionInfo[]>([]);
     const sessionSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Files that couldn't be opened (binary, too large, missing...), shown in place of the editor
+    const [openErrors, setOpenErrors] = useState<Record<string, string>>({});
+    // Bumped when files are added to / removed from the shared doc, so the active file re-renders
+    const [filesVersion, setFilesVersion] = useState(0);
+    // Paths this client is renaming; their tabs follow the rename instead of closing
+    const movingPaths = useRef(new Set<string>());
+    // Files currently being loaded into the shared doc, per workspace connection
+    const loadingFiles = useRef<{ collab: typeof collab; paths: Set<string> }>({ collab: null, paths: new Set() });
 
     // Resolve exam room code -> exam metadata
     useEffect(() => {
@@ -455,28 +462,13 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                 setSessionData(session);
                 applyThemeFromSession(session, extsList);
 
-                // Restore previously open tabs
+                // Restore previously open tabs; their contents stream in through the shared doc
                 if (session.openTabs && session.openTabs.length > 0) {
                     const restoredTabs: TabInfo[] = session.openTabs.map(path => ({
                         path,
                         name: path.split('/').pop() || path,
                         language: getLanguageFromFilename(path.split('/').pop() || ''),
-                        isModified: false,
                     }));
-
-                    // Load all tab contents from disk in parallel
-                    await Promise.all(
-                        session.openTabs.map(async (path) => {
-                            try {
-                                const content = await readFile(workspaceId, path);
-                                fileContents.set(path, content);
-                                lastSavedContent.set(path, content);
-                            } catch {
-                                fileContents.set(path, '');
-                                lastSavedContent.set(path, '');
-                            }
-                        })
-                    );
 
                     setTabs(restoredTabs);
                     const savedActive = session.activeTab && session.openTabs.includes(session.activeTab)
@@ -489,7 +481,8 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
         loadSession();
     }, [workspaceId, username]);
 
-    // Auto-save session state (tabs, active tab) every 10 seconds
+    // Auto-save session state (open tabs, active tab) shortly after it changes, so a reload
+    // reopens what you were looking at. Typing doesn't change tabs, so this stays infrequent.
     useEffect(() => {
         if (!sessionData) return;
         if (sessionSaveTimer.current) clearTimeout(sessionSaveTimer.current);
@@ -502,27 +495,59 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             } catch {
                 // silent
             }
-        }, 10000);
+        }, 1500);
         return () => {
             if (sessionSaveTimer.current) clearTimeout(sessionSaveTimer.current);
         };
     }, [tabs, activeTab, workspaceId, sessionData]);
 
-    // Save all open files the moment the page becomes hidden (tab switch, minimize, close)
-    // This is a safety net on top of the 2s debounced auto-save
+    // Close tabs for these paths (and anything under them), moving focus like handleTabClose does
+    const closeTabs = useCallback((paths: string[]) => {
+        const isClosed = (p: string) => paths.some(x => p === x || p.startsWith(x + '/'));
+        setTabs(prev => {
+            const next = prev.filter(t => !isClosed(t.path));
+            if (next.length === prev.length) return prev;
+            setActiveTab(active => (isClosed(active) ? (next.length > 0 ? next[next.length - 1].path : '') : active));
+            return next;
+        });
+    }, []);
+
+    // Track files entering/leaving the shared doc. A file removed by the server (deleted or
+    // renamed, possibly by a collaborator) closes its tab.
     useEffect(() => {
-        const handleHide = () => {
-            if (document.visibilityState !== 'hidden') return;
-            tabs.forEach(tab => {
-                const content = fileContents.get(tab.path);
-                if (content !== undefined) {
-                    saveFile(workspaceId, tab.path, content).catch(() => {});
-                }
+        if (!collab) return;
+        const onFilesChange = (event: Y.YMapEvent<Y.Text>) => {
+            const removed: string[] = [];
+            event.changes.keys.forEach((change, key) => {
+                if (change.action === 'delete') removed.push(key);
             });
+            const moving = [...movingPaths.current];
+            const closed = removed.filter(p => !moving.some(m => p === m || p.startsWith(m + '/')));
+            if (closed.length > 0) closeTabs(closed);
+            setFilesVersion(v => v + 1);
         };
-        document.addEventListener('visibilitychange', handleHide);
-        return () => document.removeEventListener('visibilitychange', handleHide);
-    }, [tabs, workspaceId]);
+        collab.files.observe(onFilesChange);
+        return () => collab.files.unobserve(onFilesChange);
+    }, [collab, closeTabs]);
+
+    // Load open tabs into the shared doc, active tab first. Instant when anyone already opened the
+    // file this session; otherwise the server reads it from disk once.
+    useEffect(() => {
+        if (!collab) return;
+        if (loadingFiles.current.collab !== collab) loadingFiles.current = { collab, paths: new Set() };
+        const loading = loadingFiles.current.paths;
+        tabs.map(t => t.path)
+            .filter(p => !collab.files.has(p) && !loading.has(p) && !(p in openErrors))
+            .sort((a, b) => Number(b === activeTab) - Number(a === activeTab))
+            .forEach(p => {
+                loading.add(p);
+                openCollabFile(collab, workspaceId, p)
+                    .catch((err: Error) => {
+                        if (loadingFiles.current.collab === collab) setOpenErrors(prev => ({ ...prev, [p]: err.message }));
+                    })
+                    .finally(() => loading.delete(p));
+            });
+    }, [collab, tabs, activeTab, workspaceId, openErrors, filesVersion]);
 
     // Apply theme from installed theme extensions — takes extensions list as param to avoid stale closure
     const applyThemeFromSession = useCallback((session: SessionInfo, extsList?: ExtensionInfo[]) => {
@@ -597,7 +622,6 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                 const lang = getLanguageFromFilename(name);
                 setTabs(prev => [...prev, { path, name: name.trim(), language: lang }]);
                 setActiveTab(path);
-                fileContents.set(path, '');
             }
         } catch (err: any) {
             console.error('Failed to create:', err);
@@ -616,7 +640,6 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                 const lang = getLanguageFromFilename(name);
                 setTabs(prev => [...prev, { path: fullPath, name: name.trim(), language: lang }]);
                 setActiveTab(fullPath);
-                fileContents.set(fullPath, '');
             }
         } catch (err: any) {
             console.error('Failed to create:', err);
@@ -635,22 +658,17 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     }, [workspaceId]);
 
     const handleMoveFile = useCallback(async (oldPath: string, newPath: string) => {
+        movingPaths.current.add(oldPath);
         try {
             await apiMoveFile(workspaceId, oldPath, newPath);
             await refreshTree();
-            // Update tabs if the moved file was open
+            // Update tabs if the moved file was open (they re-open from the new path)
             setTabs(prev => prev.map(t => {
                 if (t.path === oldPath || t.path.startsWith(oldPath + '/')) {
                     const relativePart = t.path.slice(oldPath.length);
                     const updatedPath = newPath + relativePart;
                     const updatedName = updatedPath.split('/').pop() || t.name;
-                    // Move cached content
-                    const cached = fileContents.get(t.path);
-                    if (cached !== undefined) {
-                        fileContents.delete(t.path);
-                        fileContents.set(updatedPath, cached);
-                    }
-                    return { ...t, path: updatedPath, name: updatedName };
+                    return { ...t, path: updatedPath, name: updatedName, language: getLanguageFromFilename(updatedName) };
                 }
                 return t;
             }));
@@ -663,6 +681,8 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             console.error('Failed to move:', err);
             setError(err.message);
             setTimeout(() => setError(''), 3000);
+        } finally {
+            movingPaths.current.delete(oldPath);
         }
     }, [workspaceId, refreshTree]);
 
@@ -671,14 +691,13 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             await apiDeleteFile(workspaceId, path);
             await refreshTree();
             // Close tab if open
-            setTabs(prev => prev.filter(t => t.path !== path && !t.path.startsWith(path + '/')));
-            fileContents.delete(path);
+            closeTabs([path]);
         } catch (err: any) {
             console.error('Failed to delete:', err);
             setError(err.message);
             setTimeout(() => setError(''), 3000);
         }
-    }, [workspaceId, refreshTree]);
+    }, [workspaceId, refreshTree, closeTabs]);
 
     const handleRenameFile = useCallback(async (oldPath: string, newName: string) => {
         const parentDir = oldPath.substring(0, oldPath.lastIndexOf('/'));
@@ -750,9 +769,8 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     const terminalDeleteFile = useCallback(async (path: string) => {
         await apiDeleteFile(workspaceId, path);
         await refreshTree();
-        setTabs(prev => prev.filter(t => t.path !== path && !t.path.startsWith(path + '/')));
-        fileContents.delete(path);
-    }, [workspaceId, refreshTree]);
+        closeTabs([path]);
+    }, [workspaceId, refreshTree, closeTabs]);
 
     const terminalMoveFile = useCallback(async (oldPath: string, newPath: string) => {
         await apiMoveFile(workspaceId, oldPath, newPath);
@@ -768,7 +786,8 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
         return flattenTree(files);
     }, [files, flattenTree]);
 
-    const handleFileSelect = useCallback(async (file: FileNode) => {
+    // Opening only updates tab state; the load effect above brings the content into the shared doc
+    const handleFileSelect = useCallback((file: FileNode) => {
         if (file.type !== 'file') return;
 
         if (!tabs.find((t) => t.path === file.path)) {
@@ -777,18 +796,14 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
         }
         setActiveTab(file.path);
 
-        // Load file content from backend if not cached
-        if (!fileContents.has(file.path)) {
-            try {
-                const content = await readFile(workspaceId, file.path);
-                fileContents.set(file.path, content);
-                lastSavedContent.set(file.path, content);
-            } catch (err: any) {
-                console.error('Failed to read file:', err);
-                fileContents.set(file.path, `// Error loading file: ${err.message}`);
-            }
-        }
-    }, [tabs, workspaceId]);
+        // Re-selecting a file that failed to open retries it
+        setOpenErrors(prev => {
+            if (!(file.path in prev)) return prev;
+            const next = { ...prev };
+            delete next[file.path];
+            return next;
+        });
+    }, [tabs]);
 
     const handleTabClose = useCallback((path: string) => {
         setTabs((prev) => {
@@ -802,60 +817,26 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
         });
     }, [activeTab]);
 
-    const handleEditorChange = useCallback((value: string | undefined) => {
-        if (activeTab && value !== undefined) {
-            fileContents.set(activeTab, value);
-
-            // Only dirty if content actually differs from what's on disk
-            const isDirty = value !== lastSavedContent.get(activeTab);
-            setTabs((prev) =>
-                prev.map((t) => (t.path === activeTab ? { ...t, isModified: isDirty } : t))
-            );
-
-            if (!isDirty) return;
-
-            // Auto-save 2s after last keystroke
-            const tabToSave = activeTab;
-            const wsToSave = workspaceId;
-            if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-            autoSaveTimer.current = setTimeout(async () => {
-                try {
-                    await saveFile(wsToSave, tabToSave, value);
-                    lastSavedContent.set(tabToSave, value);
-                    setTabs((prev) =>
-                        prev.map((t) => (t.path === tabToSave ? { ...t, isModified: false } : t))
-                    );
-                } catch {
-                    // silent — Ctrl+S still works as manual fallback
-                }
-            }, 2000);
-        }
-    }, [activeTab, workspaceId]);
-
-    // Save file to backend (Ctrl+S)
+    // Ctrl+S: the server autosaves within a second or two anyway; this saves pending edits right away.
+    // The tab dot clears once the server has stored them.
     useEffect(() => {
         const handleKeyDown = async (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                 e.preventDefault();
-                if (activeTab) {
-                    const content = fileContents.get(activeTab);
-                    if (content !== undefined) {
-                        try {
-                            await saveFile(workspaceId, activeTab, content);
-                            lastSavedContent.set(activeTab, content);
-                            setTabs((prev) =>
-                                prev.map((t) => (t.path === activeTab ? { ...t, isModified: false } : t))
-                            );
-                        } catch (err: any) {
-                            console.error('Failed to save file:', err);
-                        }
+                try {
+                    const { saved } = await flushWorkspace(workspaceId);
+                    if (!saved) {
+                        setError('Some changes could not be saved yet. Retrying automatically.');
+                        setTimeout(() => setError(''), 4000);
                     }
+                } catch (err: any) {
+                    console.error('Failed to save:', err);
                 }
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [activeTab, workspaceId]);
+    }, [workspaceId]);
 
     const toggleSidebar = (panel: SidebarPanel) => {
         if (activePanel === panel && sidebarVisible) {
@@ -873,8 +854,21 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const activeFileContent = activeTab ? fileContents.get(activeTab) || '' : '';
+    const activeYText = (activeTab && collab?.files.get(activeTab)) || null;
     const activeLanguage = tabs.find((t) => t.path === activeTab)?.language || 'plaintext';
+
+    const tabPaths = useMemo(() => tabs.map(t => t.path), [tabs]);
+    const dirtyPaths = useDirtyPaths(collab, tabPaths);
+    const displayTabs = useMemo(
+        () => tabs.map(t => ({ ...t, isModified: dirtyPaths.has(t.path) })),
+        [tabs, dirtyPaths],
+    );
+
+    // Read by terminal commands at run time, so it always sees the latest edits
+    const getActiveCode = useCallback(
+        () => (activeTab ? collab?.files.get(activeTab)?.toString() ?? '' : ''),
+        [collab, activeTab],
+    );
 
     const collabRoomId = roomId;
 
@@ -1182,7 +1176,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                             </div>
                                         </div>
                                     )}
-                                    <UserPresence provider={provider} currentUser={username} />
+                                    <UserPresence provider={collab?.provider ?? null} currentUser={username} />
                                     {!roomId && (
                                         <div style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: 12 }}>
                                             <p>Not in a room. <a href="#" onClick={(e) => { e.preventDefault(); navigate('/'); }} style={{ color: 'var(--accent-primary)' }}>Create or join a room</a> to collaborate.</p>
@@ -1198,7 +1192,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                 <div className="main-area">
                     <div className="editor-topbar">
                         <EditorTabs
-                            tabs={tabs}
+                            tabs={displayTabs}
                             activeTab={activeTab}
                             onTabSelect={setActiveTab}
                             onTabClose={handleTabClose}
@@ -1212,18 +1206,24 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                     </div>
                     <div className="editor-content">
                         {activeTab ? (
-                            <CodeEditor
-                                key={activeTab}
-                                content={activeFileContent}
-                                language={activeLanguage}
-                                roomId={collabRoomId}
-                                examId={resolvedExamId || undefined}
-                                username={username}
-                                onChange={handleEditorChange}
-                                onCursorChange={(line, col) => setCursorPos({ line, column: col })}
-                                onProviderReady={setProvider}
-                                onAlert={setEditorAlert}
-                            />
+                            <>
+                                <CodeEditor
+                                    path={activeTab}
+                                    language={activeLanguage}
+                                    ytext={activeYText}
+                                    openPaths={tabPaths}
+                                    awareness={collab?.provider.awareness ?? null}
+                                    roomId={collabRoomId}
+                                    examId={resolvedExamId || undefined}
+                                    onCursorChange={(line, col) => setCursorPos({ line, column: col })}
+                                    onAlert={setEditorAlert}
+                                />
+                                {!activeYText && (
+                                    <div className={`editor-status-overlay${openErrors[activeTab] ? ' error' : ''}`}>
+                                        {openErrors[activeTab] ?? 'Opening file…'}
+                                    </div>
+                                )}
+                            </>
                         ) : (
                             <div className="editor-welcome">
                                 <h2>Colab Code Editor</h2>
@@ -1297,7 +1297,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                             id={t.id}
                                             examId={isExamMode ? resolvedExamId || undefined : undefined}
                                             activeFile={activeTab}
-                                            activeCode={activeFileContent}
+                                            getActiveCode={getActiveCode}
                                             activeLanguage={activeLanguage}
                                             onCreateFile={terminalCreateFile}
                                             onDeleteFile={terminalDeleteFile}

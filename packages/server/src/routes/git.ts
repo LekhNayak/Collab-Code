@@ -1,5 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { GitService } from '../services/GitService';
+import { gitService } from '../services/GitService';
+import * as store from '../services/WorkspaceStore';
+import { withLock } from '../collab/lock';
+import { openFile, flushWorkspace, liveContent, detachPaths, writeDetached, reloadFromDisk } from '../collab/persistence';
 import { cloneLimiter } from '../middleware/rateLimiter';
 import prisma from '../db';
 import multer from 'multer';
@@ -8,7 +11,6 @@ import path from 'path';
 import fs from 'fs';
 
 const router = Router();
-const gitService = new GitService();
 
 async function getUserPat(req: Request): Promise<string | undefined> {
     const userId = (req as any).user?.id;
@@ -17,28 +19,79 @@ async function getUserPat(req: Request): Promise<string | undefined> {
     return user?.githubPat ?? undefined;
 }
 
+router.param('workspaceId', (req, res, next, id) => {
+    if (!store.isValidWorkspaceId(id)) return res.status(400).json({ error: 'Invalid workspace id' });
+    next();
+});
+
+// Runs fn under the workspace lock, after restoring any persisted files missing from disk.
+// Every route that touches a workspace goes through here (see collab/lock.ts).
+function inWorkspace<T>(workspaceId: string, fn: () => Promise<T> | T): Promise<T> {
+    return withLock(workspaceId, async () => {
+        try {
+            await store.ensureOnDisk(workspaceId);
+        } catch (err) {
+            // The disk copy is still usable; the restore is retried on the next request
+            console.error(`[Store] Could not restore ${workspaceId} from the database:`, err);
+        }
+        return fn();
+    });
+}
+
+// The disk is the working copy, so a failed DB write-through is logged rather than failing the request
+async function persist(workspaceId: string, write: () => Promise<unknown>) {
+    try {
+        await write();
+    } catch (err) {
+        console.error(`[Store] Failed to persist a change to ${workspaceId}:`, err);
+    }
+}
+
+// Mirrors a bulk change (clone, upload, pull, checkout) into the DB after the response is sent.
+// Queued on the lock, so later requests for the workspace see a consistent DB.
+function persistInBackground(workspaceId: string) {
+    withLock(workspaceId, () => store.syncDiskToDb(workspaceId))
+        .catch(err => console.error(`[Store] Failed to persist ${workspaceId}:`, err));
+}
+
+const errorStatus = (error: any) => (/not found/i.test(error.message) ? 404 : 500);
+
 // Clone a repository
 router.post('/clone', cloneLimiter, async (req: Request, res: Response) => {
     const { repoUrl, workspaceId } = req.body;
     if (!repoUrl || !workspaceId) {
         return res.status(400).json({ error: 'repoUrl and workspaceId are required' });
     }
+    if (!store.isValidWorkspaceId(workspaceId)) {
+        return res.status(400).json({ error: 'Invalid workspace id' });
+    }
     try {
-        await gitService.cloneRepository(repoUrl, workspaceId);
+        await inWorkspace(workspaceId, () => gitService.cloneRepository(repoUrl, workspaceId));
+        persistInBackground(workspaceId);
         res.status(200).json({ message: 'Repository cloned successfully' });
     } catch (error: any) {
-        res.status(500).json({ error: error.message || 'Failed to clone repository' });
+        const status = /already contains files/.test(error.message) ? 409 : 500;
+        res.status(status).json({ error: error.message || 'Failed to clone repository' });
     }
 });
 
 // Initialize empty workspace
-router.post('/init', (req: Request, res: Response) => {
+router.post('/init', async (req: Request, res: Response) => {
     const { workspaceId } = req.body;
     if (!workspaceId) {
         return res.status(400).json({ error: 'workspaceId is required' });
     }
+    if (!store.isValidWorkspaceId(workspaceId)) {
+        return res.status(400).json({ error: 'Invalid workspace id' });
+    }
     try {
-        gitService.initWorkspace(workspaceId);
+        await inWorkspace(workspaceId, async () => {
+            const seeded = gitService.initWorkspace(workspaceId);
+            if (seeded) {
+                const buf = fs.readFileSync(gitService.resolveFilePath(workspaceId, seeded));
+                await persist(workspaceId, () => store.upsertFile(workspaceId, seeded, buf));
+            }
+        });
         res.status(200).json({ message: 'Workspace initialized' });
     } catch (error: any) {
         res.status(500).json({ error: error.message || 'Failed to init workspace' });
@@ -46,45 +99,77 @@ router.post('/init', (req: Request, res: Response) => {
 });
 
 // Get file tree for a workspace
-router.get('/tree/:workspaceId', (req: Request, res: Response) => {
+router.get('/tree/:workspaceId', async (req: Request, res: Response) => {
     const { workspaceId } = req.params;
     try {
-        const tree = gitService.getFileTree(workspaceId);
+        const tree = await inWorkspace(workspaceId, () => gitService.getFileTree(workspaceId));
         res.status(200).json(tree);
     } catch (error: any) {
         res.status(500).json({ error: error.message || 'Failed to retrieve file tree' });
     }
 });
 
-// Read a file
-router.get('/file/:workspaceId/*', (req: Request, res: Response) => {
+// Load a file into the workspace's live collaborative doc. The content reaches the editor over
+// the WebSocket; this only makes the server put it there (once, so clients can't race to seed it).
+router.post('/open/:workspaceId/*', async (req: Request, res: Response) => {
+    const { workspaceId } = req.params;
+    const filePath = (req.params as any)[0];
+    if (!filePath) {
+        return res.status(400).json({ error: 'File path is required' });
+    }
+    try {
+        const result = await inWorkspace(workspaceId, () => openFile(workspaceId, filePath));
+        if (!result.ok) return res.status(result.status).json({ error: result.error });
+        res.status(200).json({ path: store.normalizePath(filePath) });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Save pending editor changes now (Ctrl+S). `saved` is false if something couldn't be persisted.
+router.post('/flush/:workspaceId', async (req: Request, res: Response) => {
+    const { workspaceId } = req.params;
+    try {
+        const saved = await inWorkspace(workspaceId, () => flushWorkspace(workspaceId));
+        res.status(200).json({ saved });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Read a file (the live editor content if the file is open)
+router.get('/file/:workspaceId/*', async (req: Request, res: Response) => {
     const { workspaceId } = req.params;
     const filePath = (req.params as any)[0]; // wildcard param
     if (!filePath) {
         return res.status(400).json({ error: 'File path is required' });
     }
     try {
-        const content = gitService.readFile(workspaceId, filePath);
+        const content = await inWorkspace(workspaceId, () =>
+            liveContent(workspaceId, filePath) ?? gitService.readFile(workspaceId, filePath));
         res.status(200).json({ content, path: filePath });
     } catch (error: any) {
-        const status = error.message.includes('not found') ? 404 : 500;
-        res.status(status).json({ error: error.message });
+        res.status(errorStatus(error)).json({ error: error.message });
     }
 });
 
 // Save/update a file
-router.put('/file/:workspaceId/*', (req: Request, res: Response) => {
+router.put('/file/:workspaceId/*', async (req: Request, res: Response) => {
     const { workspaceId } = req.params;
     const filePath = (req.params as any)[0];
     const { content } = req.body;
     if (!filePath) {
         return res.status(400).json({ error: 'File path is required' });
     }
-    if (content === undefined) {
+    if (typeof content !== 'string') {
         return res.status(400).json({ error: 'content is required' });
     }
     try {
-        gitService.writeFile(workspaceId, filePath, content);
+        await inWorkspace(workspaceId, async () => {
+            gitService.writeFile(workspaceId, filePath, content);
+            reloadFromDisk(workspaceId);
+            await persist(workspaceId, () => store.upsertFile(workspaceId, filePath, Buffer.from(content, 'utf-8')));
+        });
         res.status(200).json({ message: 'File saved', path: filePath });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -92,7 +177,7 @@ router.put('/file/:workspaceId/*', (req: Request, res: Response) => {
 });
 
 // Create a new file or directory
-router.post('/file/:workspaceId/*', (req: Request, res: Response) => {
+router.post('/file/:workspaceId/*', async (req: Request, res: Response) => {
     const { workspaceId } = req.params;
     const filePath = (req.params as any)[0];
     const { isDirectory, content } = req.body;
@@ -100,7 +185,12 @@ router.post('/file/:workspaceId/*', (req: Request, res: Response) => {
         return res.status(400).json({ error: 'File path is required' });
     }
     try {
-        gitService.createFile(workspaceId, filePath, !!isDirectory, content);
+        await inWorkspace(workspaceId, async () => {
+            gitService.createFile(workspaceId, filePath, !!isDirectory, content);
+            if (!isDirectory) {
+                await persist(workspaceId, () => store.upsertFile(workspaceId, filePath, Buffer.from(content || '', 'utf-8')));
+            }
+        });
         res.status(201).json({ message: 'Created', path: filePath });
     } catch (error: any) {
         const status = error.message.includes('Already exists') ? 409 : 500;
@@ -109,29 +199,49 @@ router.post('/file/:workspaceId/*', (req: Request, res: Response) => {
 });
 
 // Delete a file or directory
-router.delete('/file/:workspaceId/*', (req: Request, res: Response) => {
+router.delete('/file/:workspaceId/*', async (req: Request, res: Response) => {
     const { workspaceId } = req.params;
     const filePath = (req.params as any)[0];
     if (!filePath) {
         return res.status(400).json({ error: 'File path is required' });
     }
     try {
-        gitService.deleteFile(workspaceId, filePath);
+        await inWorkspace(workspaceId, async () => {
+            gitService.deleteFile(workspaceId, filePath);
+            detachPaths(workspaceId, filePath);
+            await persist(workspaceId, () => store.deletePrefix(workspaceId, filePath));
+        });
         res.status(200).json({ message: 'Deleted', path: filePath });
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        res.status(errorStatus(error)).json({ error: error.message });
     }
 });
 
 // Rename/move a file
-router.patch('/file/:workspaceId', (req: Request, res: Response) => {
+router.patch('/file/:workspaceId', async (req: Request, res: Response) => {
     const { workspaceId } = req.params;
     const { oldPath, newPath } = req.body;
     if (!oldPath || !newPath) {
         return res.status(400).json({ error: 'oldPath and newPath are required' });
     }
     try {
-        gitService.renameFile(workspaceId, oldPath, newPath);
+        await inWorkspace(workspaceId, async () => {
+            // Take the files out of the live doc first, keeping edits that weren't saved yet
+            const unsaved = detachPaths(workspaceId, oldPath);
+            try {
+                gitService.renameFile(workspaceId, oldPath, newPath);
+            } catch (err) {
+                writeDetached(workspaceId, unsaved, oldPath, oldPath);
+                throw err;
+            }
+            const rewritten = writeDetached(workspaceId, unsaved, oldPath, newPath);
+            await persist(workspaceId, async () => {
+                await store.renamePrefix(workspaceId, oldPath, newPath);
+                for (const p of rewritten) {
+                    await store.upsertFile(workspaceId, p, fs.readFileSync(gitService.resolveFilePath(workspaceId, p)));
+                }
+            });
+        });
         res.status(200).json({ message: 'Renamed', oldPath, newPath });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -144,7 +254,7 @@ router.patch('/file/:workspaceId', (req: Request, res: Response) => {
 router.post('/repo/init/:workspaceId', async (req: Request, res: Response) => {
     const { workspaceId } = req.params;
     try {
-        await gitService.gitInit(workspaceId);
+        await inWorkspace(workspaceId, () => gitService.gitInit(workspaceId));
         res.json({ message: 'Git repository initialized' });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -155,11 +265,15 @@ router.post('/repo/init/:workspaceId', async (req: Request, res: Response) => {
 router.get('/status/:workspaceId', async (req: Request, res: Response) => {
     const { workspaceId } = req.params;
     try {
-        const isRepo = gitService.isGitRepo(workspaceId);
-        const status = isRepo ? await gitService.getStatus(workspaceId) : [];
-        const branchInfo = isRepo ? await gitService.getBranches(workspaceId) : { branches: [], current: '' };
-        const remotes = isRepo ? await gitService.getRemotes(workspaceId) : [];
-        res.json({ isRepo, status, branch: branchInfo.current, branches: branchInfo.branches, remotes });
+        const result = await inWorkspace(workspaceId, async () => {
+            await flushWorkspace(workspaceId);
+            const isRepo = gitService.isGitRepo(workspaceId);
+            const status = isRepo ? await gitService.getStatus(workspaceId) : [];
+            const branchInfo = isRepo ? await gitService.getBranches(workspaceId) : { branches: [], current: '' };
+            const remotes = isRepo ? await gitService.getRemotes(workspaceId) : [];
+            return { isRepo, status, branch: branchInfo.current, branches: branchInfo.branches, remotes };
+        });
+        res.json(result);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
@@ -169,16 +283,20 @@ router.get('/status/:workspaceId', async (req: Request, res: Response) => {
 router.post('/add/:workspaceId', async (req: Request, res: Response) => {
     const { workspaceId } = req.params;
     const { files } = req.body; // string[] or 'all'
+    if (files !== 'all' && !Array.isArray(files)) {
+        return res.status(400).json({ error: 'files must be an array or "all"' });
+    }
     try {
-        if (files === 'all') {
-            await gitService.gitAddAll(workspaceId);
-        } else if (Array.isArray(files)) {
-            for (const f of files) {
-                await gitService.gitAdd(workspaceId, f);
+        await inWorkspace(workspaceId, async () => {
+            await flushWorkspace(workspaceId);
+            if (files === 'all') {
+                await gitService.gitAddAll(workspaceId);
+            } else {
+                for (const f of files) {
+                    await gitService.gitAdd(workspaceId, f);
+                }
             }
-        } else {
-            return res.status(400).json({ error: 'files must be an array or "all"' });
-        }
+        });
         res.json({ message: 'Files staged' });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -190,11 +308,13 @@ router.post('/unstage/:workspaceId', async (req: Request, res: Response) => {
     const { workspaceId } = req.params;
     const { files } = req.body;
     try {
-        if (Array.isArray(files)) {
-            for (const f of files) {
-                await gitService.gitRemove(workspaceId, f);
+        await inWorkspace(workspaceId, async () => {
+            if (Array.isArray(files)) {
+                for (const f of files) {
+                    await gitService.gitRemove(workspaceId, f);
+                }
             }
-        }
+        });
         res.json({ message: 'Files unstaged' });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -209,12 +329,15 @@ router.post('/commit/:workspaceId', async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Commit message is required' });
     }
     try {
-        const sha = await gitService.gitCommit(
-            workspaceId,
-            message,
-            authorName || 'Colab User',
-            authorEmail || 'user@colab.dev'
-        );
+        const sha = await inWorkspace(workspaceId, async () => {
+            await flushWorkspace(workspaceId);
+            return gitService.gitCommit(
+                workspaceId,
+                message,
+                authorName || 'Colab User',
+                authorEmail || 'user@colab.dev'
+            );
+        });
         res.json({ sha, message: 'Committed successfully' });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -230,7 +353,10 @@ router.post('/push/:workspaceId', async (req: Request, res: Response) => {
         if (!pat) {
             return res.status(403).json({ error: 'GitHub credentials not set up. Go to the Hub and connect your GitHub account first.' });
         }
-        await gitService.gitPush(workspaceId, pat, remote, branch);
+        await inWorkspace(workspaceId, async () => {
+            await flushWorkspace(workspaceId);
+            await gitService.gitPush(workspaceId, pat, remote, branch);
+        });
         res.json({ message: 'Pushed successfully' });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -246,7 +372,12 @@ router.post('/pull/:workspaceId', async (req: Request, res: Response) => {
         if (!pat) {
             return res.status(403).json({ error: 'GitHub credentials not set up. Go to the Hub and connect your GitHub account first.' });
         }
-        await gitService.gitPull(workspaceId, pat, remote, branch);
+        await inWorkspace(workspaceId, async () => {
+            await flushWorkspace(workspaceId);
+            await gitService.gitPull(workspaceId, pat, remote, branch);
+            reloadFromDisk(workspaceId);
+        });
+        persistInBackground(workspaceId);
         res.json({ message: 'Pulled successfully' });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -258,7 +389,7 @@ router.get('/log/:workspaceId', async (req: Request, res: Response) => {
     const { workspaceId } = req.params;
     const depth = parseInt(req.query.depth as string) || 20;
     try {
-        const log = await gitService.gitLog(workspaceId, depth);
+        const log = await inWorkspace(workspaceId, () => gitService.gitLog(workspaceId, depth));
         res.json(log);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -269,7 +400,7 @@ router.get('/log/:workspaceId', async (req: Request, res: Response) => {
 router.get('/branches/:workspaceId', async (req: Request, res: Response) => {
     const { workspaceId } = req.params;
     try {
-        const info = await gitService.getBranches(workspaceId);
+        const info = await inWorkspace(workspaceId, () => gitService.getBranches(workspaceId));
         res.json(info);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -284,7 +415,12 @@ router.post('/checkout/:workspaceId', async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Branch name is required' });
     }
     try {
-        await gitService.gitCheckout(workspaceId, branch);
+        await inWorkspace(workspaceId, async () => {
+            await flushWorkspace(workspaceId);
+            await gitService.gitCheckout(workspaceId, branch);
+            reloadFromDisk(workspaceId);
+        });
+        persistInBackground(workspaceId);
         res.json({ message: `Switched to branch ${branch}` });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -299,7 +435,11 @@ router.post('/branch/:workspaceId', async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Branch name is required' });
     }
     try {
-        await gitService.gitCreateBranch(workspaceId, branch, checkout !== false);
+        await inWorkspace(workspaceId, async () => {
+            await flushWorkspace(workspaceId);
+            await gitService.gitCreateBranch(workspaceId, branch, checkout !== false);
+            reloadFromDisk(workspaceId);
+        });
         res.json({ message: `Branch ${branch} created` });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -310,7 +450,7 @@ router.post('/branch/:workspaceId', async (req: Request, res: Response) => {
 router.get('/remotes/:workspaceId', async (req: Request, res: Response) => {
     const { workspaceId } = req.params;
     try {
-        const remotes = await gitService.getRemotes(workspaceId);
+        const remotes = await inWorkspace(workspaceId, () => gitService.getRemotes(workspaceId));
         res.json(remotes);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -325,7 +465,7 @@ router.post('/remote/:workspaceId', async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'name and url are required' });
     }
     try {
-        await gitService.addRemote(workspaceId, name, url);
+        await inWorkspace(workspaceId, () => gitService.addRemote(workspaceId, name, url));
         res.json({ message: `Remote ${name} added` });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -379,39 +519,47 @@ router.post('/upload/:workspaceId', upload.any(), async (req: Request, res: Resp
                 return res.status(400).json({ error: 'No zip file uploaded' });
             }
 
-            // diskStorage writes to 'path', not 'buffer'
-            const fileData = fs.readFileSync((zipFile as any).path);
-            const zip = new AdmZip(fileData);
-            const entries = zip.getEntries();
-            let uploaded = 0;
+            const uploaded = await inWorkspace(workspaceId, async () => {
+                await flushWorkspace(workspaceId);
 
-            // Detect common top-level folder so we can strip it (matches folder-upload behaviour)
-            const allEntryNames = entries.map(e => e.entryName.replace(/\\/g, '/'));
-            const firstSegments = new Set(allEntryNames.map(n => n.split('/')[0]));
-            const hasSingleRoot = firstSegments.size === 1 && !allEntryNames.some(n => !n.includes('/'));
-            const rootPrefix = hasSingleRoot ? ([...firstSegments][0] + '/') : '';
+                // diskStorage writes to 'path', not 'buffer'
+                const fileData = fs.readFileSync((zipFile as any).path);
+                const zip = new AdmZip(fileData);
+                const entries = zip.getEntries();
+                let count = 0;
 
-            for (const entry of entries) {
-                // Skip directories, Mac hidden files, and dot-files
-                if (entry.isDirectory) continue;
-                const rawName = entry.entryName.replace(/\\/g, '/');
-                if (rawName.includes('__MACOSX') || path.basename(rawName).startsWith('.')) continue;
+                // Detect common top-level folder so we can strip it (matches folder-upload behaviour)
+                const allEntryNames = entries.map(e => e.entryName.replace(/\\/g, '/'));
+                const firstSegments = new Set(allEntryNames.map(n => n.split('/')[0]));
+                const hasSingleRoot = firstSegments.size === 1 && !allEntryNames.some(n => !n.includes('/'));
+                const rootPrefix = hasSingleRoot ? ([...firstSegments][0] + '/') : '';
 
-                // Strip common root folder (e.g. myproject/src/index.js → src/index.js)
-                const stripped = rootPrefix && rawName.startsWith(rootPrefix)
-                    ? rawName.slice(rootPrefix.length)
-                    : rawName;
-                if (!stripped) continue;
+                for (const entry of entries) {
+                    // Skip directories, Mac hidden files, and dot-files
+                    if (entry.isDirectory) continue;
+                    const rawName = entry.entryName.replace(/\\/g, '/');
+                    if (rawName.includes('__MACOSX') || path.basename(rawName).startsWith('.')) continue;
 
-                // Zip Slip Prevention
-                const relativePath = path.normalize(stripped).replace(/^(\.\.(\/|\\|$))+/, '');
-                if (!relativePath || path.isAbsolute(relativePath)) continue;
+                    // Strip common root folder (e.g. myproject/src/index.js → src/index.js)
+                    const stripped = rootPrefix && rawName.startsWith(rootPrefix)
+                        ? rawName.slice(rootPrefix.length)
+                        : rawName;
+                    if (!stripped) continue;
 
-                const buffer = entry.getData();
-                gitService.writeFileRaw(workspaceId, relativePath, buffer);
-                uploaded++;
-            }
+                    // Zip Slip Prevention
+                    const relativePath = path.normalize(stripped).replace(/^(\.\.(\/|\\|$))+/, '');
+                    if (!relativePath || path.isAbsolute(relativePath)) continue;
 
+                    const buffer = entry.getData();
+                    gitService.writeFileRaw(workspaceId, relativePath, buffer);
+                    count++;
+                }
+
+                reloadFromDisk(workspaceId);
+                return count;
+            });
+
+            persistInBackground(workspaceId);
             res.json({ uploaded, message: `Extracted ${uploaded} files from zip` });
 
         } else if (mode === 'folder') {
@@ -437,35 +585,42 @@ router.post('/upload/:workspaceId', upload.any(), async (req: Request, res: Resp
                 return res.status(400).json({ error: 'No files uploaded' });
             }
 
-            let uploaded = 0;
+            const uploaded = await inWorkspace(workspaceId, async () => {
+                await flushWorkspace(workspaceId);
+                let count = 0;
 
-            for (let i = 0; i < folderFiles.length; i++) {
-                const file = folderFiles[i];
-                const relativePath = relPaths[i] || file.originalname;
+                for (let i = 0; i < folderFiles.length; i++) {
+                    const file = folderFiles[i];
+                    const relativePath = relPaths[i] || file.originalname;
 
-                // Strip top-level folder from webkitRelativePath
-                const parts = relativePath.replace(/\\/g, '/').split('/');
-                const strippedPath = parts.length > 1 ? parts.slice(1).join('/') : relativePath;
-                if (!strippedPath) continue;
+                    // Strip top-level folder from webkitRelativePath
+                    const parts = relativePath.replace(/\\/g, '/').split('/');
+                    const strippedPath = parts.length > 1 ? parts.slice(1).join('/') : relativePath;
+                    if (!strippedPath) continue;
 
-                // Skip hidden/system files
-                if (path.basename(strippedPath).startsWith('.')) continue;
+                    // Skip hidden/system files
+                    if (path.basename(strippedPath).startsWith('.')) continue;
 
-                // diskStorage means we must read from path
-                const fileData = fs.readFileSync((file as any).path);
-                gitService.writeFileRaw(workspaceId, strippedPath, fileData);
+                    // diskStorage means we must read from path
+                    const fileData = fs.readFileSync((file as any).path);
+                    gitService.writeFileRaw(workspaceId, strippedPath, fileData);
 
-                // Cleanup tmp file
-                fs.unlinkSync((file as any).path);
+                    // Cleanup tmp file
+                    fs.unlinkSync((file as any).path);
 
-                uploaded++;
-            }
+                    count++;
+                }
+
+                reloadFromDisk(workspaceId);
+                return count;
+            });
 
             console.log('[UPLOAD][folder] Completed upload', {
                 workspaceId,
                 uploaded,
             });
 
+            persistInBackground(workspaceId);
             res.json({ uploaded, message: `Uploaded ${uploaded} files` });
 
         } else {
@@ -491,33 +646,38 @@ router.get('/download/:workspaceId', async (req: Request, res: Response) => {
         const { workspaceId } = req.params;
         const filePath = req.query.path as string;
 
-        let targetPath = gitService.getWorkspacePath(workspaceId);
-        let zipName = `${workspaceId}.zip`;
+        const result = await inWorkspace(workspaceId, async () => {
+            // Include edits the autosave hasn't written yet
+            await flushWorkspace(workspaceId);
 
-        if (filePath) {
-            const cleanPath = filePath.replace(/^\//, '');
-            targetPath = gitService.resolveFilePath(workspaceId, cleanPath);
-            zipName = `${path.basename(targetPath)}.zip`;
-        }
+            let targetPath = gitService.getWorkspacePath(workspaceId);
+            let zipName = `${workspaceId}.zip`;
 
-        if (!fs.existsSync(targetPath)) {
+            if (filePath) {
+                const cleanPath = filePath.replace(/^\//, '');
+                targetPath = gitService.resolveFilePath(workspaceId, cleanPath);
+                zipName = `${path.basename(targetPath)}.zip`;
+            }
+
+            if (!fs.existsSync(targetPath)) return null;
+            if (fs.statSync(targetPath).isFile()) return { file: targetPath };
+
+            // It's a directory, zip it
+            const zip = new AdmZip();
+            zip.addLocalFolder(targetPath);
+            return { zipName, zipBuffer: zip.toBuffer() };
+        });
+
+        if (!result) {
             return res.status(404).json({ error: 'Path not found' });
         }
-
-        const stat = fs.statSync(targetPath);
-
-        if (stat.isFile()) {
-            return res.download(targetPath);
+        if ('file' in result) {
+            return res.download(result.file as string);
         }
 
-        // It's a directory, zip it
-        const zip = new AdmZip();
-        zip.addLocalFolder(targetPath);
-        const zipBuffer = zip.toBuffer();
-
         res.set('Content-Type', 'application/zip');
-        res.set('Content-Disposition', `attachment; filename="${zipName}"`);
-        res.send(zipBuffer);
+        res.set('Content-Disposition', `attachment; filename="${result.zipName}"`);
+        res.send(result.zipBuffer);
     } catch (error: any) {
         console.error('Download error:', error);
         res.status(500).json({ error: error.message || 'Download failed' });

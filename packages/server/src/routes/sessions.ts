@@ -29,7 +29,7 @@ router.get('/extensions/:id', (req: Request, res: Response) => {
 // ============== Custom Extensions ==============
 
 // Create a custom extension
-router.post('/extensions/custom', (req: Request, res: Response) => {
+router.post('/extensions/custom', async (req: Request, res: Response) => {
     const { id, name, description, category, icon, author, version, config } = req.body;
     if (!id || !name || !category) {
         return res.status(400).json({ error: 'id, name, and category are required' });
@@ -40,7 +40,7 @@ router.post('/extensions/custom', (req: Request, res: Response) => {
         return res.status(409).json({ error: 'Extension with this ID already exists' });
     }
     try {
-        const ext = addCustomExtension({
+        const ext = await addCustomExtension({
             id, name, description: description || '', category,
             icon: icon || '🧩', author: author || 'Custom', version: version || '1.0.0', config,
         });
@@ -51,22 +51,26 @@ router.post('/extensions/custom', (req: Request, res: Response) => {
 });
 
 // Delete a custom extension
-router.delete('/extensions/custom/:id', (req: Request, res: Response) => {
-    const deleted = deleteCustomExtension(req.params.id);
-    if (!deleted) return res.status(404).json({ error: 'Custom extension not found' });
-    res.json({ message: 'Custom extension deleted' });
+router.delete('/extensions/custom/:id', async (req: Request, res: Response) => {
+    try {
+        const deleted = await deleteCustomExtension(req.params.id);
+        if (!deleted) return res.status(404).json({ error: 'Custom extension not found' });
+        res.json({ message: 'Custom extension deleted' });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============== Sessions ==============
 
 // Create a session
-router.post('/', (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
     const { name, roomId, workspaceId, owner } = req.body;
     if (!name || !roomId) {
         return res.status(400).json({ error: 'name and roomId are required' });
     }
     try {
-        const session = sessionService.createSession(
+        const session = await sessionService.createSession(
             name,
             roomId,
             workspaceId || roomId,
@@ -79,38 +83,54 @@ router.post('/', (req: Request, res: Response) => {
 });
 
 // List all sessions
-router.get('/', (req: Request, res: Response) => {
-    const owner = req.query.owner as string | undefined;
-    const sessions = sessionService.listSessions(owner);
-    res.json(sessions);
+router.get('/', async (req: Request, res: Response) => {
+    try {
+        const owner = req.query.owner as string | undefined;
+        const sessions = await sessionService.listSessions(owner);
+        res.json(sessions);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Get session by ID
-router.get('/:id', (req: Request, res: Response) => {
-    const session = sessionService.getSession(req.params.id);
-    if (!session) return res.status(404).json({ error: 'Session not found' });
-    res.json(session);
+router.get('/:id', async (req: Request, res: Response) => {
+    try {
+        const session = await sessionService.getSession(req.params.id);
+        if (!session) return res.status(404).json({ error: 'Session not found' });
+        res.json(session);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Update (save) session
-router.put('/:id', (req: Request, res: Response) => {
-    const { name, openTabs, activeTab, settings, extensions } = req.body;
-    const session = sessionService.updateSession(req.params.id, {
-        name, openTabs, activeTab, settings, extensions,
-    });
-    if (!session) return res.status(404).json({ error: 'Session not found' });
-    res.json(session);
+router.put('/:id', async (req: Request, res: Response) => {
+    try {
+        const { name, openTabs, activeTab, settings, extensions } = req.body;
+        const session = await sessionService.updateSession(req.params.id, {
+            name, openTabs, activeTab, settings, extensions,
+        });
+        if (!session) return res.status(404).json({ error: 'Session not found' });
+        res.json(session);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Delete session
-router.delete('/:id', (req: Request, res: Response) => {
-    const deleted = sessionService.deleteSession(req.params.id);
-    if (!deleted) return res.status(404).json({ error: 'Session not found' });
-    res.json({ message: 'Session deleted' });
+router.delete('/:id', async (req: Request, res: Response) => {
+    try {
+        const deleted = await sessionService.deleteSession(req.params.id);
+        if (!deleted) return res.status(404).json({ error: 'Session not found' });
+        res.json({ message: 'Session deleted' });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Install extension to session
-router.post('/:id/extensions', (req: Request, res: Response) => {
+router.post('/:id/extensions', async (req: Request, res: Response) => {
     const { extensionId } = req.body;
     if (!extensionId) {
         return res.status(400).json({ error: 'extensionId is required' });
@@ -119,17 +139,25 @@ router.post('/:id/extensions', (req: Request, res: Response) => {
     const ext = getExtension(extensionId);
     if (!ext) return res.status(404).json({ error: 'Extension not found in registry' });
 
-    // Auto-include the extension's config from the registry
-    const session = sessionService.installExtension(req.params.id, extensionId, ext.config);
-    if (!session) return res.status(404).json({ error: 'Session not found' });
-    res.json(session);
+    try {
+        // Auto-include the extension's config from the registry
+        const session = await sessionService.installExtension(req.params.id, extensionId, ext.config);
+        if (!session) return res.status(404).json({ error: 'Session not found' });
+        res.json(session);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Uninstall extension from session
-router.delete('/:id/extensions/:extensionId', (req: Request, res: Response) => {
-    const session = sessionService.uninstallExtension(req.params.id, req.params.extensionId);
-    if (!session) return res.status(404).json({ error: 'Session not found' });
-    res.json(session);
+router.delete('/:id/extensions/:extensionId', async (req: Request, res: Response) => {
+    try {
+        const session = await sessionService.uninstallExtension(req.params.id, req.params.extensionId);
+        if (!session) return res.status(404).json({ error: 'Session not found' });
+        res.json(session);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 export default router;

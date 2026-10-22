@@ -16,11 +16,11 @@
     "@react-three/fiber": "^9.5.0",
     "framer-motion": "^12.34.3",
     "lucide-react": "^0.575.0",
+    "monaco-editor": "^0.55.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.0",
     "three": "^0.183.2",
-    "y-monaco": "^0.1.6",
     "y-websocket": "^3.0.0",
     "yjs": "^13.6.29"
   },

@@ -1,14 +1,17 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import RoomPage from './pages/Room';
-import IDELayout from './components/IDELayout';
 import AdminDashboard from './pages/AdminDashboard';
-import AdminMonitor from './pages/AdminMonitor';
 import Hub from './pages/Hub';
 import CollabAdmin from './pages/CollabAdmin';
 import ExamEntry from './pages/ExamEntry';
 import ImportProject from './pages/ImportProject';
 import { ThemeProvider } from './contexts/ThemeContext';
+
+// The editor pages pull in Monaco (several MB), so they load on demand
+const IDELayout = lazy(() => import('./components/IDELayout'));
+const AdminMonitor = lazy(() => import('./pages/AdminMonitor'));
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = !!localStorage.getItem('token');
@@ -19,6 +22,7 @@ function App() {
   return (
     <ThemeProvider>
       <Router>
+        <Suspense fallback={<div style={{ minHeight: '100vh', background: '#000', color: '#969696', padding: 20 }}>Loading...</div>}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
@@ -58,6 +62,7 @@ function App() {
             element={<PrivateRoute><CollabAdmin /></PrivateRoute>}
           />
         </Routes>
+        </Suspense>
       </Router>
     </ThemeProvider>
   );

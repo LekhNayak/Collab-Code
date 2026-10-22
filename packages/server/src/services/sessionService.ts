@@ -1,8 +1,10 @@
-// Session management service — stores sessions as JSON files
-// Avoids database migration requirement
+// Session management service — stores sessions in Postgres (IdeSession table), so open tabs and
+// installed extensions survive an ephemeral disk. Sessions written by the earlier JSON-file
+// version are imported once by importLegacySessions().
 
 import fs from 'fs';
 import path from 'path';
+import prisma from '../db';
 
 export interface SessionExtension {
     extensionId: string;
@@ -24,24 +26,23 @@ export interface Session {
     updatedAt: string;
 }
 
+const LEGACY_SESSIONS_DIR = process.env.DATA_DIR
+    ? path.join(process.env.DATA_DIR, 'sessions')
+    : path.join(process.cwd(), 'sessions');
+
 export class SessionService {
-    private sessionsDir: string;
-
-    constructor() {
-        this.sessionsDir = process.env.DATA_DIR
-            ? path.join(process.env.DATA_DIR, 'sessions')
-            : path.join(process.cwd(), 'sessions');
-        if (!fs.existsSync(this.sessionsDir)) {
-            fs.mkdirSync(this.sessionsDir, { recursive: true });
-        }
-    }
-
-    private getSessionPath(id: string): string {
-        return path.join(this.sessionsDir, `${id}.json`);
+    private async write(session: Session): Promise<Session> {
+        session.updatedAt = new Date().toISOString();
+        await prisma.ideSession.upsert({
+            where: { id: session.id },
+            create: { id: session.id, owner: session.owner, data: session as any },
+            update: { owner: session.owner, data: session as any },
+        });
+        return session;
     }
 
     // ---- Create ----
-    createSession(name: string, roomId: string, workspaceId: string, owner: string): Session {
+    async createSession(name: string, roomId: string, workspaceId: string, owner: string): Promise<Session> {
         const id = roomId; // use roomId as session ID for simplicity
         const session: Session = {
             id,
@@ -56,42 +57,27 @@ export class SessionService {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
         };
-        fs.writeFileSync(this.getSessionPath(id), JSON.stringify(session, null, 2));
-        return session;
+        return this.write(session);
     }
 
     // ---- Get by ID ----
-    getSession(id: string): Session | null {
-        const filePath = this.getSessionPath(id);
-        if (!fs.existsSync(filePath)) return null;
-        const data = fs.readFileSync(filePath, 'utf-8');
-        return JSON.parse(data);
+    async getSession(id: string): Promise<Session | null> {
+        const row = await prisma.ideSession.findUnique({ where: { id } });
+        return row ? (row.data as unknown as Session) : null;
     }
 
     // ---- List all ----
-    listSessions(owner?: string): Session[] {
-        if (!fs.existsSync(this.sessionsDir)) return [];
-        const files = fs.readdirSync(this.sessionsDir).filter(f => f.endsWith('.json'));
-        const sessions: Session[] = [];
-        for (const f of files) {
-            try {
-                const data = fs.readFileSync(path.join(this.sessionsDir, f), 'utf-8');
-                const session: Session = JSON.parse(data);
-                if (!owner || session.owner === owner) {
-                    sessions.push(session);
-                }
-            } catch {
-                // skip corrupt files
-            }
-        }
-        return sessions.sort((a, b) =>
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-        );
+    async listSessions(owner?: string): Promise<Session[]> {
+        const rows = await prisma.ideSession.findMany({
+            where: owner ? { owner } : undefined,
+            orderBy: { updatedAt: 'desc' },
+        });
+        return rows.map(r => r.data as unknown as Session);
     }
 
     // ---- Update (save state) ----
-    updateSession(id: string, updates: Partial<Pick<Session, 'name' | 'openTabs' | 'activeTab' | 'settings' | 'extensions'>>): Session | null {
-        const session = this.getSession(id);
+    async updateSession(id: string, updates: Partial<Pick<Session, 'name' | 'openTabs' | 'activeTab' | 'settings' | 'extensions'>>): Promise<Session | null> {
+        const session = await this.getSession(id);
         if (!session) return null;
 
         if (updates.name !== undefined) session.name = updates.name;
@@ -99,23 +85,19 @@ export class SessionService {
         if (updates.activeTab !== undefined) session.activeTab = updates.activeTab;
         if (updates.settings !== undefined) session.settings = { ...session.settings, ...updates.settings };
         if (updates.extensions !== undefined) session.extensions = updates.extensions;
-        session.updatedAt = new Date().toISOString();
 
-        fs.writeFileSync(this.getSessionPath(id), JSON.stringify(session, null, 2));
-        return session;
+        return this.write(session);
     }
 
     // ---- Delete ----
-    deleteSession(id: string): boolean {
-        const filePath = this.getSessionPath(id);
-        if (!fs.existsSync(filePath)) return false;
-        fs.unlinkSync(filePath);
-        return true;
+    async deleteSession(id: string): Promise<boolean> {
+        const { count } = await prisma.ideSession.deleteMany({ where: { id } });
+        return count > 0;
     }
 
     // ---- Extension management ----
-    installExtension(sessionId: string, extensionId: string, config?: Record<string, any>): Session | null {
-        const session = this.getSession(sessionId);
+    async installExtension(sessionId: string, extensionId: string, config?: Record<string, any>): Promise<Session | null> {
+        const session = await this.getSession(sessionId);
         if (!session) return null;
 
         // Check if already installed
@@ -128,18 +110,31 @@ export class SessionService {
             installedAt: new Date().toISOString(),
             config,
         });
-        session.updatedAt = new Date().toISOString();
-        fs.writeFileSync(this.getSessionPath(sessionId), JSON.stringify(session, null, 2));
-        return session;
+        return this.write(session);
     }
 
-    uninstallExtension(sessionId: string, extensionId: string): Session | null {
-        const session = this.getSession(sessionId);
+    async uninstallExtension(sessionId: string, extensionId: string): Promise<Session | null> {
+        const session = await this.getSession(sessionId);
         if (!session) return null;
 
         session.extensions = session.extensions.filter(e => e.extensionId !== extensionId);
-        session.updatedAt = new Date().toISOString();
-        fs.writeFileSync(this.getSessionPath(sessionId), JSON.stringify(session, null, 2));
-        return session;
+        return this.write(session);
     }
+}
+
+// Imports sessions saved as JSON files by earlier versions; existing rows are left alone
+export async function importLegacySessions(): Promise<void> {
+    if (!fs.existsSync(LEGACY_SESSIONS_DIR)) return;
+    const data: Array<{ id: string; owner: string; data: any }> = [];
+    for (const f of fs.readdirSync(LEGACY_SESSIONS_DIR).filter(f => f.endsWith('.json'))) {
+        try {
+            const session: Session = JSON.parse(fs.readFileSync(path.join(LEGACY_SESSIONS_DIR, f), 'utf-8'));
+            if (session.id) data.push({ id: session.id, owner: session.owner || 'anonymous', data: session });
+        } catch {
+            // skip corrupt files
+        }
+    }
+    if (data.length === 0) return;
+    const { count } = await prisma.ideSession.createMany({ data, skipDuplicates: true });
+    if (count > 0) console.log(`[Sessions] Imported ${count} legacy session file(s) into the database`);
 }

@@ -610,6 +610,26 @@
     position: relative;
 }
 
+/* Covers the editor while the active file loads, or explains why it can't be opened */
+.editor-status-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+    background: var(--bg-primary);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 13px;
+}
+
+.editor-status-overlay.error {
+    color: var(--accent-error);
+}
+
 .editor-welcome {
     display: flex;
     flex-direction: column;

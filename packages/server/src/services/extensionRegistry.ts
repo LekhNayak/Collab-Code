@@ -3,6 +3,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import prisma from '../db';
 
 export interface Extension {
     id: string;
@@ -486,37 +487,36 @@ const EXTENSION_REGISTRY: Extension[] = [
     },
 ];
 
-// ---- Custom extension storage (file-based) ----
-const CUSTOM_EXT_DIR = process.env.DATA_DIR
+// ---- Custom extension storage ----
+// Kept in Postgres (CustomExtension table) and cached in memory, so lookups stay synchronous.
+// loadCustomExtensions() runs at startup and also imports files written by earlier versions.
+const LEGACY_CUSTOM_EXT_DIR = process.env.DATA_DIR
     ? path.join(process.env.DATA_DIR, 'custom-extensions')
     : path.join(process.cwd(), 'custom-extensions');
 
-function ensureCustomDir() {
-    if (!fs.existsSync(CUSTOM_EXT_DIR)) {
-        fs.mkdirSync(CUSTOM_EXT_DIR, { recursive: true });
-    }
-}
+let customExtensions: Extension[] = [];
 
-function loadCustomExtensions(): Extension[] {
-    ensureCustomDir();
-    const files = fs.readdirSync(CUSTOM_EXT_DIR).filter(f => f.endsWith('.json'));
-    const exts: Extension[] = [];
-    for (const f of files) {
-        try {
-            const data = JSON.parse(fs.readFileSync(path.join(CUSTOM_EXT_DIR, f), 'utf-8'));
-            data.custom = true;
-            exts.push(data);
-        } catch {
-            // skip corrupt files
+export async function loadCustomExtensions(): Promise<void> {
+    if (fs.existsSync(LEGACY_CUSTOM_EXT_DIR)) {
+        const legacy: Array<{ id: string; data: any }> = [];
+        for (const f of fs.readdirSync(LEGACY_CUSTOM_EXT_DIR).filter(f => f.endsWith('.json'))) {
+            try {
+                const data = JSON.parse(fs.readFileSync(path.join(LEGACY_CUSTOM_EXT_DIR, f), 'utf-8'));
+                if (data.id) legacy.push({ id: data.id, data: { ...data, custom: true } });
+            } catch {
+                // skip corrupt files
+            }
         }
+        if (legacy.length > 0) await prisma.customExtension.createMany({ data: legacy, skipDuplicates: true });
     }
-    return exts;
+    const rows = await prisma.customExtension.findMany({ orderBy: { createdAt: 'asc' } });
+    customExtensions = rows.map(r => ({ ...(r.data as unknown as Extension), custom: true }));
 }
 
 // ---- Public API ----
 
 export function getAllExtensions(): Extension[] {
-    return [...EXTENSION_REGISTRY, ...loadCustomExtensions()];
+    return [...EXTENSION_REGISTRY, ...customExtensions];
 }
 
 export function getExtension(id: string): Extension | undefined {
@@ -527,25 +527,15 @@ export function getExtensionsByCategory(category: Extension['category']): Extens
     return getAllExtensions().filter(e => e.category === category);
 }
 
-export function addCustomExtension(ext: Omit<Extension, 'custom'>): Extension {
-    ensureCustomDir();
+export async function addCustomExtension(ext: Omit<Extension, 'custom'>): Promise<Extension> {
     const full: Extension = { ...ext, custom: true };
-    // Use ID as filename
-    const safeName = ext.id.replace(/[^a-zA-Z0-9_-]/g, '_');
-    fs.writeFileSync(
-        path.join(CUSTOM_EXT_DIR, `${safeName}.json`),
-        JSON.stringify(full, null, 2)
-    );
+    await prisma.customExtension.create({ data: { id: full.id, data: full as any } });
+    customExtensions.push(full);
     return full;
 }
 
-export function deleteCustomExtension(id: string): boolean {
-    ensureCustomDir();
-    const safeName = id.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const filePath = path.join(CUSTOM_EXT_DIR, `${safeName}.json`);
-    if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-        return true;
-    }
-    return false;
+export async function deleteCustomExtension(id: string): Promise<boolean> {
+    const { count } = await prisma.customExtension.deleteMany({ where: { id } });
+    customExtensions = customExtensions.filter(e => e.id !== id);
+    return count > 0;
 }

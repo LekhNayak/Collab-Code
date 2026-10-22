@@ -1,12 +1,23 @@
 declare module 'y-websocket/bin/utils' {
     import { WebSocket } from 'ws';
     import { IncomingMessage } from 'http';
+    import * as Y from 'yjs';
 
     export function setupWSConnection(
         conn: WebSocket,
         req: IncomingMessage,
         options?: { docName?: string; gc?: boolean }
     ): void;
+
+    export interface Persistence {
+        provider: any;
+        bindState: (docName: string, doc: Y.Doc) => void;
+        writeState: (docName: string, doc: Y.Doc) => Promise<any>;
+    }
+    export function setPersistence(persistence: Persistence | null): void;
+
+    // Live documents by name (WSSharedDoc extends Y.Doc)
+    export const docs: Map<string, Y.Doc>;
 }
 
 declare module 'multer' {

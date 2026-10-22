@@ -5,7 +5,8 @@ interface TerminalProps {
     id: string;
     examId?: string;
     activeFile?: string;
-    activeCode?: string;
+    // Reads the active file's live editor content at the moment a command runs
+    getActiveCode?: () => string;
     activeLanguage?: string;
     // File system callbacks
     onCreateFile?: (path: string, isFolder: boolean) => Promise<void>;
@@ -56,7 +57,7 @@ export default function Terminal({
     id,
     examId,
     activeFile,
-    activeCode,
+    getActiveCode,
     activeLanguage,
     onCreateFile,
     onDeleteFile,
@@ -334,6 +335,7 @@ export default function Terminal({
         // ---- Code execution commands ----
 
         if (lower === 'run') {
+            const activeCode = getActiveCode?.() ?? '';
             if (!activeCode || !activeLanguage) {
                 appendLine('error', 'No active file to run. Open a file first.');
                 return;
@@ -361,6 +363,7 @@ export default function Terminal({
 
         // ---- Language execution commands ----
         if (CMD_LANG_MAP[cmdName]) {
+            const activeCode = getActiveCode?.() ?? '';
             if (!activeCode) {
                 appendLine('error', 'No file content. Open a file in the editor first.');
                 return;
@@ -371,7 +374,7 @@ export default function Terminal({
         }
 
         appendLine('error', `Unknown command: "${cmdName}". Type "help" for commands.`);
-    }, [appendLine, appendMultiLine, runCode, activeCode, activeLanguage, activeFile, cwd, resolvePath, onCreateFile, onDeleteFile, onMoveFile, onReadFile, onListFiles]);
+    }, [appendLine, appendMultiLine, runCode, getActiveCode, activeLanguage, activeFile, cwd, resolvePath, onCreateFile, onDeleteFile, onMoveFile, onReadFile, onListFiles]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

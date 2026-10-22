@@ -58,6 +58,21 @@ export async function readFile(workspaceId: string, filePath: string) {
     return data.content as string;
 }
 
+// Ask the server to load a file into the workspace's shared editor doc (content arrives over the WebSocket)
+export async function openFile(workspaceId: string, filePath: string) {
+    const cleanPath = filePath.replace(/^\//, '');
+    const res = await fetch(`${API_BASE}/git/open/${workspaceId}/${cleanPath}`, { method: 'POST' });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
+// Save pending editor changes now; `saved` is false if the server couldn't persist everything yet
+export async function flushWorkspace(workspaceId: string): Promise<{ saved: boolean }> {
+    const res = await fetch(`${API_BASE}/git/flush/${workspaceId}`, { method: 'POST' });
+    if (!res.ok) throw new Error((await res.json()).error);
+    return res.json();
+}
+
 export async function saveFile(workspaceId: string, filePath: string, content: string) {
     const cleanPath = filePath.replace(/^\//, '');
     const res = await fetch(`${API_BASE}/git/file/${workspaceId}/${cleanPath}`, {

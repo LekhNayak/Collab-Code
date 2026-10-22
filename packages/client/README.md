@@ -1,73 +1,50 @@
-# React + TypeScript + Vite
+# Colab Code Editor — Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 19 + Vite frontend for the Colab Code Editor: the Hub, collab and exam IDE, admin dashboard, and live exam monitor. See the [root README](../../README.md) for setup, deployment and the full feature list.
 
-Currently, two official plugins are available:
+## Scripts
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+| Script | Description |
+|---|---|
+| `npm run dev` | Vite dev server on http://localhost:5173 |
+| `npm run build` | Type-check (`tsc -b`) and production build to `dist/` |
+| `npm run preview` | Serve the production build locally |
+| `npm run lint` | ESLint |
 
-## React Compiler
+## Environment
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| Variable | Required | Description |
+|---|---|---|
+| `VITE_API_URL` | Yes | API base URL, e.g. `http://localhost:3001` (a bare host gets `https://`) |
+| `VITE_WS_URL` | No | WebSocket URL; defaults to `VITE_API_URL` with `http(s)` → `ws(s)` |
 
-## Expanding the ESLint configuration
+Vite reads these at build time, so changing them in production needs a new build. They are resolved in `src/config.ts`.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Structure
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+src/
+├── App.tsx                 # Routes; the IDE and exam monitor are lazy-loaded (they include Monaco)
+├── api.ts                  # All REST calls
+├── config.ts               # API / WebSocket URLs
+├── monacoSetup.ts          # Uses the bundled monaco-editor with Vite-built language workers
+├── collab/
+│   ├── useCollabWorkspace.ts  # One Y.Doc + WebSocket per IDE session; openCollabFile(); useDirtyPaths()
+│   ├── monacoBinding.ts       # Two-way Y.Text <-> Monaco model binding (trimmed fork of y-monaco)
+│   └── hash.ts                # cyrb53 content hash — must match packages/server/src/collab/text.ts
+├── components/
+│   ├── IDELayout.tsx       # IDE shell: explorer, tabs, editor, terminal, collab + exam modes
+│   ├── Editor.tsx          # Single Monaco instance with one model per open tab
+│   ├── Terminal.tsx        # In-app terminal and code execution
+│   └── ...
+└── pages/                  # Hub, Login, Room, ExamEntry, ImportProject, AdminDashboard, AdminMonitor, CollabAdmin
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## How the editor works
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- **One connection per session.** `useCollabWorkspace` opens a single `WebsocketProvider` when the IDE mounts. The server maps it to the workspace's Yjs document. In development, React StrictMode mounts the IDE twice, so you'll see a second connection open and the first one close; production opens one.
+- **File contents come from the server.** Opening a tab calls `openCollabFile()`: if the file isn't in the shared `files` map yet, it asks the server (`POST /git/open/...`) to load it from disk, then waits for it to arrive over the WebSocket. The client never writes file contents itself — the server autosaves.
+- **One model per tab.** `Editor.tsx` mounts Monaco once and creates a model plus `MonacoBinding` for each open tab. Switching tabs swaps the model, keeping undo history, cursor and scroll position; background tabs keep receiving collaborators' edits. Models are disposed when their tab closes.
+- **Line endings.** The shared text only ever contains `\n`, and every model is set to LF, so Monaco offsets always match the Yjs text. The server restores each file's original CRLF/BOM when saving.
+- **Unsaved dot.** `useDirtyPaths` compares a hash of each open file's text with the hash the server stored in the `saved` map after its last save. The dot shows only while a change hasn't been stored yet. Ctrl+S calls `POST /git/flush/...` to save immediately.
+- **Presence.** Each client publishes `user { name, id, color }`, its selection, and `activeFile` through Yjs awareness. Cursor labels are injected as CSS in `Editor.tsx`, and the exam monitor uses `activeFile` to follow what a student is editing.

@@ -31,8 +31,9 @@ export class GitService {
 
     public resolveFilePath(workspaceId: string, filePath: string): string {
         const wsDir = this.getWorkspacePath(workspaceId);
+        // Paths are workspace-relative even with a leading slash ("/src/a.ts", as the file tree uses)
         // Resolve and ensure the path stays within workspace
-        const resolved = path.resolve(wsDir, filePath);
+        const resolved = path.resolve(wsDir, filePath.replace(/^[\\/]+/, ''));
 
         // Strictly prevent traversal (fixes V02 prefix bypass)
         const relative = path.relative(wsDir, resolved);
@@ -47,9 +48,8 @@ export class GitService {
     async cloneRepository(repoUrl: string, workspaceId: string): Promise<void> {
         const dir = this.getWorkspacePath(workspaceId);
 
-        if (fs.existsSync(dir)) {
-            console.log(`Workspace ${workspaceId} already exists`);
-            return;
+        if (fs.existsSync(dir) && fs.readdirSync(dir).length > 0) {
+            throw new Error('Workspace already contains files — import the repository into a new room');
         }
 
         fs.mkdirSync(dir, { recursive: true });
@@ -129,13 +129,9 @@ export class GitService {
         return buffer.toString('utf-8');
     }
 
-    // ---- Write File ----
+    // ---- Write File (creates parent directories, so saves survive a wiped workspace) ----
     writeFile(workspaceId: string, filePath: string, content: string): void {
-        const resolved = this.resolveFilePath(workspaceId, filePath);
-        if (!fs.existsSync(resolved)) {
-            throw new Error(`File not found: ${filePath}`);
-        }
-        fs.writeFileSync(resolved, content, 'utf-8');
+        this.writeFileRaw(workspaceId, filePath, Buffer.from(content, 'utf-8'));
     }
 
     // ---- Write File (raw buffer, binary-safe, auto-creates parents) ----
@@ -204,16 +200,17 @@ export class GitService {
     }
 
     // ---- Init empty workspace ----
-    initWorkspace(workspaceId: string): void {
+    // Seeds main.py only into a brand-new (missing or empty) workspace, never into an imported repo.
+    // Returns the path of the seeded file, or null when the workspace already had content.
+    initWorkspace(workspaceId: string): string | null {
         const dir = this.getWorkspacePath(workspaceId);
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
         }
-        // Create a default file
-        const indexPath = path.join(dir, 'main.py');
-        if (!fs.existsSync(indexPath)) {
-            fs.writeFileSync(indexPath, '# Welcome to Colab Code Editor\nprint("Hello, World!")\n', 'utf-8');
-        }
+        if (fs.readdirSync(dir).length > 0) return null;
+
+        fs.writeFileSync(path.join(dir, 'main.py'), '# Welcome to Colab Code Editor\nprint("Hello, World!")\n', 'utf-8');
+        return '/main.py';
     }
 
     // ---- Git Init ----
@@ -416,3 +413,6 @@ export class GitService {
         await git.addRemote({ fs, dir, remote, url });
     }
 }
+
+// Shared instance — routes, the workspace store and the collab layer all use the same one
+export const gitService = new GitService();
