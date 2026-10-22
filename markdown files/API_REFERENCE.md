@@ -23,14 +23,18 @@ These APIs manage the actual filesystem of a user's remote workspace. They are u
 
 | Endpoint | Method | Description & Use Case |
 |---|---|---|
-| `/git/init` | `POST` | Initializes a brand new empty workspace directory for a project on the server filesystem. |
+| `/git/init` | `POST` | Prepares a workspace when the IDE opens. Restores any files missing from disk from the database, and adds a starter `main.py` only to a brand-new, empty workspace (never to an imported repo). |
 | `/git/tree/:workspaceId` | `GET` | Fetches the full directory and file tree structure of a workspace. Used to populate the IDE sidebar. |
-| `/git/file/:workspaceId/:path` | `GET` | Reads the text content of a specific file. Triggered when a user clicks on a file in the IDE sidebar to open it in a tab. |
-| `/git/file/:workspaceId/:path` | `PUT` | Saves/overwrites the content of an existing file. Triggered when the user presses `Ctrl+S` or auto-save runs. |
+| `/git/open/:workspaceId/:path` | `POST` | Loads a file into the workspace's live collaborative document. Called when a tab is opened and the file isn't loaded yet; the content then arrives over the WebSocket. Returns `404` (missing), `413` (over 5 MB) or `415` (binary / non-UTF-8). |
+| `/git/flush/:workspaceId` | `POST` | Saves pending editor changes to disk and the database right away. Triggered by `Ctrl+S`; the server otherwise autosaves about a second after each edit. Returns `{ saved: false }` if something couldn't be stored yet (it is retried). |
+| `/git/file/:workspaceId/:path` | `GET` | Reads the text content of a file — the live editor content if the file is open. Used by the terminal's `cat`. |
+| `/git/file/:workspaceId/:path` | `PUT` | Overwrites a file's content; anyone with the file open sees the new content. The IDE itself no longer uses this — the server autosaves editor changes. |
 | `/git/file/:workspaceId/:path` | `POST` | Creates a new file or directory (based on an `isDirectory` flag). Used when a user right-clicks the tree and selects "New File" or "New Folder". |
-| `/git/file/:workspaceId/:path` | `DELETE` | Permanently deletes a file or directory from the workspace. |
-| `/git/file/:workspaceId` | `PATCH` | Renames or moves a file/folder to a new path. Used when a user uses the "Rename" functionality. |
-| `/git/upload/:workspaceId` | `POST` | A multipart/form-data endpoint to bulk upload directories or `.zip` files. Extracts zip files automatically if `mode=zip`. |
+| `/git/file/:workspaceId/:path` | `DELETE` | Permanently deletes a file or directory from the workspace. Open tabs for it close for every user. |
+| `/git/file/:workspaceId` | `PATCH` | Renames or moves a file/folder to a new path. Used when a user uses the "Rename" functionality. Unsaved edits move with the file. |
+| `/git/upload/:workspaceId` | `POST` | A multipart/form-data endpoint to bulk upload directories or `.zip` files. Extracts zip files automatically if `mode=zip`. Open files that the upload replaced update in place. |
+
+Every change made through these endpoints (and every autosave) is also written to the database, so a workspace survives a wiped server disk. `.git` is not stored, so git history does not survive a wipe.
 
 ---
 
@@ -39,9 +43,9 @@ These APIs allow the user to execute raw Git commands visually through the appli
 
 | Endpoint | Method | Description & Use Case |
 |---|---|---|
-| `/git/clone` | `POST` | Clones a repository from a given URL into a fresh workspace. Used in the "Import Project" flow on the Hub. |
+| `/git/clone` | `POST` | Clones a repository from a given URL into a fresh workspace. Used in the "Import Project" flow on the Hub. Returns `409` if the workspace already contains files. |
 | `/git/repo/init/:workspaceId` | `POST` | Executes `git init` to turn a local unwatched workspace directory into a Git repository. |
-| `/git/status/:workspaceId` | `GET` | Executes `git status`. Used to display changed files, staged files, branches, and remotes in the Source Control panel. |
+| `/git/status/:workspaceId` | `GET` | Executes `git status`. Used to display changed files, staged files, branches, and remotes in the Source Control panel. Status, add, commit and push save pending editor changes first, so they always see the latest edits. |
 | `/git/add/:workspaceId` | `POST` | Stages specific files (or all changed files) to the Git index (`git add`). |
 | `/git/unstage/:workspaceId` | `POST` | Removes files from the Git staging area without losing their local changes (`git reset HEAD`). |
 | `/git/commit/:workspaceId` | `POST` | Creates a new commit with the currently staged files (`git commit -m "..."`). |
@@ -71,7 +75,7 @@ These APIs handle user-specific IDE configuration metadata—saving their prefer
 
 | Endpoint | Method | Description & Use Case |
 |---|---|---|
-| `/sessions` | `POST` | Creates a persistent "coding session" metadata record linking a user, a workspace, and a collaborative socket `roomId`. |
+| `/sessions` | `POST` | Creates a persistent "coding session" metadata record linking a user, a workspace, and a collaborative socket `roomId`. Sessions are stored in the database (`IdeSession` table). |
 | `/sessions` | `GET` | Retrieves all currently active and past sessions for a user. Used to render the "Recent Projects" list in the Hub. |
 | `/sessions/:id` | `GET` | Fetches the detailed metadata (open tabs, settings, installed extensions) for a specific session to rehydrate the IDE upon page load. |
 | `/sessions/:id` | `PUT` | Updates session metadata asynchronously as the user changes settings or opens/closes tabs, allowing them to resume exactly where they left off later. |

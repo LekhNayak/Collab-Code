@@ -20,6 +20,8 @@ Instead, use the built-in **Hub** interface:
 
 Colab Code will automatically create a new Workspace container for you, run the clone securely in the backend, and drop you directly into the fully loaded IDE workspace!
 
+Repositories can only be cloned into a new, empty workspace. Cloning from the Source Control panel into a room that already has files is refused, so it can't mix two projects together.
+
 ---
 
 ## 🛤️ 2. Tracking Changes (Status)
@@ -30,6 +32,10 @@ Once you are in your IDE Workspace, if you modify or create any files, you can t
 2. The panel will automatically refresh and show you a list of **Changes** (files that have been modified, added, or deleted).
 
 *(Behind the scenes, the IDE is securely running `git status` on the server and formatting the results for you visually.)*
+
+You don't need to press `Ctrl+S` before using Source Control: your edits are saved automatically, and status, staging, commit and push always save anything still pending first, so they include what you just typed.
+
+> **Note:** On the free hosting plan the server's disk can be wiped when it restarts. Your files are restored automatically, but the repository's commit history (`.git`) is not — push your commits to GitHub to keep them.
 
 ---
 
