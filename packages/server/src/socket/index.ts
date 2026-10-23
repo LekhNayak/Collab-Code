@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import prisma from '../db';
 import { initCollabPersistence, docNameFor, isLive } from '../collab/persistence';
 import { isValidWorkspaceId } from '../services/WorkspaceStore';
+import { phaseOf } from '../services/contest/access';
 
 // Drops document updates from a read-only client while still letting it receive the document:
 // sync step 1 (asking for state) and awareness (cursors/presence) pass through, sync step 2 and
@@ -110,6 +111,7 @@ export const setupWebSocket = (server: Server) => {
                     if ((user as any).role !== 'ADMIN') {
                         // Auto-create session if needed
                         const session = await prisma.examSession.findFirst({
+                            orderBy: { startTime: 'asc' }, // a student can have duplicate sessions (no unique key); always use the oldest
                             where: { examId: exam.id, userId: user.id }
                         });
                         if (!session) {
@@ -122,10 +124,46 @@ export const setupWebSocket = (server: Server) => {
                     // Per-user isolation: each student (and the admin) gets their own workspace
                     docName = docNameFor(`${pathRoomId}__${user.id}`);
                 }
+            } else if (mode === 'contest-monitor') {
+                // ── CONTEST MONITOR: the organizer watching one participant's code (read-only) ──
+                const contestId = url.searchParams.get('contestId');
+                const participantId = url.searchParams.get('participantId');
+                const contest = contestId ? await prisma.contest.findUnique({ where: { id: contestId } }) : null;
+                if (!contest || !participantId) {
+                    socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+                    return socket.destroy();
+                }
+                if (contest.ownerId !== decoded.id) {
+                    socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+                    return socket.destroy();
+                }
+                docName = docNameFor(`${contest.code}__${participantId}`);
+                isReadOnly = true;
+            } else if (pathRoomId.startsWith('CT-')) {
+                // ── CONTEST: a participant's own workspace; editable only while the contest is live ──
+                const contest = await prisma.contest.findUnique({ where: { code: pathRoomId } });
+                if (!contest) {
+                    socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+                    return socket.destroy();
+                }
+                const phase = phaseOf(contest);
+                if (contest.ownerId !== decoded.id) {
+                    const participant = await prisma.contestParticipant.findUnique({
+                        where: { contestId_userId: { contestId: contest.id, userId: String(decoded.id) } },
+                    });
+                    const allowed = participant
+                        && (phase === 'LIVE' ? participant.status === 'ACTIVE' : phase === 'ENDED' && participant.status !== 'REMOVED');
+                    if (!allowed) {
+                        socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+                        return socket.destroy();
+                    }
+                    isReadOnly = phase === 'ENDED';
+                }
+                docName = docNameFor(`${contest.code}__${decoded.id}`);
             } else {
                 // ── COLLAB mode: shared workspace per room; guests are allowed ──
-                // (ex- in any case is reserved so a collab room can't alias an exam workspace folder)
-                if (!isValidWorkspaceId(pathRoomId) || /^ex-/i.test(pathRoomId)) {
+                // (ex-/ct- in any case are reserved so a collab room can't alias an exam or contest workspace)
+                if (!isValidWorkspaceId(pathRoomId) || /^(ex|ct)-/i.test(pathRoomId)) {
                     socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
                     return socket.destroy();
                 }

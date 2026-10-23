@@ -56,6 +56,7 @@ declare module 'adm-zip' {
     interface ZipEntry {
         entryName: string;
         isDirectory: boolean;
+        header: { size: number; compressedSize: number };
         getData(): Buffer;
         getDataAsync(callback: (data: Buffer, err: string) => void): void;
     }

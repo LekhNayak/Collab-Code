@@ -43,7 +43,9 @@ services:
       - key: DATA_DIR
         value: /data
       # Optional: point at a self-hosted Piston (e.g. https://piston.example.com/api/v2).
-      # When unset, code runs on the free Wandbox API.
+      # When unset, code runs on the free Wandbox API, which accepts only ~10 runs per minute per IP:
+      # enough to try contests, not for a real one. With Piston, raise PISTON_OUTPUT_MAX_SIZE and set
+      # PISTON_RUN_TIMEOUT on the Piston host, and PISTON_MAX_RUN_MS here to match (see README "Contests").
       - key: PISTON_URL
         sync: false
     # Workspace files live under DATA_DIR. On the free plan that directory is wiped whenever

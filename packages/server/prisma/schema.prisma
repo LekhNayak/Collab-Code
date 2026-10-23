@@ -19,10 +19,10 @@ enum RoomType {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  username  String   @unique
-  email     String   @unique
-  password  String?
+  id             String   @id @default(uuid())
+  username       String   @unique
+  email          String   @unique
+  password       String?
   avatarUrl      String?
   role           UserRole @default(STUDENT)
   githubUsername String?
@@ -33,9 +33,14 @@ model User {
   workspaces      WorkspaceMember[]
   ownedWorkspaces Workspace[]
 
-  ownedExams      Exam[] @relation("ExamOwner")
-  examLogs        ExamLog[]
-  examSessions    ExamSession[]
+  ownedExams   Exam[]        @relation("ExamOwner")
+  examLogs     ExamLog[]
+  examSessions ExamSession[]
+
+  ownedContests         Contest[]            @relation("ContestOwner")
+  contestParticipations ContestParticipant[]
+  submissions           Submission[]
+  contestEvents         ContestEvent[]
 }
 
 // id is the workspace id used on disk (room code, or EX-xxxx__userId for exams)
@@ -73,11 +78,11 @@ enum Role {
 model File {
   id          String    @id @default(uuid())
   workspaceId String
-  path        String    // normalized, e.g. "/src/index.ts"
+  path        String // normalized, e.g. "/src/index.ts"
   name        String
   type        FileType
   content     String?
-  data        Bytes?    // raw file bytes
+  data        Bytes? // raw file bytes
   sha1        String?
   size        Int       @default(0)
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -109,26 +114,26 @@ enum FileType {
 }
 
 model Room {
-  id             String   @id @default(uuid())
-  type           RoomType
-  name           String?
-  examId         String?
-  exam           Exam?    @relation(fields: [examId], references: [id], onDelete: Cascade)
-  createdByRole  UserRole
-  createdAt      DateTime @default(now())
+  id            String   @id @default(uuid())
+  type          RoomType
+  name          String?
+  examId        String?
+  exam          Exam?    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  createdByRole UserRole
+  createdAt     DateTime @default(now())
 }
 
 model Exam {
-  id          String    @id @default(uuid())
-  title       String
-  ownerId     String
-  owner       User      @relation("ExamOwner", fields: [ownerId], references: [id])
-  startTime   DateTime
-  endTime     DateTime?
-  rooms       Room[]
-  sessions    ExamSession[]
-  logs        ExamLog[]
-  createdAt   DateTime  @default(now())
+  id        String        @id @default(uuid())
+  title     String
+  ownerId   String
+  owner     User          @relation("ExamOwner", fields: [ownerId], references: [id])
+  startTime DateTime
+  endTime   DateTime?
+  rooms     Room[]
+  sessions  ExamSession[]
+  logs      ExamLog[]
+  createdAt DateTime      @default(now())
 }
 
 model ExamSession {
@@ -147,15 +152,15 @@ model ExamSession {
 }
 
 model ExamLog {
-  id             String    @id @default(uuid())
-  examId         String
-  exam           Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
-  userId         String
-  user           User      @relation(fields: [userId], references: [id])
-  eventType      LogType
-  codeSnapshot   String?   // State of the code at the time of the event
-  details        String?   // JSON object with details (as string)
-  createdAt      DateTime  @default(now())
+  id           String   @id @default(uuid())
+  examId       String
+  exam         Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  eventType    LogType
+  codeSnapshot String? // State of the code at the time of the event
+  details      String? // JSON object with details (as string)
+  createdAt    DateTime @default(now())
 }
 
 enum LogType {
@@ -168,3 +173,159 @@ enum LogType {
   FULLSCREEN_EXIT
 }
 
+// ─── Competitive-coding contests ─────────────────────────────────────────────
+// Phase is derived from startsAt/endsAt: DRAFT (no start), SCHEDULED, LIVE, ENDED.
+// Each participant's code lives in the collab workspace "<code>__<userId>", one file per problem.
+
+enum ContestLeaderboard {
+  LIVE // participants see the leaderboard during the contest
+  AFTER_END // hidden from participants until the contest ends
+}
+
+enum ContestParticipantStatus {
+  ACTIVE
+  BLOCKED
+  REMOVED
+}
+
+enum SubmissionStatus {
+  QUEUED
+  RUNNING
+  DONE
+  ERROR // the execution backend failed; never counts towards the score
+}
+
+enum Verdict {
+  AC
+  PARTIAL
+  WA
+  TLE
+  MLE
+  RE
+  CE
+  OLE
+  IE
+  SKIPPED
+}
+
+enum ContestEventType {
+  JOIN
+  TAB_SWITCH
+  FULLSCREEN_EXIT
+  PASTE
+  BLOCK
+  UNBLOCK
+  REMOVE
+  START
+  END
+}
+
+model Contest {
+  id              String             @id @default(uuid())
+  code            String             @unique // CT-XXXXXXXX, also the workspace prefix
+  title           String
+  description     String             @default("")
+  ownerId         String
+  owner           User               @relation("ContestOwner", fields: [ownerId], references: [id])
+  startsAt        DateTime?
+  endsAt          DateTime?
+  durationMinutes Int                @default(120)
+  languages       String[]           @default([]) // empty = all supported languages
+  proctoring      Boolean            @default(false)
+  maxTabSwitches  Int                @default(3)
+  leaderboard     ContestLeaderboard @default(LIVE)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  problems     Problem[]
+  participants ContestParticipant[]
+  submissions  Submission[]
+  events       ContestEvent[]
+
+  @@index([ownerId])
+}
+
+model Problem {
+  id            String   @id @default(uuid())
+  contestId     String
+  contest       Contest  @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  index         String // "A", "B", ... — names the participant's files, locked once the contest starts
+  title         String
+  statement     String   @default("") // markdown
+  points        Int      @default(100)
+  timeLimitMs   Int      @default(2000)
+  memoryLimitMb Int?
+  updatedAt     DateTime @updatedAt // bumped when tests change
+
+  tests       TestCase[]
+  submissions Submission[]
+
+  @@unique([contestId, index])
+}
+
+model TestCase {
+  id             String  @id @default(uuid())
+  problemId      String
+  problem        Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  input          String
+  expectedOutput String
+  isSample       Boolean @default(false) // samples are shown to participants
+  order          Int
+
+  @@index([problemId, order])
+}
+
+model ContestParticipant {
+  id             String                   @id @default(uuid())
+  contestId      String
+  contest        Contest                  @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User                     @relation(fields: [userId], references: [id])
+  status         ContestParticipantStatus @default(ACTIVE)
+  tabSwitchCount Int                      @default(0)
+  blockedReason  String?
+  joinedAt       DateTime                 @default(now())
+
+  @@unique([contestId, userId])
+  @@index([userId])
+}
+
+model Submission {
+  id            String           @id @default(uuid())
+  contestId     String
+  contest       Contest          @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  problemId     String
+  problem       Problem          @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User             @relation(fields: [userId], references: [id])
+  language      String
+  code          String
+  status        SubmissionStatus @default(QUEUED)
+  verdict       Verdict?
+  passed        Int              @default(0)
+  total         Int              @default(0)
+  score         Float            @default(0)
+  results       Json             @default("[]") // per test: { verdict, timeMs, timeExact, sample, ... }
+  compileOutput String?
+  createdAt     DateTime         @default(now()) // ranking tie-break uses this, never finishedAt
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  updatedAt     DateTime         @updatedAt // judge heartbeat
+
+  @@index([contestId, createdAt])
+  @@index([contestId, userId, problemId])
+  @@index([status, updatedAt])
+}
+
+model ContestEvent {
+  id        String           @id @default(uuid())
+  contestId String
+  contest   Contest          @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?            @relation(fields: [userId], references: [id])
+  type      ContestEventType
+  details   Json?
+  createdAt DateTime         @default(now())
+
+  @@index([contestId, createdAt])
+}

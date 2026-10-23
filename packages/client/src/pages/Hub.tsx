@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, GraduationCap, Shield, ArrowRight, Code2, Download, Github, Linkedin, Mail, Phone } from 'lucide-react';
+import { Users, GraduationCap, Shield, ArrowRight, Code2, Download, Github, Linkedin, Mail, Phone, Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import LiquidEther from '../components/ui/LiquidEther';
 import GitHubOnboarding from '../components/GitHubOnboarding';
@@ -81,12 +81,12 @@ export default function Hub() {
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.5, duration: 0.4 }}
                     >
-                        Choose your destination. Hop into a collaborative pair programming session, securely take an exam, or monitor a live test.
+                        Choose your destination. Hop into a collaborative pair programming session, securely take an exam, monitor a live test, or host a coding contest.
                     </motion.p>
                 </motion.div>
 
                 <motion.div
-                    className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 max-w-[90rem] mx-auto"
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-6 max-w-[110rem] mx-auto"
                     variants={staggerContainer}
                     initial="hidden"
                     animate="show"
@@ -163,6 +163,25 @@ export default function Hub() {
                             </p>
                             <button className="w-full text-[15px] py-3.5 px-6 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-[#6ee7b7] font-semibold transition-all flex items-center justify-center gap-2 border border-emerald-500/20 shadow-sm">
                                 Import <Download size={18} strokeWidth={2.5} className="group-hover:-translate-y-1 transition-transform" />
+                            </button>
+                        </div>
+                    </motion.div>
+
+                    {/* Contests Card */}
+                    <motion.div variants={staggerItem} className="h-full">
+                        <div
+                            onClick={() => navigate('/contests')}
+                            className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 flex flex-col items-center text-center h-full cursor-pointer hover:bg-white/10 hover:border-white/20 transition-all duration-300 group shadow-2xl"
+                        >
+                            <motion.div className="w-16 h-16 bg-[#f59e0b]/90 rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.5)] mb-6 group-hover:scale-110 transition-transform duration-300">
+                                <Trophy size={32} className="text-white" />
+                            </motion.div>
+                            <h2 className="text-2xl font-bold mb-4 text-white">Contests</h2>
+                            <p className="font-medium mb-8 flex-1 text-sm text-white/50 leading-relaxed">
+                                Host or join competitive coding contests. Problems with hidden test cases, automatic judging, and a live leaderboard.
+                            </p>
+                            <button className="w-full text-[15px] py-3.5 px-6 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-[#fcd34d] font-semibold transition-all flex items-center justify-center gap-2 border border-amber-500/20 shadow-sm">
+                                Compete <ArrowRight size={18} strokeWidth={2.5} className="group-hover:translate-x-1 transition-transform" />
                             </button>
                         </div>
                     </motion.div>

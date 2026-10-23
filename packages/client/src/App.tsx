@@ -12,6 +12,10 @@ import { ThemeProvider } from './contexts/ThemeContext';
 // The editor pages pull in Monaco (several MB), so they load on demand
 const IDELayout = lazy(() => import('./components/IDELayout'));
 const AdminMonitor = lazy(() => import('./pages/AdminMonitor'));
+const ContestsHome = lazy(() => import('./pages/ContestsHome'));
+const ContestManage = lazy(() => import('./pages/ContestManage'));
+const ContestMonitor = lazy(() => import('./pages/ContestMonitor'));
+const ContestArena = lazy(() => import('./pages/ContestArena'));
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = !!localStorage.getItem('token');
@@ -60,6 +64,22 @@ function App() {
           <Route
             path="/collab-admin/:roomId"
             element={<PrivateRoute><CollabAdmin /></PrivateRoute>}
+          />
+          <Route
+            path="/contests"
+            element={<PrivateRoute><ContestsHome /></PrivateRoute>}
+          />
+          <Route
+            path="/contests/:id/manage"
+            element={<PrivateRoute><ContestManage /></PrivateRoute>}
+          />
+          <Route
+            path="/contests/:id/monitor"
+            element={<PrivateRoute><ContestMonitor /></PrivateRoute>}
+          />
+          <Route
+            path="/c/:code"
+            element={<PrivateRoute><ContestArena /></PrivateRoute>}
           />
         </Routes>
         </Suspense>

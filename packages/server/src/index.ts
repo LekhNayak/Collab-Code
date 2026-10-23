@@ -8,6 +8,7 @@ import gitRoutes from './routes/git';
 import executionRoutes from './routes/execution';
 import sessionRoutes from './routes/sessions';
 import examRoutes from './routes/exam';
+import contestRoutes from './routes/contests';
 import { requestLogger } from './middleware/requestLogger';
 import { globalApiLimiter } from './middleware/rateLimiter';
 
@@ -52,6 +53,7 @@ app.use('/git', requireAuth, gitRoutes);
 app.use('/execute', requireAuth, executionRoutes);
 app.use('/sessions', requireAuth, sessionRoutes);
 app.use('/exam', requireAuth, examRoutes);
+app.use('/contests', requireAuth, contestRoutes);
 
 app.get('/', (req, res) => {
     res.send('Collaborative IDE API Gateway');
@@ -61,6 +63,7 @@ import { setupWebSocket } from './socket/index';
 import { flushAll } from './collab/persistence';
 import { importLegacySessions } from './services/sessionService';
 import { loadCustomExtensions } from './services/extensionRegistry';
+import { startJudge, stopJudge } from './services/contest/judge';
 
 const server = app.listen(port, () => {
     console.log(`Server running on port ${port}`);
@@ -71,6 +74,7 @@ setupWebSocket(server);
 
 importLegacySessions().catch(err => console.error('[Init] Failed to import legacy sessions:', err));
 loadCustomExtensions().catch(err => console.error('[Init] Failed to load custom extensions:', err));
+startJudge();
 
 // Save open documents before exiting. The server runs as PID 1 in the container (exec in start.sh),
 // so without a handler SIGTERM is ignored and the platform eventually SIGKILLs it mid-edit.
@@ -79,6 +83,8 @@ let shuttingDown = false;
 const shutdown = async (signal: string) => {
     if (shuttingDown) return;
     shuttingDown = true;
+    // Submissions being judged are picked up again after the restart
+    stopJudge();
     console.log(`[Shutdown] ${signal} received, saving open documents...`);
     await Promise.race([flushAll(), new Promise(resolve => setTimeout(resolve, SHUTDOWN_TIMEOUT_MS))]);
     process.exit(0);

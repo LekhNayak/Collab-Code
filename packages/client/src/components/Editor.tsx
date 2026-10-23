@@ -15,6 +15,7 @@ interface CodeEditorProps {
     awareness: WebsocketProvider['awareness'] | null;
     roomId?: string;
     examId?: string; // resolved exam UUID for alert API calls
+    readOnly?: boolean;
     onCursorChange?: (line: number, column: number) => void;
     onAlert?: (message: string) => void;
 }
@@ -35,6 +36,15 @@ const languageMap: Record<string, string> = {
     yml: 'yaml',
     sh: 'shell',
     bash: 'shell',
+    java: 'java',
+    c: 'c',
+    h: 'c',
+    cpp: 'cpp',
+    cc: 'cpp',
+    cxx: 'cpp',
+    hpp: 'cpp',
+    go: 'go',
+    rs: 'rust',
     env: 'plaintext',
     gitignore: 'plaintext',
     prisma: 'plaintext',
@@ -62,6 +72,7 @@ export default function CodeEditor({
     awareness,
     roomId,
     examId,
+    readOnly = false,
     onCursorChange,
     onAlert,
 }: CodeEditorProps) {
@@ -280,6 +291,7 @@ export default function CodeEditor({
                 automaticLayout: true,
                 // Never let Monaco rewrite a file's line terminators on open (that would mark it unsaved)
                 unusualLineTerminators: 'off',
+                readOnly,
             }}
         />
     );

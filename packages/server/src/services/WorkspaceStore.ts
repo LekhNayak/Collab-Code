@@ -208,3 +208,20 @@ export async function syncDiskToDb(ws: string): Promise<{ persisted: number; ski
     checked.add(ws);
     return { persisted: keep.length, skipped };
 }
+
+// Deletes every workspace whose id starts with the prefix (e.g. all participants of a contest),
+// from the database and from disk
+export async function deleteWorkspacesWithPrefix(prefix: string): Promise<number> {
+    const { count } = await prisma.workspace.deleteMany({ where: { id: { startsWith: prefix } } });
+    const root = path.dirname(gitService.getWorkspacePath('x'));
+    if (fs.existsSync(root)) {
+        for (const name of fs.readdirSync(root)) {
+            if (name.startsWith(prefix)) {
+                fs.rmSync(path.join(root, name), { recursive: true, force: true });
+                checked.delete(name);
+                rows.delete(name);
+            }
+        }
+    }
+    return count;
+}

@@ -17,6 +17,7 @@ A **collaborative, in-browser code editor** with real-time multi-user editing, i
 - [How to Run](#how-to-run)
 - [User Roles](#user-roles)
 - [Exam Portal](#exam-portal)
+- [Contests](#contests)
 - [Code Execution (Piston)](#code-execution-piston)
 - [Available Scripts](#available-scripts)
 - [API Overview](#api-overview)
@@ -40,6 +41,7 @@ A **collaborative, in-browser code editor** with real-time multi-user editing, i
 - **Code execution** — Run code in the integrated terminal via the free [Wandbox](https://wandbox.org) API, or a self-hosted [Piston](https://github.com/engineer-man/piston). Supports Python, JavaScript/TypeScript, Java, C/C++, Go, Rust, Bash, and more.
 - **Git integration** — `init`, `status`, `add`, `commit`, `push`, `pull`, branches, and remotes via [isomorphic-git](https://isomorphic-git.org/) (no system Git required).
 - **GitHub Import** — Clone any public GitHub repository straight into a new collaborative workspace.
+- **Contests** — Host competitive-coding contests: problems with markdown statements and hidden test cases, scheduled or manual start, automatic judging with partial credit per test case, a live leaderboard, and an organizer monitor with live code previews.
 - **Terminal** — In-app terminal with `ls`, `cat`, `touch`, `mkdir`, `rm`, `mv`, `cd`, `run`, and language execution commands.
 - **Extensions** — Installable editor themes and extensions stored per-session.
 
@@ -84,19 +86,25 @@ Colab Code Editor/
 │   │   └── src/
 │   │       ├── App.tsx            # All route definitions
 │   │       ├── pages/
-│   │       │   ├── Hub.tsx        # Home — 4-card destination picker
+│   │       │   ├── Hub.tsx        # Home — destination picker
 │   │       │   ├── Login.tsx      # GitHub OAuth + email/password login
 │   │       │   ├── Room.tsx       # Create/join a collab room (/collab)
 │   │       │   ├── ExamEntry.tsx  # Student exam entry (/take-exam)
 │   │       │   ├── ImportProject.tsx  # GitHub repo import (/import)
 │   │       │   ├── AdminDashboard.tsx # Proctor dashboard (/admin)
 │   │       │   ├── AdminMonitor.tsx   # Live exam monitor (/exam/:id/monitor)
-│   │       │   └── CollabAdmin.tsx    # Collab room admin (/collab-admin/:roomId)
+│   │       │   ├── CollabAdmin.tsx    # Collab room admin (/collab-admin/:roomId)
+│   │       │   ├── ContestsHome.tsx   # Join / create contests (/contests)
+│   │       │   ├── ContestManage.tsx  # Organizer: settings, problems, test cases (/contests/:id/manage)
+│   │       │   ├── ContestMonitor.tsx # Organizer: live leaderboard, previews, submissions (/contests/:id/monitor)
+│   │       │   └── ContestArena.tsx   # Participant: lobby + problem/editor split view (/c/:code)
 │   │       ├── collab/
 │   │       │   ├── useCollabWorkspace.ts  # One Y.Doc + WebSocket per IDE session, file loading, unsaved-dot tracking
 │   │       │   ├── monacoBinding.ts       # Y.Text <-> Monaco model binding (fork of y-monaco)
 │   │       │   └── hash.ts                # Content hash shared with the server
 │   │       ├── monacoSetup.ts     # Bundled Monaco + language workers (no CDN)
+│   │       ├── contestApi.ts      # /contests API client and display helpers
+│   │       ├── hooks/useProctoring.ts  # Fullscreen / tab-switch / clipboard rules (exams and contests)
 │   │       └── components/
 │   │           ├── IDELayout.tsx  # Main IDE shell (collab + exam modes)
 │   │           ├── Editor.tsx     # Single Monaco instance, one model per open tab, cursor labels
@@ -104,6 +112,8 @@ Colab Code Editor/
 │   │           ├── FileExplorer.tsx
 │   │           ├── GitPanel.tsx
 │   │           ├── ExtensionPanel.tsx
+│   │           ├── LiveCodePreview.tsx  # Read-only live view of another user's code (monitors)
+│   │           ├── contest/       # Leaderboard, markdown, verdict badges, countdown
 │   │           └── ui/LiquidEther.tsx  # Three.js animated background
 │   ├── server/                    # Express API + WebSocket server
 │   │   ├── src/
@@ -114,6 +124,7 @@ Colab Code Editor/
 │   │   │   ├── routes/
 │   │   │   │   ├── auth.ts        # /auth — login, register, GitHub OAuth
 │   │   │   │   ├── exam.ts        # /exam — create, sessions, logs, anti-cheat events
+│   │   │   │   ├── contests.ts    # /contests — organizer and participant API
 │   │   │   │   ├── git.ts         # /git — file CRUD, Git operations
 │   │   │   │   ├── sessions.ts    # /sessions — session state + extensions
 │   │   │   │   └── execution.ts   # /execute — code execution
@@ -122,12 +133,13 @@ Colab Code Editor/
 │   │   │   │   ├── executionService.ts  # Wandbox / Piston integration
 │   │   │   │   ├── sessionService.ts    # IDE session persistence (Postgres)
 │   │   │   │   ├── extensionRegistry.ts # Built-in + custom extensions (Postgres)
-│   │   │   │   └── WorkspaceStore.ts    # Durable copy of workspace files (Postgres)
+│   │   │   │   ├── WorkspaceStore.ts    # Durable copy of workspace files (Postgres)
+│   │   │   │   └── contest/             # Judge queue, verdicts, leaderboard, test upload, access rules
 │   │   │   ├── collab/
 │   │   │   │   ├── persistence.ts # Server-owned Yjs docs: file loading, autosave, shutdown flush
 │   │   │   │   ├── lock.ts        # Per-workspace lock for disk/DB operations
 │   │   │   │   └── text.ts        # Line-ending/BOM normalization + content hash
-│   │   │   └── socket/index.ts    # Yjs WebSocket — collab, exam, admin-monitor modes
+│   │   │   └── socket/index.ts    # Yjs WebSocket — collab, exam, contest and monitor modes
 │   │   ├── prisma/
 │   │   │   └── schema.prisma
 │   │   └── workspaces/            # Working copy of each workspace (created at runtime)
@@ -198,6 +210,11 @@ Every workspace (a collab room, or one student's exam workspace) has **one Yjs d
 | `PERSIST_MAX_FILE_BYTES` | No | Largest file copied to Postgres (default: `2097152`, 2 MB) |
 | `PERSIST_MAX_WORKSPACE_BYTES` | No | Total size copied to Postgres per workspace (default: `20971520`, 20 MB) |
 | `PERSIST_MAX_WORKSPACE_FILES` | No | Number of files copied to Postgres per workspace (default: `2000`) |
+| `JUDGE_CONCURRENCY` | No | Contest submissions judged at the same time (default: `2` on Wandbox, `4` on Piston) |
+| `JUDGE_STOP_AFTER_TLE` | No | Skip a submission's remaining tests after a time-out (default: `true` on Wandbox, `false` on Piston) |
+| `PISTON_MAX_RUN_MS` | No | Highest per-test time limit Piston accepts; must match the Piston host's `PISTON_RUN_TIMEOUT` (default: `3000`) |
+| `WANDBOX_RATE_PER_MIN` | No | Requests per minute this server sends to Wandbox (default: `9`; the public API allows about 10 per IP) |
+| `WANDBOX_OVERHEAD_MS` | No | Extra time per Wandbox judge run for network and startup, on top of the time limit and a per-language compile allowance (default: `4000`) |
 
 **Example `packages/server/.env`:**
 
@@ -363,6 +380,38 @@ After updating the DB, the user must **log out and log back in** to get a new JW
 
 - Collab rooms: `CR-xxxxxxxx` (lowercase random hex)
 - Exam rooms: `EX-XXXXXXXX` (uppercase — always enter in uppercase)
+- Contests: `CT-XXXXXXXX`
+
+---
+
+## Contests
+
+Any registered user (not guests) can organize competitive-coding contests from the **Contests** card on the Hub.
+
+### For organizers
+
+1. Go to **`/contests`**, give the contest a title and click **Create**.
+2. On the manage page (`/contests/:id/manage`):
+   - **Settings:** description (markdown, shown in the lobby), duration, allowed languages, leaderboard visibility (live, or hidden until the end), and optional proctoring (fullscreen + tab-switch limit, the same rules as exams).
+   - **Problems:** title, markdown statement with preview, points, time limit (and memory limit on Piston).
+   - **Test cases:** add them one by one, or bulk-upload a `.zip`, files or a folder paired by name (`1.in` + `1.out`, `input/1.txt` + `output/1.txt`, `input01.txt` + `output01.txt`). Tests marked **sample** are shown to participants; the rest stay hidden.
+3. **Schedule** a start time or **Start now**. While it runs you can add 15 minutes or **End now**.
+4. Share the `CT-XXXXXXXX` code. **Try it** opens the contest as a participant would see it; the organizer's own submissions are judged but never ranked, which is how to check test data with a reference solution.
+5. The **monitor** (`/contests/:id/monitor`) shows the live leaderboard, participants (block / unblock / remove), every submission with its code, an activity log, and live read-only previews of participants' code (click a leaderboard row).
+
+### For participants
+
+1. Open the code from **`/contests`** (or go to `/c/CT-XXXXXXXX`) and **Join**. The lobby counts down to the start; problems unlock automatically.
+2. Pick a problem and a language. Code is saved automatically (the same server-side autosave as the IDE), one file per problem and language.
+3. **Run samples** or run with **custom input** — these are not scored. **Submit** judges the code on every test case one by one; each test's verdict appears as it finishes.
+4. Score per problem = points × tests passed ÷ total tests. Your best submission per problem counts, and ties go to whoever reached their score first (by submission time).
+
+### Judging
+
+- Verdicts: `AC`, `WA`, `TLE`, `MLE` (Piston only), `RE`, `CE`, `OLE`, and `PARTIAL` overall when only some tests pass. Output is compared line by line, ignoring trailing spaces and trailing blank lines.
+- Submissions are queued in the database, so a restart never loses one: anything interrupted is judged again.
+- **Wandbox (default):** free, but it accepts only about 10 runs per minute per IP for the whole server, and time limits are approximate (compile and network time are included). Good for trying the feature out; keep tests few.
+- **Piston (recommended for real contests):** set `PISTON_URL`. Time and memory limits are enforced by the sandbox. On the Piston host, raise `PISTON_OUTPUT_MAX_SIZE` (the default allows only 1 KB of output) and set `PISTON_RUN_TIMEOUT` to the longest time limit you want, then set `PISTON_MAX_RUN_MS` on this server to match.
 
 ---
 
@@ -440,6 +489,13 @@ In the terminal, use:
 | `GET /sessions/:id` | Get session state (open tabs, active tab, extensions). |
 | `PUT /sessions/:id` | Save session state. |
 | `POST /execute/run/direct` | Execute code synchronously via Wandbox (or Piston if `PISTON_URL` is set). |
+| `POST /contests` · `GET /contests/mine` | Create a contest; list the contests you organize and have joined. |
+| `GET /contests/resolve/:code` | Contest lobby info by `CT-` code (phase, times, your status, `serverNow`). |
+| `GET /contests/:id/admin`, `PATCH /contests/:id`, `POST /contests/:id/start` / `end`, `/problems…`, `/tests…` | Organizer: settings, schedule, problems, test cases and bulk upload. |
+| `POST /contests/:id/join` · `GET /contests/:id/problems` | Participant: join; problems with their sample tests (once started). |
+| `POST /contests/:id/run` · `POST /contests/:id/submit` | Run on samples or custom input; submit for judging on all tests. |
+| `GET /contests/:id/submissions[/:sid]` · `GET /contests/:id/leaderboard` | Your submissions with per-test verdicts; standings. |
+| `GET /contests/:id/monitor` · `POST /contests/:id/participants/:uid/{block,unblock,remove}` | Organizer live monitor and moderation. |
 
 **WebSocket** — connect to `ws://localhost:3001/<roomId>?token=<jwt>`. Each connection joins the workspace's Yjs document `ws-<workspaceId>` (see [How Editing and Saving Work](#how-editing-and-saving-work)):
 
@@ -448,6 +504,8 @@ In the terminal, use:
 | Collab | `/<CR-roomId>` | Shared doc for the room — all users edit together. Guests allowed. |
 | Exam student | `/<EX-roomId>` | Per-student isolated doc (`<EX-roomId>__<userId>`) |
 | Admin monitor | `/?mode=admin-monitor&examId=&studentId=` | Read-only view of a student's doc; edits from the monitor are rejected by the server |
+| Contest | `/<CT-code>` | The participant's own contest workspace (`<CT-code>__<userId>`), while the contest is live (read-only after it ends) |
+| Contest monitor | `/?mode=contest-monitor&contestId=&participantId=` | The organizer's read-only view of a participant's code |
 
 ---
 

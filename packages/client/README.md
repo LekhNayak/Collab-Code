@@ -32,13 +32,29 @@ src/
 │   ├── useCollabWorkspace.ts  # One Y.Doc + WebSocket per IDE session; openCollabFile(); useDirtyPaths()
 │   ├── monacoBinding.ts       # Two-way Y.Text <-> Monaco model binding (trimmed fork of y-monaco)
 │   └── hash.ts                # cyrb53 content hash — must match packages/server/src/collab/text.ts
+├── contestApi.ts            # /contests API client, verdict/phase labels and formatting
+├── contest/                # contest language list, server-corrected clock, markdown styles
+├── hooks/useProctoring.ts  # fullscreen / tab-switch / clipboard rules shared by exams and contests
 ├── components/
 │   ├── IDELayout.tsx       # IDE shell: explorer, tabs, editor, terminal, collab + exam modes
 │   ├── Editor.tsx          # Single Monaco instance with one model per open tab
 │   ├── Terminal.tsx        # In-app terminal and code execution
+│   ├── LiveCodePreview.tsx # Read-only live view of another user's code (exam and contest monitors)
+│   ├── ProctoringOverlay.tsx
+│   ├── contest/            # Leaderboard, Markdown, VerdictBadge, Countdown
 │   └── ...
-└── pages/                  # Hub, Login, Room, ExamEntry, ImportProject, AdminDashboard, AdminMonitor, CollabAdmin
+└── pages/                  # Hub, Login, Room, ExamEntry, ImportProject, AdminDashboard, AdminMonitor, CollabAdmin,
+                            # ContestsHome, ContestManage, ContestMonitor, ContestArena
 ```
+
+## Contests
+
+- `ContestsHome` (`/contests`): join by code, create, and list your contests.
+- `ContestManage` (`/contests/:id/manage`): organizer settings, schedule, problems (markdown statements with preview) and test cases (single or bulk upload).
+- `ContestArena` (`/c/:code`): the participant's lobby with a countdown, then a split view: problem statement and samples, a `CodeEditor` per problem and language (files `/A.py`, `/A.cpp`, … in the participant's own collab workspace, loaded through `POST /contests/:id/open`), and a results panel for sample runs, custom input and submissions. Submissions are polled every second while they're judged, so each test's verdict appears as it finishes.
+- `ContestMonitor` (`/contests/:id/monitor`): live leaderboard, participants, submissions and events (polled every 5 seconds), and up to four pinned `LiveCodePreview`s.
+
+Countdowns use the server's clock (`serverNow` in API responses), and only the small `Countdown` component re-renders every second.
 
 ## How the editor works
 

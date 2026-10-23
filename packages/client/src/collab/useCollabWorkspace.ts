@@ -105,13 +105,19 @@ function waitForKey<T>(map: Y.Map<T>, key: string): { promise: Promise<void>; ca
 
 // Makes sure a file is in the shared doc. Instant if anyone already opened it this session;
 // otherwise the server loads it from disk and it arrives over the WebSocket.
-export async function openCollabFile(ws: CollabWorkspace, workspaceId: string, path: string): Promise<void> {
+// `load` asks the server to do that (contests use their own route, which also creates the file).
+export async function openCollabFile(
+    ws: CollabWorkspace,
+    workspaceId: string,
+    path: string,
+    load: () => Promise<unknown> = () => apiOpenFile(workspaceId, path),
+): Promise<void> {
     await waitForSync(ws.provider);
     if (ws.files.has(path)) return;
     // Subscribe before asking: the update can arrive before the HTTP response
     const arrival = waitForKey(ws.files, path);
     try {
-        await apiOpenFile(workspaceId, path);
+        await load();
     } catch (err) {
         arrival.cancel();
         throw err;

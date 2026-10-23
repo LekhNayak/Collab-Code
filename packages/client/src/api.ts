@@ -21,6 +21,10 @@ const fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
 
     return response;
 };
+
+// Authenticated fetch for API modules other than this one (e.g. contestApi.ts)
+export const apiFetch = fetch;
+
 // ---- Git / File API ----
 
 export async function initWorkspace(workspaceId: string) {

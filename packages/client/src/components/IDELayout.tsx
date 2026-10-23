@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import type * as Y from 'yjs';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import Modal from './ui/Modal';
 import {
     Files,
@@ -31,6 +31,9 @@ import GitPanel from './GitPanel';
 import ExtensionPanel from './ExtensionPanel';
 import UserPresence from './UserPresence';
 import { useCollabWorkspace, useDirtyPaths, openCollabFile } from '../collab/useCollabWorkspace';
+import { getTokenUser } from '../auth';
+import { useProctoring } from '../hooks/useProctoring';
+import ProctoringOverlay from './ProctoringOverlay';
 import { getFileTree, readFile, flushWorkspace, initWorkspace, createFile as apiCreateFile, moveFile as apiMoveFile, deleteFile as apiDeleteFile, getSession, saveSession, createSession, getExtensions, uploadZip, uploadFolder, joinExam, downloadWorkspace, resolveExamRoom, sendTabSwitch, sendFullscreenExit, sendExamAlert, getMyExamSession, type SessionInfo, type ExtensionInfo, type ExamRoom } from '../api';
 import '../ide.css';
 
@@ -44,19 +47,10 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     const isExamMode = manualExamMode || (roomId && roomId.startsWith('EX-'));
     const [roomBlocked, setRoomBlocked] = useState(false);
     const [roomBlockReason, setRoomBlockReason] = useState('');
-    const [examOverlay, setExamOverlay] = useState<{ type: 'fullscreen' | 'tab-switch'; switchCount?: number } | null>(null);
     const [editorAlert, setEditorAlert] = useState<string | null>(null);
 
-    // Extract user ID from JWT for per-student workspace isolation
-    const getUserIdFromToken = (): string | null => {
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) return null;
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            return payload.id || null;
-        } catch { return null; }
-    };
-    const currentUserId = getUserIdFromToken();
+    // User ID from the JWT, for per-student workspace isolation
+    const currentUserId = getTokenUser()?.id ?? null;
 
     // In exam mode, workspace must be isolated per student
     // Each student gets their own workspace: EX-a1b2c3d4__userId
@@ -159,162 +153,31 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     }, [isExamMode, resolvedExamId]);
 
     // Anti-cheat restrictions (copy-paste + tab-switch + fullscreen + keyboard blocking)
-    useEffect(() => {
-        if (!isExamMode || !resolvedExamId || roomBlocked) return;
-
-        const enterFullscreen = () => {
-            if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-                document.documentElement.requestFullscreen().catch(() => {});
-            }
-        };
-
-        // ── Tab-switch detection ──
-        const handleVisibilityChange = async () => {
-            if (document.visibilityState === 'hidden') {
-                try {
-                    const data = await sendTabSwitch(resolvedExamId);
-                    if (data.session?.isBlocked) {
-                        setRoomBlocked(true);
-                        setRoomBlockReason('You have been blocked from the exam for exceeding the maximum allowed tab switches (3).');
-                    } else if (data.session) {
-                        setExamOverlay({ type: 'tab-switch', switchCount: data.session.tabSwitchCount });
-                    }
-                } catch (e) {
-                    console.error('Error logging tab switch', e);
-                }
-            } else if (document.visibilityState === 'visible') {
-                // Re-enter fullscreen whenever they come back
-                enterFullscreen();
-            }
-        };
-
-        // ── Fullscreen enforcement ──
-        const handleFullscreenChange = async () => {
-            if (!document.fullscreenElement) {
-                setExamOverlay({ type: 'fullscreen' });
-                try {
-                    await sendFullscreenExit(resolvedExamId);
-                } catch (e) {
-                    console.error('Error logging fullscreen exit', e);
-                }
-            } else {
-                // Back in fullscreen — dismiss any overlay
-                setExamOverlay(null);
-            }
-        };
-
-        // ── Window blur: catches Alt+Tab to another OS window (not just browser tabs) ──
-        const handleWindowBlur = () => {
-            // Only show the overlay — visibilitychange handles logging.
-            // Use a small delay so we don't flicker on benign focus transfers (e.g. dev tools).
-            setTimeout(() => {
-                if (!document.hasFocus()) {
-                    setExamOverlay(prev => prev ?? { type: 'tab-switch', switchCount: undefined });
-                }
-            }, 300);
-        };
-
-        // ── Keyboard shortcut blocking ──
-        const handleKeyDown = (e: KeyboardEvent) => {
-            const shouldBlock =
-                // Tab switching
-                (e.ctrlKey && e.key === 'Tab') ||
-                (e.ctrlKey && e.shiftKey && e.key === 'Tab') ||
-                // Close / new tab / new window
-                (e.ctrlKey && (e.key === 'w' || e.key === 'W')) ||
-                (e.ctrlKey && (e.key === 't' || e.key === 'T')) ||
-                (e.ctrlKey && (e.key === 'n' || e.key === 'N')) ||
-                // DevTools
-                (e.ctrlKey && e.shiftKey && ['i', 'I', 'j', 'J', 'c', 'C'].includes(e.key)) ||
-                e.key === 'F12' ||
-                // Fullscreen toggle
-                e.key === 'F11' ||
-                // Close window (Windows/Linux)
-                (e.altKey && e.key === 'F4');
-
-            if (shouldBlock) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-        };
-
-        // ── Copy enforcement: log if > 20 chars ──
-        const handleCopy = async (e: ClipboardEvent) => {
-            const selected = window.getSelection()?.toString() || '';
-            const length = selected.length;
-            if (length > 20) {
-                try {
-                    await sendExamAlert(resolvedExamId, length, selected.substring(0, 200));
-                    console.warn(`[Exam] Suspicious copy: ${length} chars logged`);
-                } catch (err) {
-                    console.error('Failed to log copy event', err);
-                }
-            }
-            if (length > 50) {
-                e.preventDefault();
-                e.clipboardData?.setData('text/plain', '');
-                console.warn('[Exam] Copy blocked: content exceeds 50 chars');
-            }
-        };
-
-        // ── Paste enforcement: block if > 50 chars, log if > 20 chars ──
-        const handlePaste = async (e: ClipboardEvent) => {
-            const pastedText = e.clipboardData?.getData('text/plain') || '';
-            const length = pastedText.length;
-
-            if (length > 50) {
-                e.preventDefault();
-                try {
-                    await sendExamAlert(resolvedExamId, length, pastedText.substring(0, 200));
-                    console.warn(`[Exam] Paste BLOCKED: ${length} chars`);
-                } catch (err) {
-                    console.error('Failed to log paste block', err);
-                }
-                return;
-            }
-
-            if (length > 20) {
-                try {
-                    await sendExamAlert(resolvedExamId, length, pastedText.substring(0, 200));
-                    console.warn(`[Exam] Paste logged: ${length} chars`);
-                } catch (err) {
-                    console.error('Failed to log paste', err);
-                }
-            }
-        };
-
-        // Check if currently blocked on mount
-        getMyExamSession(resolvedExamId)
-            .then(data => {
-                if (data?.isBlocked) {
-                    setRoomBlocked(true);
-                    setRoomBlockReason(data.blockedReason || 'You are blocked from this exam.');
-                }
-            })
-            .catch(console.error);
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-        // capture: true so we intercept before Monaco/other handlers
-        document.addEventListener('keydown', handleKeyDown, true);
-        document.addEventListener('copy', handleCopy as unknown as EventListener);
-        document.addEventListener('paste', handlePaste as unknown as EventListener);
-        window.addEventListener('blur', handleWindowBlur);
-
-        // First click triggers fullscreen (browser policy)
-        document.body.addEventListener('click', enterFullscreen, { once: true });
-        enterFullscreen();
-
-        return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            document.removeEventListener('fullscreenchange', handleFullscreenChange);
-            document.removeEventListener('keydown', handleKeyDown, true);
-            document.removeEventListener('copy', handleCopy as unknown as EventListener);
-            document.removeEventListener('paste', handlePaste as unknown as EventListener);
-            window.removeEventListener('blur', handleWindowBlur);
-            document.body.removeEventListener('click', enterFullscreen);
-        };
-    }, [isExamMode, resolvedExamId, roomBlocked]);
+    const proctoring = useProctoring({
+        enabled: !!isExamMode && !!resolvedExamId && !roomBlocked,
+        sessionKey: resolvedExamId,
+        adapter: {
+            tabSwitch: async () => {
+                const data = await sendTabSwitch(resolvedExamId!);
+                if (!data.session) return null;
+                return {
+                    blocked: !!data.session.isBlocked,
+                    count: data.session.tabSwitchCount,
+                    reason: 'You have been blocked from the exam for exceeding the maximum allowed tab switches (3).',
+                };
+            },
+            fullscreenExit: () => sendFullscreenExit(resolvedExamId!),
+            clipboard: (_kind, length, sample) => sendExamAlert(resolvedExamId!, length, sample),
+            status: async () => {
+                const data = await getMyExamSession(resolvedExamId!);
+                return { blocked: !!data?.isBlocked, reason: data?.blockedReason || 'You are blocked from this exam.' };
+            },
+        },
+        onBlocked: (reason) => {
+            setRoomBlocked(true);
+            setRoomBlockReason(reason || 'You are blocked from this exam.');
+        },
+    });
 
 
     // ── Room Type Validation Guard ──
@@ -1343,78 +1206,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             </div>
 
             {/* ── Exam anti-cheat overlay ── */}
-            <AnimatePresence>
-                {isExamMode && examOverlay && (
-                    <motion.div
-                        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 16 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 16 }}
-                            transition={{ duration: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
-                            className={`max-w-md w-full bg-white/5 backdrop-blur-2xl rounded-2xl p-8 text-center shadow-2xl ${
-                                examOverlay.type === 'fullscreen'
-                                    ? 'border border-red-500/30'
-                                    : 'border border-orange-500/30'
-                            }`}
-                        >
-                            {examOverlay.type === 'fullscreen' ? (
-                                <>
-                                    <div className="text-5xl mb-5">🔒</div>
-                                    <h2 className="text-xl font-black text-red-400 mb-3 tracking-tight">
-                                        Fullscreen Required
-                                    </h2>
-                                    <p className="text-white/60 text-sm leading-relaxed mb-2">
-                                        You exited fullscreen mode. The exam must be taken in fullscreen at all times.
-                                    </p>
-                                    <p className="text-red-400/80 text-xs font-bold mb-7">
-                                        This incident has been logged.
-                                    </p>
-                                    <button
-                                        onClick={() => {
-                                            document.documentElement.requestFullscreen()
-                                                .then(() => setExamOverlay(null))
-                                                .catch(() => {});
-                                        }}
-                                        className="w-full py-3 rounded-xl bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500 hover:text-white font-semibold text-sm transition-all"
-                                    >
-                                        Return to Fullscreen
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="text-5xl mb-5">⚠️</div>
-                                    <h2 className="text-xl font-black text-orange-400 mb-3 tracking-tight">
-                                        Tab Switch Detected
-                                    </h2>
-                                    <p className="text-white/60 text-sm leading-relaxed mb-2">
-                                        You switched away from the exam window.
-                                    </p>
-                                    {examOverlay.switchCount !== undefined && (
-                                        <p className="text-orange-400 text-sm font-bold mb-7">
-                                            {examOverlay.switchCount}/3 violations — blocked after 3.
-                                        </p>
-                                    )}
-                                    <button
-                                        onClick={() => {
-                                            setExamOverlay(null);
-                                            document.documentElement.requestFullscreen().catch(() => {});
-                                        }}
-                                        className="w-full py-3 rounded-xl bg-orange-500/20 border border-orange-500/40 text-orange-400 hover:bg-orange-500 hover:text-white font-semibold text-sm transition-all"
-                                    >
-                                        Return to Exam
-                                    </button>
-                                </>
-                            )}
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <ProctoringOverlay overlay={isExamMode ? proctoring.overlay : null} onDismiss={proctoring.dismissOverlay} />
 
             {/* ── Editor alert (copy/paste violation) ── */}
             <Modal

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { gitService } from '../services/GitService';
 import * as store from '../services/WorkspaceStore';
 import { withLock } from '../collab/lock';
+import { inWorkspace, persist, canAccessWorkspace } from '../collab/workspace';
 import { openFile, flushWorkspace, liveContent, detachPaths, writeDetached, reloadFromDisk } from '../collab/persistence';
 import { cloneLimiter } from '../middleware/rateLimiter';
 import prisma from '../db';
@@ -19,33 +20,19 @@ async function getUserPat(req: Request): Promise<string | undefined> {
     return user?.githubPat ?? undefined;
 }
 
+// Validates the id and that this user may use the workspace (exam/contest workspaces are per-user).
+// Returns an error message, or null when allowed.
+function workspaceAccessError(req: Request, id: unknown): string | null {
+    if (!store.isValidWorkspaceId(id)) return 'Invalid workspace id';
+    if (!canAccessWorkspace(id, (req as any).user?.id)) return 'You do not have access to this workspace';
+    return null;
+}
+
 router.param('workspaceId', (req, res, next, id) => {
-    if (!store.isValidWorkspaceId(id)) return res.status(400).json({ error: 'Invalid workspace id' });
+    const error = workspaceAccessError(req, id);
+    if (error) return res.status(error.startsWith('Invalid') ? 400 : 403).json({ error });
     next();
 });
-
-// Runs fn under the workspace lock, after restoring any persisted files missing from disk.
-// Every route that touches a workspace goes through here (see collab/lock.ts).
-function inWorkspace<T>(workspaceId: string, fn: () => Promise<T> | T): Promise<T> {
-    return withLock(workspaceId, async () => {
-        try {
-            await store.ensureOnDisk(workspaceId);
-        } catch (err) {
-            // The disk copy is still usable; the restore is retried on the next request
-            console.error(`[Store] Could not restore ${workspaceId} from the database:`, err);
-        }
-        return fn();
-    });
-}
-
-// The disk is the working copy, so a failed DB write-through is logged rather than failing the request
-async function persist(workspaceId: string, write: () => Promise<unknown>) {
-    try {
-        await write();
-    } catch (err) {
-        console.error(`[Store] Failed to persist a change to ${workspaceId}:`, err);
-    }
-}
 
 // Mirrors a bulk change (clone, upload, pull, checkout) into the DB after the response is sent.
 // Queued on the lock, so later requests for the workspace see a consistent DB.
@@ -62,8 +49,9 @@ router.post('/clone', cloneLimiter, async (req: Request, res: Response) => {
     if (!repoUrl || !workspaceId) {
         return res.status(400).json({ error: 'repoUrl and workspaceId are required' });
     }
-    if (!store.isValidWorkspaceId(workspaceId)) {
-        return res.status(400).json({ error: 'Invalid workspace id' });
+    const accessError = workspaceAccessError(req, workspaceId);
+    if (accessError) {
+        return res.status(accessError.startsWith('Invalid') ? 400 : 403).json({ error: accessError });
     }
     try {
         await inWorkspace(workspaceId, () => gitService.cloneRepository(repoUrl, workspaceId));
@@ -81,8 +69,9 @@ router.post('/init', async (req: Request, res: Response) => {
     if (!workspaceId) {
         return res.status(400).json({ error: 'workspaceId is required' });
     }
-    if (!store.isValidWorkspaceId(workspaceId)) {
-        return res.status(400).json({ error: 'Invalid workspace id' });
+    const accessError = workspaceAccessError(req, workspaceId);
+    if (accessError) {
+        return res.status(accessError.startsWith('Invalid') ? 400 : 403).json({ error: accessError });
     }
     try {
         await inWorkspace(workspaceId, async () => {

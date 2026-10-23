@@ -184,6 +184,7 @@ router.post('/:id/join', async (req: Request, res: Response) => {
 
         // Ensure session exists or create one
         let session = await prisma.examSession.findFirst({
+            orderBy: { startTime: 'asc' }, // a student can have duplicate sessions (no unique key); always use the oldest
             where: { examId, userId }
         });
 
@@ -219,6 +220,7 @@ router.post('/:id/submit', async (req: Request, res: Response) => {
         const examId = req.params.id;
 
         const session = await prisma.examSession.findFirst({
+            orderBy: { startTime: 'asc' },
             where: { examId, userId, status: 'ACTIVE' }
         });
 
@@ -300,6 +302,7 @@ router.post('/:id/tab-switch', examEventLimiter, async (req: Request, res: Respo
         
         // Update session
         let session = await prisma.examSession.findFirst({
+            orderBy: { startTime: 'asc' },
             where: { examId, userId, status: 'ACTIVE' }
         });
         
@@ -347,6 +350,7 @@ router.post('/:id/fullscreen-exit', examEventLimiter, async (req: Request, res: 
 router.get('/:id/my-session', async (req: Request, res: Response) => {
     try {
         const session = await prisma.examSession.findFirst({
+            orderBy: { startTime: 'asc' },
             where: { examId: req.params.id, userId: (req.user as any).id }
         });
         res.status(200).json(session || { isBlocked: false });
@@ -360,6 +364,7 @@ router.post('/:id/block', requireRole('ADMIN'), async (req: Request, res: Respon
     try {
         const { userId, reason } = req.body;
         const session = await prisma.examSession.findFirst({
+            orderBy: { startTime: 'asc' },
             where: { examId: req.params.id, userId }
         });
         if (!session) return res.status(404).json({ error: 'Session not found for user' });
@@ -383,6 +388,7 @@ router.post('/:id/unblock', requireRole('ADMIN'), async (req: Request, res: Resp
     try {
         const { userId } = req.body;
         const session = await prisma.examSession.findFirst({
+            orderBy: { startTime: 'asc' },
             where: { examId: req.params.id, userId }
         });
         if (!session) return res.status(404).json({ error: 'Session not found for user' });
@@ -407,6 +413,7 @@ router.post('/:id/remove-student', requireRole('ADMIN'), async (req: Request, re
     try {
         const { userId } = req.body;
         const session = await prisma.examSession.findFirst({
+            orderBy: { startTime: 'asc' },
             where: { examId: req.params.id, userId }
         });
         if (!session) return res.status(404).json({ error: 'Session not found for user' });
