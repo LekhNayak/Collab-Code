@@ -13,6 +13,7 @@ import ProctoringOverlay from '../components/ProctoringOverlay';
 import { useCollabWorkspace, openCollabFile } from '../collab/useCollabWorkspace';
 import { useProctoring } from '../hooks/useProctoring';
 import { getTokenUser } from '../auth';
+import { recordRecent } from '../recent';
 import { monacoLanguageFor, solutionPath, type ContestLanguageInfo } from '../contest/languages';
 import {
     contestApi, errorMessage, formatScore, PHASE_LABEL, PHASE_STYLE, VERDICT_STYLE,
@@ -58,6 +59,13 @@ export default function ContestArena() {
         const timer = setTimeout(load, Math.max(250, wait));
         return () => clearTimeout(timer);
     }, [info, load]);
+
+    // Remember this contest for the Hub's "Jump back in" list
+    const recentCode = info && !info.isGuest ? info.contest.code : null;
+    const recentTitle = info?.contest.title;
+    useEffect(() => {
+        if (recentCode) recordRecent({ kind: 'contest', id: recentCode, title: recentTitle || recentCode });
+    }, [recentCode, recentTitle]);
 
     const join = async () => {
         if (!info) return;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Plus, LogIn, Copy, Users, Code2, Clock, Puzzle, Trash2, ArrowRight, ArrowLeft, CheckCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getSessions, createSession, deleteSession, type SessionInfo } from '../api';
@@ -29,6 +29,8 @@ function generateRoomId(): string {
 
 export default function RoomPage() {
     const navigate = useNavigate();
+    // Set by the Hub's "New room" / "Join room" buttons to focus the matching form
+    const intent = (useLocation().state as { intent?: 'create' | 'join' } | null)?.intent;
     const [joinRoomId, setJoinRoomId] = useState('');
     const [username, setUsername] = useState(
         localStorage.getItem('collab-username') || ''
@@ -254,6 +256,7 @@ export default function RoomPage() {
                                     <input
                                         type="text"
                                         placeholder="Session name (optional)..."
+                                        autoFocus={intent === 'create'}
                                         value={sessionName}
                                         onChange={e => setSessionName(e.target.value)}
                                         className="w-full bg-black/20 border border-white/5 text-white px-5 py-3.5 rounded-xl outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all text-sm font-medium placeholder:text-white/30 shadow-inner"
@@ -280,6 +283,7 @@ export default function RoomPage() {
                                     <input
                                         type="text"
                                         placeholder="Enter room ID (CR-...)..."
+                                        autoFocus={intent === 'join'}
                                         value={joinRoomId}
                                         onChange={e => { setJoinRoomId(e.target.value); setError(''); }}
                                         onKeyDown={e => e.key === 'Enter' && handleJoinRoom()}

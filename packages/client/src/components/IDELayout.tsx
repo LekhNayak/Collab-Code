@@ -32,6 +32,7 @@ import ExtensionPanel from './ExtensionPanel';
 import UserPresence from './UserPresence';
 import { useCollabWorkspace, useDirtyPaths, openCollabFile } from '../collab/useCollabWorkspace';
 import { getTokenUser } from '../auth';
+import { recordRecent } from '../recent';
 import { useProctoring } from '../hooks/useProctoring';
 import ProctoringOverlay from './ProctoringOverlay';
 import { getFileTree, readFile, flushWorkspace, initWorkspace, createFile as apiCreateFile, moveFile as apiMoveFile, deleteFile as apiDeleteFile, getSession, saveSession, createSession, getExtensions, uploadZip, uploadFolder, joinExam, downloadWorkspace, resolveExamRoom, sendTabSwitch, sendFullscreenExit, sendExamAlert, getMyExamSession, type SessionInfo, type ExtensionInfo, type ExamRoom } from '../api';
@@ -343,6 +344,13 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
         };
         loadSession();
     }, [workspaceId, username]);
+
+    // Remember this room for the Hub's "Jump back in" list (collab rooms only, not exams)
+    const sessionName = sessionData?.name;
+    useEffect(() => {
+        if (isExamMode || !roomId) return;
+        recordRecent({ kind: 'room', id: roomId, title: sessionName || roomId });
+    }, [isExamMode, roomId, sessionName]);
 
     // Auto-save session state (open tabs, active tab) shortly after it changes, so a reload
     // reopens what you were looking at. Typing doesn't change tabs, so this stays infrequent.

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Copy, LogIn, Plus, Settings2, Trophy, Activity, Users, ListChecks } from 'lucide-react';
 import LiquidEther from '../components/ui/LiquidEther';
@@ -17,6 +17,8 @@ const formatWhen = (contest: ContestSummary) => {
 
 export default function ContestsHome() {
     const navigate = useNavigate();
+    // Set by the Hub's "Join contest" / "Host contest" buttons to focus the matching form
+    const intent = (useLocation().state as { intent?: 'create' | 'join' } | null)?.intent;
     const user = getTokenUser();
     const isGuest = !user || user.isGuest;
     const [code, setCode] = useState('');
@@ -113,6 +115,7 @@ export default function ContestsHome() {
                                     value={code}
                                     onChange={e => setCode(e.target.value)}
                                     placeholder="CT-XXXXXXXX"
+                                    autoFocus={intent === 'join'}
                                     className="flex-1 bg-black/30 border border-white/10 px-4 py-3 rounded-xl outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 font-mono tracking-wider uppercase"
                                 />
                                 <button
@@ -134,6 +137,7 @@ export default function ContestsHome() {
                                     onChange={e => setTitle(e.target.value)}
                                     disabled={isGuest}
                                     placeholder="e.g. Weekly Round #1"
+                                    autoFocus={intent === 'create' && !isGuest}
                                     className="flex-1 bg-black/30 border border-white/10 px-4 py-3 rounded-xl outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 disabled:opacity-40"
                                 />
                                 <button
