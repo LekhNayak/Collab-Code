@@ -5,6 +5,7 @@
 //   input/1.txt / output/1.txt                  input01.txt / output01.txt
 // A name starting with "sample" or "example" (or a "sample" folder) marks a sample test that participants
 // can see. Samples come first, then the rest in natural order (2 before 10).
+// SQL problems take one .sql file of INSERT statements per test instead (see sqlDatasets).
 
 import path from 'path';
 import AdmZip from 'adm-zip';
@@ -111,15 +112,36 @@ export function pairTests(files: UploadedFile[]): ParsedTest[] {
     }
     if (inputs.size > MAX_TESTS_PER_PROBLEM) throw new HttpError(400, `At most ${MAX_TESTS_PER_PROBLEM} tests per problem`);
 
-    const tests = [...inputs.keys()].map(key => {
-        const name = key.replace(/^\.\//, '').replace(/^\//, '');
+    return orderTests([...inputs.keys()].map(key => {
+        const name = cleanName(key);
         return {
             name,
             input: inputs.get(key)!.toString('utf-8'),
             expectedOutput: outputs.get(key)!.toString('utf-8'),
-            isSample: /(^|\/)(sample|example)/i.test(name),
+            isSample: isSampleName(name),
         };
-    });
-    // Samples first (participants see them in this order), then natural order: 2 before 10
-    return tests.sort((a, b) => Number(b.isSample) - Number(a.isSample) || naturalCompare(a.name, b.name));
+    }));
 }
+
+// SQL problems: every .sql file is one dataset; the expected output is computed from the reference query
+export function sqlDatasets(files: UploadedFile[]): ParsedTest[] {
+    const datasets = files.filter(f => f.name.toLowerCase().endsWith('.sql'));
+    if (datasets.length === 0) {
+        throw new HttpError(400, files.length > 0
+            ? `No .sql files found. Upload one .sql file of INSERT statements per test (got ${files.slice(0, 3).map(f => f.name).join(', ')})`
+            : 'No files uploaded');
+    }
+    if (datasets.length > MAX_TESTS_PER_PROBLEM) throw new HttpError(400, `At most ${MAX_TESTS_PER_PROBLEM} tests per problem`);
+    return orderTests(datasets.map(file => {
+        if (file.data.length > MAX_TEST_FILE_BYTES) throw new HttpError(400, `${file.name} is larger than 1 MB`);
+        const name = cleanName(file.name.replace(/\\/g, '/'));
+        return { name, input: file.data.toString('utf-8'), expectedOutput: '', isSample: isSampleName(name) };
+    }));
+}
+
+const cleanName = (name: string) => name.replace(/^\.\//, '').replace(/^\//, '');
+const isSampleName = (name: string) => /(^|\/)(sample|example)/i.test(name);
+
+// Samples first (participants see them in this order), then natural order: 2 before 10
+const orderTests = (tests: ParsedTest[]) =>
+    tests.sort((a, b) => Number(b.isSample) - Number(a.isSample) || naturalCompare(a.name, b.name));

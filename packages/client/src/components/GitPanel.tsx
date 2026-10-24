@@ -11,6 +11,7 @@ import {
     type GitStatusResult, type GitCommitLog,
 } from '../api';
 import GitHubOnboarding from './GitHubOnboarding';
+import { useToast } from '../contexts/toast';
 
 interface GitPanelProps {
     workspaceId: string;
@@ -28,7 +29,7 @@ export default function GitPanel({ workspaceId, username, onRefreshTree }: GitPa
     const [commitMessage, setCommitMessage] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
+    const toast = useToast();
     const [showBranches, setShowBranches] = useState(false);
     const [showLog, setShowLog] = useState(false);
     const [showChanges, setShowChanges] = useState(true);
@@ -43,10 +44,7 @@ export default function GitPanel({ workspaceId, username, onRefreshTree }: GitPa
         setTimeout(() => setError(''), 5000);
     };
 
-    const showSuccess = (msg: string) => {
-        setSuccess(msg);
-        setTimeout(() => setSuccess(''), 3000);
-    };
+    const showSuccess = (msg: string) => toast.success(msg);
 
     const refresh = useCallback(async () => {
         try {
@@ -277,7 +275,6 @@ export default function GitPanel({ workspaceId, username, onRefreshTree }: GitPa
                     </div>
                 </div>
                 {error && <div className="git-error">{error}</div>}
-                {success && <div className="git-success">{success}</div>}
             </div>
         );
     }
@@ -292,7 +289,6 @@ export default function GitPanel({ workspaceId, username, onRefreshTree }: GitPa
         <div className="git-panel">
             {/* Messages */}
             {error && <div className="git-error"><AlertCircle size={12} /> {error}</div>}
-            {success && <div className="git-success"><Check size={12} /> {success}</div>}
 
             {/* Branch & Sync */}
             <div className="git-section">

@@ -4,6 +4,7 @@ import { Plus, LogIn, Copy, Users, Code2, Clock, Puzzle, Trash2, ArrowRight, Arr
 import { motion, AnimatePresence } from 'framer-motion';
 import { getSessions, createSession, deleteSession, type SessionInfo } from '../api';
 import LiquidEther from '../components/ui/LiquidEther';
+import { useToast } from '../contexts/toast';
 
 const staggerContainer = {
     hidden: { opacity: 0 },
@@ -37,6 +38,7 @@ export default function RoomPage() {
     );
     const [error, setError] = useState('');
     const [createdRoomId, setCreatedRoomId] = useState('');
+    const toast = useToast();
     const [copied, setCopied] = useState(false);
     const [sessions, setSessions] = useState<SessionInfo[]>([]);
     const [sessionName, setSessionName] = useState('');
@@ -64,6 +66,7 @@ export default function RoomPage() {
         }
 
         setCreatedRoomId(roomId);
+        toast.success('Room created', `"${name}" · ${roomId}. Share the link or enter the room.`);
     };
 
     const handleJoinRoom = () => {
@@ -113,11 +116,14 @@ export default function RoomPage() {
 
     const handleDeleteSession = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
+        const session = sessions.find(s => s.id === id);
         try {
             await deleteSession(id);
             setSessions(prev => prev.filter(s => s.id !== id));
+            toast.success('Session deleted', session ? `"${session.name}" was removed from your sessions.` : undefined);
         } catch (err: any) {
             console.error('Delete failed:', err);
+            toast.error('Could not delete the session', err.message);
         }
     };
 

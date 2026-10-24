@@ -6,6 +6,7 @@ import { getExams, createExam, deleteExam } from '../api';
 import type { ExamRoom } from '../api';
 import LiquidEther from '../components/ui/LiquidEther';
 import Modal from '../components/ui/Modal';
+import { useToast } from '../contexts/toast';
 
 const staggerContainer: Variants = {
     hidden: { opacity: 0 },
@@ -28,6 +29,7 @@ export default function AdminDashboard() {
     const [examToDelete, setExamToDelete] = useState<string | null>(null);
     const [alertModalOpen, setAlertModalOpen] = useState(false);
     const [alertMessage, setAlertMessage] = useState('');
+    const toast = useToast();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -61,6 +63,7 @@ export default function AdminDashboard() {
             const exam = await createExam(newTitle, new Date().toISOString());
             setExams([exam, ...exams]);
             setNewTitle('');
+            toast.success('Exam created', `"${exam.title}" is ready. Share its room code with your students.`);
         } catch (err: any) {
             console.error('Failed to create exam', err);
             setAlertMessage('Failed to create exam. It looks like your user session is invalid. Please log out and log in again.');
@@ -77,8 +80,10 @@ export default function AdminDashboard() {
     const confirmDelete = async () => {
         if (!examToDelete) return;
         try {
+            const title = exams.find(exam => exam.id === examToDelete)?.title;
             await deleteExam(examToDelete);
             setExams(exams.filter(exam => exam.id !== examToDelete));
+            toast.success('Exam deleted', title ? `"${title}" and its student logs were removed.` : undefined);
             setDeleteModalOpen(false);
             setExamToDelete(null);
         } catch (err: any) {

@@ -177,6 +177,11 @@ enum LogType {
 // Phase is derived from startsAt/endsAt: DRAFT (no start), SCHEDULED, LIVE, ENDED.
 // Each participant's code lives in the collab workspace "<code>__<userId>", one file per problem.
 
+enum ProblemKind {
+  CODE // stdin/stdout program in any allowed language
+  SQL // one SQLite query, judged on a dataset per test
+}
+
 enum ContestLeaderboard {
   LIVE // participants see the leaderboard during the contest
   AFTER_END // hidden from participants until the contest ends
@@ -256,6 +261,13 @@ model Problem {
   timeLimitMs   Int      @default(2000)
   memoryLimitMb Int?
   updatedAt     DateTime @updatedAt // bumped when tests change
+
+  // SQL problems: each test's input is a dataset (INSERTs) and its expected output the reference
+  // query's result as JSON { columns, rows }, computed by the server
+  kind            ProblemKind @default(CODE)
+  sqlSchema       String      @default("") // CREATE TABLE statements, shown to participants
+  sqlSolution     String      @default("") // reference query, never sent to participants
+  sqlOrderMatters Boolean     @default(false)
 
   tests       TestCase[]
   submissions Submission[]

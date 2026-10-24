@@ -8,6 +8,8 @@ import CollabAdmin from './pages/CollabAdmin';
 import ExamEntry from './pages/ExamEntry';
 import ImportProject from './pages/ImportProject';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { DialogProvider } from './contexts/DialogContext';
+import { ToastProvider } from './contexts/ToastContext';
 
 // The editor pages pull in Monaco (several MB), so they load on demand
 const IDELayout = lazy(() => import('./components/IDELayout'));
@@ -25,6 +27,8 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
 function App() {
   return (
     <ThemeProvider>
+      <ToastProvider>
+      <DialogProvider>
       <Router>
         <Suspense fallback={<div style={{ minHeight: '100vh', background: '#000', color: '#969696', padding: 20 }}>Loading...</div>}>
         <Routes>
@@ -84,6 +88,8 @@ function App() {
         </Routes>
         </Suspense>
       </Router>
+      </DialogProvider>
+      </ToastProvider>
     </ThemeProvider>
   );
 }

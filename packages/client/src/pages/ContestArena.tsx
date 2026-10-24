@@ -2,23 +2,24 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import type * as Y from 'yjs';
 import {
-    ArrowLeft, Ban, CheckCircle2, Clock, Copy, Loader2, LogIn, Play, Send, Trophy, X, Lock, FlaskConical, ListChecks,
+    ArrowLeft, Ban, CheckCircle2, Clock, Copy, Loader2, LogIn, Play, Send, Trophy, X, Lock, FlaskConical, ListChecks, Database,
 } from 'lucide-react';
 import CodeEditor from '../components/Editor';
 import Markdown from '../components/contest/Markdown';
 import Countdown from '../components/contest/Countdown';
 import Leaderboard from '../components/contest/Leaderboard';
 import VerdictBadge from '../components/contest/VerdictBadge';
+import ResultTable from '../components/contest/ResultTable';
 import ProctoringOverlay from '../components/ProctoringOverlay';
 import { useCollabWorkspace, openCollabFile } from '../collab/useCollabWorkspace';
 import { useProctoring } from '../hooks/useProctoring';
 import { getTokenUser } from '../auth';
 import { recordRecent } from '../recent';
-import { monacoLanguageFor, solutionPath, type ContestLanguageInfo } from '../contest/languages';
+import { languageLabel, monacoLanguageFor, solutionPath, SQL_LANGUAGE, type ContestLanguageInfo } from '../contest/languages';
 import {
     contestApi, errorMessage, formatScore, PHASE_LABEL, PHASE_STYLE, VERDICT_STYLE,
     type LeaderboardProblem, type LeaderboardRow, type ParticipantProblem, type ResolveResponse, type RunResponse,
-    type SubmissionDetail, type SubmissionSummary,
+    type SqlTable, type SubmissionDetail, type SubmissionSummary,
 } from '../contestApi';
 
 const panelButton = 'px-3.5 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-40';
@@ -270,7 +271,10 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
     const languageId = problem
         ? languages[problem.id] ?? storedLanguage(contest.code, problem.index) ?? (contest.languages.some(l => l.id === 'python') ? 'python' : contest.languages[0]?.id)
         : null;
-    const language: ContestLanguageInfo | null = contest.languages.find(l => l.id === languageId) ?? contest.languages[0] ?? null;
+    const isSql = problem?.kind === 'SQL';
+    const language: ContestLanguageInfo | null = isSql
+        ? SQL_LANGUAGE
+        : contest.languages.find(l => l.id === languageId) ?? contest.languages[0] ?? null;
     const path = problem && language ? solutionPath(problem.index, language) : '';
 
     const chooseLanguage = (id: string) => {
@@ -469,11 +473,18 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                                 <div className="flex flex-wrap gap-2 text-xs mb-5">
                                     <span className="px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/25 text-amber-200 font-semibold">{problem.points} points</span>
                                     <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60">Time limit {problem.timeLimitMs / 1000}s</span>
-                                    {problem.memoryLimitMb && <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60">Memory {problem.memoryLimitMb} MB</span>}
+                                    {problem.memoryLimitMb && !isSql && <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60">Memory {problem.memoryLimitMb} MB</span>}
+                                    {isSql && <span className="px-2 py-1 rounded-md bg-sky-500/10 border border-sky-500/25 text-sky-200 font-semibold flex items-center gap-1"><Database size={12} /> SQL · SQLite</span>}
+                                    {isSql && <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60">{problem.orderMatters ? 'Row order matters' : 'Rows in any order'}</span>}
                                     <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60">{problem.testCount} test cases</span>
                                 </div>
                                 <Markdown>{problem.statement || '_No statement._'}</Markdown>
-                                {problem.samples.map((sample, i) => (
+                                {isSql ? (
+                                    <>
+                                        {problem.sqlSchema && <div className="mt-5"><SampleBlock title="Schema" text={problem.sqlSchema} /></div>}
+                                        {problem.samples.map((sample, i) => <SqlSample key={i} index={i} sample={sample} />)}
+                                    </>
+                                ) : problem.samples.map((sample, i) => (
                                     <div key={i} className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
                                         <SampleBlock title={`Sample input ${i + 1}`} text={sample.input} />
                                         <SampleBlock title={`Sample output ${i + 1}`} text={sample.expectedOutput} />
@@ -487,14 +498,20 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                 {/* Editor + results */}
                 <section className="flex-1 min-h-0 flex flex-col">
                     <div className="h-12 shrink-0 border-b border-white/10 flex items-center gap-2 px-3">
-                        <select
-                            value={language?.id ?? ''}
-                            onChange={e => chooseLanguage(e.target.value)}
-                            disabled={readOnly}
-                            className="bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-amber-500/50"
-                        >
-                            {contest.languages.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
-                        </select>
+                        {isSql ? (
+                            <span className="px-2.5 py-1.5 rounded-lg border border-sky-500/25 bg-sky-500/10 text-sky-200 text-sm font-semibold flex items-center gap-1.5">
+                                <Database size={14} /> SQL · SQLite
+                            </span>
+                        ) : (
+                            <select
+                                value={language?.id ?? ''}
+                                onChange={e => chooseLanguage(e.target.value)}
+                                disabled={readOnly}
+                                className="bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-amber-500/50"
+                            >
+                                {contest.languages.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
+                            </select>
+                        )}
                         <span className="text-xs text-white/30 font-mono">{path}</span>
                         <div className="flex-1" />
                         {readOnly ? (
@@ -538,7 +555,7 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                                     onClick={() => setPanel(p)}
                                     className={`px-3 py-2.5 text-sm font-semibold border-b-2 ${panel === p ? 'border-amber-400 text-white' : 'border-transparent text-white/50 hover:text-white'}`}
                                 >
-                                    {p === 'result' ? 'Result' : p === 'custom' ? 'Custom input' : `Submissions (${problemSubmissions.length})`}
+                                    {p === 'result' ? 'Result' : p === 'custom' ? (isSql ? 'Custom data' : 'Custom input') : `Submissions (${problemSubmissions.length})`}
                                 </button>
                             ))}
                         </div>
@@ -549,7 +566,9 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                                     : activeSubmissionId ? <div className="text-white/50 flex items-center gap-2"><Loader2 size={16} className="animate-spin" /> Submitting…</div>
                                     : runResult?.mode === 'samples' ? <SampleRunView result={runResult} />
                                     : runResult?.mode === 'custom' ? <CustomRunView result={runResult} />
-                                    : <div className="text-white/40">Run the samples to check your code, then submit it to be judged on all test cases.</div>
+                                    : <div className="text-white/40">{isSql
+                                        ? 'Run the samples to check your query, then submit it to be judged on every dataset.'
+                                        : 'Run the samples to check your code, then submit it to be judged on all test cases.'}</div>
                             )}
                             {panel === 'custom' && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 h-full">
@@ -557,15 +576,15 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                                         <textarea
                                             value={customInput}
                                             onChange={e => setCustomInput(e.target.value)}
-                                            placeholder="Input (stdin)"
+                                            placeholder={isSql ? 'INSERT statements to run after the schema (the sample data is not included)' : 'Input (stdin)'}
                                             className="flex-1 min-h-[90px] bg-black/40 border border-white/10 rounded-lg p-2.5 font-mono text-xs outline-none focus:border-amber-500/50"
                                         />
                                         <button onClick={runCustom} disabled={!ytext || running || readOnly} className={`${panelButton} self-start bg-white/10 border border-white/15 hover:bg-white/20`}>
-                                            {running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />} Run with this input
+                                            {running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />} {isSql ? 'Run on this data' : 'Run with this input'}
                                         </button>
                                     </div>
                                     <div className="min-h-0 overflow-auto">
-                                        {runResult?.mode === 'custom' ? <CustomRunView result={runResult} /> : <div className="text-white/40 text-xs">Output appears here.</div>}
+                                        {runResult?.mode === 'custom' ? <CustomRunView result={runResult} /> : <div className="text-white/40 text-xs">{isSql ? 'Your query\'s result appears here.' : 'Output appears here.'}</div>}
                                     </div>
                                 </div>
                             )}
@@ -580,7 +599,7 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                                                     className="border-b border-white/5 cursor-pointer hover:bg-white/5"
                                                 >
                                                     <td className="py-2 pr-3 text-white/50 tabular-nums">{new Date(s.createdAt).toLocaleTimeString()}</td>
-                                                    <td className="py-2 pr-3 text-white/60">{contest.languages.find(l => l.id === s.language)?.label ?? s.language}</td>
+                                                    <td className="py-2 pr-3 text-white/60">{languageLabel(contest.languages, s.language)}</td>
                                                     <td className="py-2 pr-3">{s.verdict ? <VerdictBadge verdict={s.verdict} short /> : <span className="text-white/40">{s.status.toLowerCase()}</span>}</td>
                                                     <td className="py-2 pr-3 text-white/60 tabular-nums">{s.passed}/{s.total} tests</td>
                                                     <td className="py-2 text-right font-semibold tabular-nums">{formatScore(s.score)}</td>
@@ -632,6 +651,35 @@ function SampleBlock({ title, text }: { title: string; text: string }) {
     );
 }
 
+// SQL problems: a sample dataset's tables and the result the query should return
+function SqlSample({ index, sample }: { index: number; sample: ParticipantProblem['samples'][number] }) {
+    return (
+        <div className="mt-5 rounded-xl border border-white/10 bg-black/20 p-3 space-y-3">
+            <div className="text-xs font-semibold uppercase tracking-wider text-white/50">Sample {index + 1}</div>
+            {sample.tablesError && <div className="text-xs text-red-300">{sample.tablesError}</div>}
+            {(sample.tables ?? []).map(table => <ResultTable key={table.name} table={table} title={table.name} maxHeight={200} />)}
+            {sample.expected && <ResultTable table={sample.expected} title="Expected result" maxHeight={200} tone="good" />}
+            <details className="text-xs text-white/50">
+                <summary className="cursor-pointer hover:text-white">Dataset as SQL</summary>
+                <div className="mt-2"><SampleBlock title="INSERT statements" text={sample.input} /></div>
+            </details>
+        </div>
+    );
+}
+
+// A query's result next to the expected one (null: the query returned none)
+function SqlResult({ table, title }: { table: SqlTable | null | undefined; title: string }) {
+    if (!table) {
+        return (
+            <div>
+                <div className="text-xs text-white/40 mb-1">{title}</div>
+                <div className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white/40 italic">No result</div>
+            </div>
+        );
+    }
+    return <ResultTable table={table} title={title} maxHeight={220} />;
+}
+
 function OutputBlock({ title, text, tone = 'normal' }: { title: string; text: string; tone?: 'normal' | 'error' }) {
     if (!text) return null;
     return (
@@ -672,9 +720,11 @@ function SubmissionView({ submission, points }: { submission: SubmissionDetail; 
                 ))}
             </div>
             {submission.compileOutput && <OutputBlock title={submission.verdict === 'IE' ? 'Judge error' : 'Compiler output'} text={submission.compileOutput} tone="error" />}
-            {submission.results.filter(r => r.sample && r.verdict !== 'AC' && (r.stdout || r.stderr)).slice(0, 1).map((r, i) => (
+            {submission.results.filter(r => r.sample && r.verdict !== 'AC' && (r.stdout || r.stderr || r.table !== undefined)).slice(0, 1).map((r, i) => (
                 <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <OutputBlock title="Your output on a failed sample" text={r.stdout || ''} />
+                    {r.table !== undefined
+                        ? <SqlResult table={r.table} title="Your result on a failed sample" />
+                        : <OutputBlock title="Your output on a failed sample" text={r.stdout || ''} />}
                     <OutputBlock title="Errors" text={r.stderr || ''} tone="error" />
                 </div>
             ))}
@@ -694,7 +744,12 @@ function SampleRunView({ result }: { result: Extract<RunResponse, { mode: 'sampl
                         <VerdictBadge verdict={r.verdict} short />
                         <span className="text-white/40 text-xs tabular-nums">{timeLabel(r.timeMs, r.timeExact)}</span>
                     </div>
-                    {r.verdict !== 'CE' && (
+                    {r.expectedTable !== undefined ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <SqlResult table={r.expectedTable} title="Expected" />
+                            <SqlResult table={r.table} title="Your result" />
+                        </div>
+                    ) : r.verdict !== 'CE' && (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <OutputBlock title="Input" text={r.input || ' '} />
                             <OutputBlock title="Expected" text={r.expected || ' '} />
@@ -711,7 +766,8 @@ function SampleRunView({ result }: { result: Extract<RunResponse, { mode: 'sampl
 
 function CustomRunView({ result }: { result: Extract<RunResponse, { mode: 'custom' }> }) {
     const failed = result.kind !== 'ok';
-    const label: Record<string, string> = { ce: 'Compilation error', re: 'Runtime error', tle: 'Time limit exceeded', mle: 'Memory limit exceeded', ole: 'Output limit exceeded', ie: 'Judge error' };
+    const isSql = result.table !== undefined;
+    const label: Record<string, string> = { ce: 'Compilation error', re: isSql ? 'SQL error' : 'Runtime error', tle: 'Time limit exceeded', mle: 'Memory limit exceeded', ole: 'Output limit exceeded', ie: 'Judge error' };
     return (
         <div className="space-y-3">
             <div className="flex items-center gap-3 text-xs">
@@ -719,7 +775,9 @@ function CustomRunView({ result }: { result: Extract<RunResponse, { mode: 'custo
                 <span className="text-white/40 tabular-nums">{timeLabel(result.timeMs, result.timeExact)}</span>
             </div>
             <OutputBlock title="Compiler output" text={result.compileOutput} tone="error" />
-            <OutputBlock title="Output" text={result.stdout || (failed ? '' : '(no output)')} />
+            {isSql
+                ? !failed && <SqlResult table={result.table} title="Your result" />
+                : <OutputBlock title="Output" text={result.stdout || (failed ? '' : '(no output)')} />}
             <OutputBlock title="Errors" text={result.stderr || result.message || ''} tone="error" />
         </div>
     );

@@ -41,7 +41,7 @@ A **collaborative, in-browser code editor** with real-time multi-user editing, i
 - **Code execution** — Run code in the integrated terminal via the free [Wandbox](https://wandbox.org) API, or a self-hosted [Piston](https://github.com/engineer-man/piston). Supports Python, JavaScript/TypeScript, Java, C/C++, Go, Rust, Bash, and more.
 - **Git integration** — `init`, `status`, `add`, `commit`, `push`, `pull`, branches, and remotes via [isomorphic-git](https://isomorphic-git.org/) (no system Git required).
 - **GitHub Import** — Clone any public GitHub repository straight into a new collaborative workspace.
-- **Contests** — Host competitive-coding contests: problems with markdown statements and hidden test cases, scheduled or manual start, automatic judging with partial credit per test case, a live leaderboard, and an organizer monitor with live code previews.
+- **Contests** — Host competitive-coding contests: problems with markdown statements and hidden test cases, scheduled or manual start, automatic judging with partial credit per test case, a live leaderboard, and an organizer monitor with live code previews. Problems can also be **SQL problems**, answered with one SQLite query and judged on a dataset per test.
 - **Terminal** — In-app terminal with `ls`, `cat`, `touch`, `mkdir`, `rm`, `mv`, `cd`, `run`, and language execution commands.
 - **Extensions** — Installable editor themes and extensions stored per-session.
 
@@ -105,6 +105,7 @@ Colab Code Editor/
 │   │       ├── monacoSetup.ts     # Bundled Monaco + language workers (no CDN)
 │   │       ├── contestApi.ts      # /contests API client and display helpers
 │   │       ├── hooks/useProctoring.ts  # Fullscreen / tab-switch / clipboard rules (exams and contests)
+│   │       ├── contexts/dialog.ts      # useDialog(): in-app confirm/alert (window.confirm/alert are lint errors)
 │   │       └── components/
 │   │           ├── IDELayout.tsx  # Main IDE shell (collab + exam modes)
 │   │           ├── Editor.tsx     # Single Monaco instance, one model per open tab, cursor labels
@@ -113,7 +114,8 @@ Colab Code Editor/
 │   │           ├── GitPanel.tsx
 │   │           ├── ExtensionPanel.tsx
 │   │           ├── LiveCodePreview.tsx  # Read-only live view of another user's code (monitors)
-│   │           ├── contest/       # Leaderboard, markdown, verdict badges, countdown
+│   │           ├── contest/       # Leaderboard, markdown, verdict badges, countdown, SQL result tables
+│   │           ├── ui/Modal.tsx   # Glass modal (portal, Esc, focus trap) behind every dialog
 │   │           └── ui/LiquidEther.tsx  # Three.js animated background
 │   ├── server/                    # Express API + WebSocket server
 │   │   ├── src/
@@ -134,7 +136,7 @@ Colab Code Editor/
 │   │   │   │   ├── sessionService.ts    # IDE session persistence (Postgres)
 │   │   │   │   ├── extensionRegistry.ts # Built-in + custom extensions (Postgres)
 │   │   │   │   ├── WorkspaceStore.ts    # Durable copy of workspace files (Postgres)
-│   │   │   │   └── contest/             # Judge queue, verdicts, leaderboard, test upload, access rules
+│   │   │   │   └── contest/             # Judge queue, verdicts, leaderboard, test upload, access rules, SQLite worker pool
 │   │   │   ├── collab/
 │   │   │   │   ├── persistence.ts # Server-owned Yjs docs: file loading, autosave, shutdown flush
 │   │   │   │   ├── lock.ts        # Per-workspace lock for disk/DB operations
@@ -214,6 +216,7 @@ Every workspace (a collab room, or one student's exam workspace) has **one Yjs d
 | `JUDGE_STOP_AFTER_TLE` | No | Skip a submission's remaining tests after a time-out (default: `true` on Wandbox, `false` on Piston) |
 | `PISTON_MAX_RUN_MS` | No | Highest per-test time limit Piston accepts; must match the Piston host's `PISTON_RUN_TIMEOUT` (default: `3000`) |
 | `WANDBOX_RATE_PER_MIN` | No | Requests per minute this server sends to Wandbox (default: `9`; the public API allows about 10 per IP) |
+| `SQL_WORKERS` | No | Worker threads running SQLite for SQL problems (default: `2`) |
 | `WANDBOX_OVERHEAD_MS` | No | Extra time per Wandbox judge run for network and startup, on top of the time limit and a per-language compile allowance (default: `4000`) |
 
 **Example `packages/server/.env`:**
@@ -393,8 +396,9 @@ Any registered user (not guests) can organize competitive-coding contests from t
 1. Go to **`/contests`**, give the contest a title and click **Create**.
 2. On the manage page (`/contests/:id/manage`):
    - **Settings:** description (markdown, shown in the lobby), duration, allowed languages, leaderboard visibility (live, or hidden until the end), and optional proctoring (fullscreen + tab-switch limit, the same rules as exams).
-   - **Problems:** title, markdown statement with preview, points, time limit (and memory limit on Piston).
+   - **Problems:** title, markdown statement with preview, points, time limit (and memory limit on Piston). **Add problem** makes a code problem, **Add SQL problem** an SQL one (see [SQL problems](#sql-problems)); the type can be switched until the problem has tests.
    - **Test cases:** add them one by one, or bulk-upload a `.zip`, files or a folder paired by name (`1.in` + `1.out`, `input/1.txt` + `output/1.txt`, `input01.txt` + `output01.txt`). Tests marked **sample** are shown to participants; the rest stay hidden.
+   - Starting, ending, deleting and rejudging ask for confirmation in an in-app dialog.
 3. **Schedule** a start time or **Start now**. While it runs you can add 15 minutes or **End now**.
 4. Share the `CT-XXXXXXXX` code. **Try it** opens the contest as a participant would see it; the organizer's own submissions are judged but never ranked, which is how to check test data with a reference solution.
 5. The **monitor** (`/contests/:id/monitor`) shows the live leaderboard, participants (block / unblock / remove), every submission with its code, an activity log, and live read-only previews of participants' code (click a leaderboard row).
@@ -412,6 +416,14 @@ Any registered user (not guests) can organize competitive-coding contests from t
 - Submissions are queued in the database, so a restart never loses one: anything interrupted is judged again.
 - **Wandbox (default):** free, but it accepts only about 10 runs per minute per IP for the whole server, and time limits are approximate (compile and network time are included). Good for trying the feature out; keep tests few.
 - **Piston (recommended for real contests):** set `PISTON_URL`. Time and memory limits are enforced by the sandbox. On the Piston host, raise `PISTON_OUTPUT_MAX_SIZE` (the default allows only 1 KB of output) and set `PISTON_RUN_TIMEOUT` to the longest time limit you want, then set `PISTON_MAX_RUN_MS` on this server to match.
+- Every server connected to the same database judges from the same queue. Run the same version everywhere, and give local development its own database (for example a Neon branch); otherwise a deployed server running older code can pick up and misjudge local submissions.
+
+### SQL problems
+
+- **Organizer:** write the **schema** (`CREATE TABLE …`, shown to participants) and a hidden **reference query**. Each test case is a **dataset** of `INSERT` statements; its expected result is computed by running the reference query on it, and is shown as a table when you save the test. A schema, dataset or reference query that fails is rejected with the SQLite error, and changing the schema or the reference recomputes every test. Bulk upload takes one `.sql` file per test (or a `.zip` of them).
+- **Participants** write one query in `/A.sql`; the last `SELECT` is the answer. The statement shows the schema, each sample's tables and its expected result. **Custom data** runs the query on the schema plus your own `INSERT`s.
+- **Comparison:** by value, ignoring column names: `1`, `1.0` and `'1'` are equal, numbers match within 0.0001%, `NULL` only equals `NULL`. Rows may come in any order unless the problem says **Row order matters**.
+- **Engine:** SQLite (sql.js, WebAssembly) in a pool of worker threads on the server (`SQL_WORKERS`, default 2), so SQL judging takes milliseconds and never uses Wandbox or Piston. Every run gets a fresh in-memory database with no file system or network access. Time limits go up to 5 s; a query past its limit is stopped (`TLE`), more than 32 MB of memory is `MLE`, and more than 10,000 rows or 1 MB of result is `OLE`.
 
 ---
 

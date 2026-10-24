@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getExamLogs, getExamSessions, blockStudent, unblockStudent, removeStudent } from '../api';
 import type { ExamLog } from '../api';
 import LiveCodePreview from '../components/LiveCodePreview';
+import { useToast } from '../contexts/toast';
 import {
     ShieldAlert, Terminal, ArrowLeft, Filter, UserPlus, MonitorOff,
     AppWindow, Ban, CheckCircle, UserX, Users, RefreshCw, ChevronDown
@@ -132,6 +133,7 @@ export default function AdminMonitor() {
     const [logs, setLogs] = useState<ExamLog[]>([]);
     const [sessions, setSessions] = useState<any[]>([]);
     const [students, setStudents] = useState<Map<string, string>>(new Map());
+    const toast = useToast();
     const [filterType, setFilterType] = useState<string>('ALL');
     const [filterStudent, setFilterStudent] = useState<string>('ALL');
     const [refreshing, setRefreshing] = useState(false);
@@ -173,21 +175,33 @@ export default function AdminMonitor() {
         try {
             await blockStudent(examId!, studentId, 'Manually blocked by admin');
             fetchData();
-        } catch (err) { console.error(err); }
+            toast.success('Student blocked', students.get(studentId));
+        } catch (err: any) {
+            console.error(err);
+            toast.error('Could not block the student', err.message);
+        }
     };
 
     const handleUnblock = async (studentId: string) => {
         try {
             await unblockStudent(examId!, studentId);
             fetchData();
-        } catch (err) { console.error(err); }
+            toast.success('Student unblocked', students.get(studentId));
+        } catch (err: any) {
+            console.error(err);
+            toast.error('Could not unblock the student', err.message);
+        }
     };
 
     const handleRemove = async (studentId: string) => {
         try {
             await removeStudent(examId!, studentId);
             fetchData();
-        } catch (err) { console.error(err); }
+            toast.success('Student removed', students.get(studentId));
+        } catch (err: any) {
+            console.error(err);
+            toast.error('Could not remove the student', err.message);
+        }
     };
 
     // Filter logs

@@ -8,6 +8,18 @@ export type Phase = 'DRAFT' | 'SCHEDULED' | 'LIVE' | 'ENDED';
 export type Verdict = 'AC' | 'PARTIAL' | 'WA' | 'TLE' | 'MLE' | 'RE' | 'CE' | 'OLE' | 'IE' | 'SKIPPED';
 export type SubmissionStatus = 'QUEUED' | 'RUNNING' | 'DONE' | 'ERROR';
 export type ParticipantStatus = 'ACTIVE' | 'BLOCKED' | 'REMOVED';
+export type ProblemKind = 'CODE' | 'SQL';
+
+// SQL problems: a query result or a table of a dataset (BLOBs arrive as X'..' literals)
+export type SqlValue = string | number | null;
+export interface SqlTable {
+    columns: string[];
+    rows: SqlValue[][];
+    totalRows?: number; // rows before clipping (only the first 50 are sent)
+}
+export interface NamedSqlTable extends SqlTable {
+    name: string;
+}
 
 export interface ContestSummary {
     id: string;
@@ -33,6 +45,7 @@ export interface TestMeta {
     inputSize: number;
     outputPreview: string;
     outputSize: number;
+    expectedRows: number | null; // SQL problems: rows in the expected result
 }
 
 export interface AdminProblem {
@@ -43,6 +56,10 @@ export interface AdminProblem {
     points: number;
     timeLimitMs: number;
     memoryLimitMb: number | null;
+    kind: ProblemKind;
+    sqlSchema: string;
+    sqlSolution: string;
+    sqlOrderMatters: boolean;
     tests: TestMeta[];
 }
 
@@ -62,7 +79,17 @@ export interface ParticipantProblem {
     points: number;
     timeLimitMs: number;
     memoryLimitMb: number | null;
-    samples: { input: string; expectedOutput: string }[];
+    kind: ProblemKind;
+    sqlSchema?: string;     // SQL problems
+    orderMatters?: boolean; // SQL problems: rows must come in the expected order
+    samples: {
+        input: string;
+        expectedOutput: string;
+        // SQL problems: the dataset's tables and the expected result
+        tables?: NamedSqlTable[];
+        tablesError?: string;
+        expected?: SqlTable | null;
+    }[];
     testCount: number;
 }
 
@@ -73,6 +100,7 @@ export interface TestResult {
     sample: boolean;
     stdout?: string;
     stderr?: string;
+    table?: SqlTable | null; // SQL problems (sample tests)
 }
 
 export interface SubmissionSummary {
@@ -124,11 +152,13 @@ export interface SampleRunResult {
     input: string;
     expected: string;
     message?: string;
+    table?: SqlTable | null;         // SQL problems
+    expectedTable?: SqlTable | null; // SQL problems
 }
 
 export type RunResponse =
     | { mode: 'samples'; results: SampleRunResult[]; compileOutput: string | null; totalSamples: number }
-    | { mode: 'custom'; kind: string; stdout: string; stderr: string; compileOutput: string; timeMs: number; timeExact: boolean; message?: string };
+    | { mode: 'custom'; kind: string; stdout: string; stderr: string; compileOutput: string; timeMs: number; timeExact: boolean; message?: string; table?: SqlTable | null };
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const isForm = body instanceof FormData;
@@ -160,7 +190,7 @@ export const contestApi = {
     unschedule: (id: string) => request<ContestSummary>('POST', `/${id}/unschedule`),
     end: (id: string) => request<ContestSummary>('POST', `/${id}/end`),
     remove: (id: string) => request<{ message: string }>('DELETE', `/${id}`),
-    judgeInfo: (id: string) => request<{ backend: 'piston' | 'wandbox'; concurrency: number; stopAfterTle: boolean; maxTimeLimitMs: number; maxTestsPerProblem: number; languages: ContestLanguageInfo[] }>('GET', `/${id}/judge-info`),
+    judgeInfo: (id: string) => request<{ backend: 'piston' | 'wandbox'; concurrency: number; stopAfterTle: boolean; maxTimeLimitMs: number; maxTestsPerProblem: number; languages: ContestLanguageInfo[]; sql: { engine: string; maxTimeLimitMs: number; memoryLimitMb: number } }>('GET', `/${id}/judge-info`),
 
     addProblem: (id: string, problem: Partial<AdminProblem>) => request<AdminProblem>('POST', `/${id}/problems`, problem),
     updateProblem: (id: string, problemId: string, problem: Partial<AdminProblem>) => request<AdminProblem>('PATCH', `/${id}/problems/${problemId}`, problem),

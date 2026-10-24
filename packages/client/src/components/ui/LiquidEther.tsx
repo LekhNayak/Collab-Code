@@ -54,6 +54,19 @@ interface LiquidEtherWebGL {
 
 const defaultColors = ['#5227FF', '#FF9FFC', '#B19EEF'];
 
+// True when WebGL runs on the CPU (e.g. Chrome with "Use graphics acceleration" turned off)
+let softwareWarningShown = false;
+function isSoftwareRenderer(gl: WebGLRenderingContext | WebGL2RenderingContext): boolean {
+  const info = gl.getExtension('WEBGL_debug_renderer_info');
+  const name = String(info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+  const software = /swiftshader|basic render driver|llvmpipe|softpipe|software/i.test(name);
+  if (software && !softwareWarningShown) {
+    softwareWarningShown = true;
+    console.info('[LiquidEther] WebGL is running without GPU acceleration, so the background animation will be slow. Turn on hardware acceleration in your browser settings.');
+  }
+  return software;
+}
+
 export default function LiquidEther({
   mouseForce = 20,
   cursorSize = 100,
@@ -134,7 +147,9 @@ export default function LiquidEther({
         this.container = container;
         this.pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
         this.resize();
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        // No antialiasing: the canvas only ever draws one full-screen quad, so there are no edges to
+        // smooth, and multisampling every frame is expensive (very much so without GPU acceleration)
+        this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance' });
         // Always transparent
         this.renderer.autoClear = false;
         this.renderer.setClearColor(new THREE.Color(0x000000), 0);
@@ -861,8 +876,13 @@ export default function LiquidEther({
         this.createShaderPass();
       }
       getFloatType() {
+        // Half-float textures halve the memory traffic of every simulation pass, which doubles the
+        // frame rate on integrated GPUs, and look the same (iOS has always used them here). Software
+        // rendering (Chrome with hardware acceleration off) is slower with them, so it keeps full floats.
         const isIOS = /(iPad|iPhone|iPod)/i.test(navigator.userAgent);
-        return isIOS ? THREE.HalfFloatType : THREE.FloatType;
+        if (isIOS) return THREE.HalfFloatType;
+        const gl = Common.renderer?.getContext();
+        return gl && isSoftwareRenderer(gl) ? THREE.FloatType : THREE.HalfFloatType;
       }
       createAllFBO() {
         const type = this.getFloatType();

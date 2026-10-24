@@ -19,5 +19,9 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Use useDialog() (contexts/dialog.ts) instead of the browser's alert/confirm/prompt
+      'no-alert': 'error',
+    },
   },
 ])

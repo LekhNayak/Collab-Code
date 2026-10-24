@@ -11,6 +11,9 @@ import {
     contestApi, errorMessage, formatScore, PHASE_LABEL, PHASE_STYLE, VERDICT_STYLE,
     type MonitorData, type SubmissionDetail,
 } from '../contestApi';
+import { useDialog } from '../contexts/dialog';
+import { useToast } from '../contexts/toast';
+import { languageLabel } from '../contest/languages';
 
 const MAX_PREVIEWS = 4;
 const buttonClass = 'px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-40';
@@ -46,6 +49,8 @@ export default function ContestMonitor() {
     const [busy, setBusy] = useState(false);
     const [pinned, setPinned] = useState<string[]>([]);
     const [openSubmission, setOpenSubmission] = useState<SubmissionDetail | null>(null);
+    const dialog = useDialog();
+    const toast = useToast();
 
     const load = useCallback(async () => {
         try {
@@ -63,11 +68,12 @@ export default function ContestMonitor() {
         return () => clearInterval(timer);
     }, [load]);
 
-    const act = async (action: () => Promise<unknown>) => {
+    const act = async (action: () => Promise<unknown>, success?: string, detail?: string) => {
         setBusy(true);
         setError('');
         try {
             await action();
+            if (success) toast.success(success, detail);
             await load();
         } catch (err) {
             setError(errorMessage(err));
@@ -120,12 +126,36 @@ export default function ContestMonitor() {
                         <button onClick={() => navigate(`/contests/${contest.id}/manage`)} className={`${buttonClass} bg-white/5 border border-white/10 hover:bg-white/10`}><Settings2 size={16} /> Manage</button>
                         <button onClick={() => act(load)} disabled={busy} className={`${buttonClass} bg-white/5 border border-white/10 hover:bg-white/10`} title="Refresh now"><RefreshCw size={16} /></button>
                         {(contest.phase === 'DRAFT' || contest.phase === 'SCHEDULED') && (
-                            <button disabled={busy} onClick={() => window.confirm('Start the contest now?') && act(() => contestApi.start(contest.id))} className={`${buttonClass} bg-emerald-500 text-black hover:bg-emerald-400`}><Play size={16} /> Start now</button>
+                            <button
+                                disabled={busy}
+                                onClick={async () => {
+                                    const ok = await dialog.confirm({
+                                        title: 'Start the contest now?',
+                                        message: `Participants can see the problems immediately. It runs for ${contest.durationMinutes} minutes.`,
+                                        confirmLabel: 'Start now',
+                                        tone: 'success',
+                                        icon: <Play size={26} />,
+                                    });
+                                    if (ok) act(() => contestApi.start(contest.id), 'Contest started', `Participants can see the problems for the next ${contest.durationMinutes} minutes.`);
+                                }}
+                                className={`${buttonClass} bg-emerald-500 text-black hover:bg-emerald-400`}><Play size={16} /> Start now</button>
                         )}
                         {contest.phase === 'LIVE' && (
                             <>
-                                <button disabled={busy} onClick={() => act(() => contestApi.update(contest.id, { durationMinutes: contest.durationMinutes + 15 }))} className={`${buttonClass} bg-white/5 border border-white/10 hover:bg-white/10`}><Plus size={16} /> 15 min</button>
-                                <button disabled={busy} onClick={() => window.confirm('End the contest now?') && act(() => contestApi.end(contest.id))} className={`${buttonClass} bg-red-500/80 hover:bg-red-500`}><Square size={16} /> End now</button>
+                                <button disabled={busy} onClick={() => act(() => contestApi.update(contest.id, { durationMinutes: contest.durationMinutes + 15 }), 'Extended by 15 minutes')} className={`${buttonClass} bg-white/5 border border-white/10 hover:bg-white/10`}><Plus size={16} /> 15 min</button>
+                                <button
+                                    disabled={busy}
+                                    onClick={async () => {
+                                        const ok = await dialog.confirm({
+                                            title: 'End the contest now?',
+                                            message: 'Participants can no longer submit. Submissions already queued are still judged.',
+                                            confirmLabel: 'End contest',
+                                            tone: 'danger',
+                                            icon: <Square size={26} />,
+                                        });
+                                        if (ok) act(() => contestApi.end(contest.id), 'Contest ended', 'Submissions are closed; queued ones are still judged.');
+                                    }}
+                                    className={`${buttonClass} bg-red-500/80 hover:bg-red-500`}><Square size={16} /> End now</button>
                             </>
                         )}
                     </div>
@@ -199,15 +229,24 @@ export default function ContestMonitor() {
                                                         <div className="flex gap-1.5 justify-end">
                                                             <button onClick={() => togglePin(p.userId)} className="p-1.5 rounded hover:bg-white/10 text-white/60" title="Watch code"><Eye size={15} /></button>
                                                             {p.status === 'ACTIVE' && (
-                                                                <button disabled={busy} onClick={() => act(() => contestApi.participantAction(contest.id, p.userId, 'block'))} className="px-2 py-1 rounded bg-red-500/15 text-red-300 text-xs font-bold hover:bg-red-500/25 flex items-center gap-1"><Ban size={12} /> Block</button>
+                                                                <button disabled={busy} onClick={() => act(() => contestApi.participantAction(contest.id, p.userId, 'block'), 'Participant blocked', p.username)} className="px-2 py-1 rounded bg-red-500/15 text-red-300 text-xs font-bold hover:bg-red-500/25 flex items-center gap-1"><Ban size={12} /> Block</button>
                                                             )}
                                                             {p.status === 'BLOCKED' && (
-                                                                <button disabled={busy} onClick={() => act(() => contestApi.participantAction(contest.id, p.userId, 'unblock'))} className="px-2 py-1 rounded bg-emerald-500/15 text-emerald-300 text-xs font-bold hover:bg-emerald-500/25 flex items-center gap-1"><CheckCircle size={12} /> Unblock</button>
+                                                                <button disabled={busy} onClick={() => act(() => contestApi.participantAction(contest.id, p.userId, 'unblock'), 'Participant unblocked', p.username)} className="px-2 py-1 rounded bg-emerald-500/15 text-emerald-300 text-xs font-bold hover:bg-emerald-500/25 flex items-center gap-1"><CheckCircle size={12} /> Unblock</button>
                                                             )}
                                                             {p.status !== 'REMOVED' && (
                                                                 <button
                                                                     disabled={busy}
-                                                                    onClick={() => window.confirm(`Remove ${p.username} from the contest? They disappear from the leaderboard.`) && act(() => contestApi.participantAction(contest.id, p.userId, 'remove'))}
+                                                                    onClick={async () => {
+                                                                        const ok = await dialog.confirm({
+                                                                            title: `Remove ${p.username}?`,
+                                                                            message: 'They are taken out of the contest and disappear from the leaderboard.',
+                                                                            confirmLabel: 'Remove',
+                                                                            tone: 'danger',
+                                                                            icon: <UserX size={26} />,
+                                                                        });
+                                                                        if (ok) act(() => contestApi.participantAction(contest.id, p.userId, 'remove'), 'Participant removed', p.username);
+                                                                    }}
                                                                     className="px-2 py-1 rounded bg-white/5 text-white/60 text-xs font-bold hover:bg-orange-500/20 hover:text-orange-300 flex items-center gap-1"
                                                                 >
                                                                     <UserX size={12} /> Remove
@@ -270,7 +309,7 @@ export default function ContestMonitor() {
                             <div>
                                 <h2 className="text-xl font-bold">{openSubmission.user.username} · {openSubmission.problem.index}. {openSubmission.problem.title}</h2>
                                 <div className="text-sm text-white/50 mt-1 flex flex-wrap items-center gap-2">
-                                    {new Date(openSubmission.createdAt).toLocaleString()} · {openSubmission.language}
+                                    {new Date(openSubmission.createdAt).toLocaleString()} · {languageLabel(contest.languages, openSubmission.language)}
                                     {openSubmission.verdict && <VerdictBadge verdict={openSubmission.verdict} />}
                                     <span>{openSubmission.passed}/{openSubmission.total} tests · {formatScore(openSubmission.score)} points</span>
                                 </div>
@@ -279,7 +318,7 @@ export default function ContestMonitor() {
                                 {(openSubmission.status === 'DONE' || openSubmission.status === 'ERROR') && (
                                     <button
                                         disabled={busy}
-                                        onClick={() => act(async () => { await contestApi.rejudgeSubmission(contest.id, openSubmission.id); setOpenSubmission(null); })}
+                                        onClick={() => act(async () => { await contestApi.rejudgeSubmission(contest.id, openSubmission.id); setOpenSubmission(null); }, 'Submission queued for rejudging')}
                                         className={`${buttonClass} bg-white/5 border border-white/10 hover:bg-white/10`}
                                     >
                                         <RefreshCw size={15} /> Rejudge

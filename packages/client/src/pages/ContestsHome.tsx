@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Copy, LogIn, Plus, Settings2, Trophy, Activity, Users, ListChecks } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Copy, LogIn, Plus, Settings2, Trophy, Activity, Users, ListChecks, Trash2 } from 'lucide-react';
 import LiquidEther from '../components/ui/LiquidEther';
 import { contestApi, errorMessage, PHASE_LABEL, PHASE_STYLE, type ContestSummary, type ParticipantStatus } from '../contestApi';
 import { getTokenUser } from '../auth';
+import { useDialog } from '../contexts/dialog';
+import { useToast } from '../contexts/toast';
 
 type Owned = ContestSummary & { problemCount: number; participantCount: number };
 type Joined = ContestSummary & { organizer: string; status: ParticipantStatus };
@@ -29,6 +31,9 @@ export default function ContestsHome() {
     const [error, setError] = useState('');
     const [creating, setCreating] = useState(false);
     const [copied, setCopied] = useState('');
+    const [deleting, setDeleting] = useState<string | null>(null);
+    const dialog = useDialog();
+    const toast = useToast();
 
     useEffect(() => {
         if (isGuest) return;
@@ -55,10 +60,37 @@ export default function ContestsHome() {
         setError('');
         try {
             const contest = await contestApi.create({ title: title.trim() });
+            toast.success('Contest created', `"${contest.title}" · ${contest.code}. Add problems and test cases next.`);
             navigate(`/contests/${contest.id}/manage`);
         } catch (err) {
             setError(errorMessage(err));
             setCreating(false);
+        }
+    };
+
+    // Only drafts and finished contests can be deleted from here; Manage can delete any contest
+    const remove = async (contest: Owned) => {
+        const hadParticipants = contest.phase === 'ENDED' && contest.participantCount > 0;
+        const ok = await dialog.confirm({
+            title: `Delete "${contest.title}"?`,
+            message: hadParticipants
+                ? `Its problems, test cases, submissions, leaderboard and the code of ${contest.participantCount} participant${contest.participantCount === 1 ? '' : 's'} are deleted permanently. It disappears from their history too.`
+                : "Its problems and test cases are deleted permanently. This can't be undone.",
+            confirmLabel: 'Delete contest',
+            tone: 'danger',
+            icon: <Trash2 size={26} />,
+        });
+        if (!ok) return;
+        setDeleting(contest.id);
+        setError('');
+        try {
+            await contestApi.remove(contest.id);
+            setOwned(list => list.filter(c => c.id !== contest.id));
+            toast.success('Contest deleted', `"${contest.title}" was deleted.`);
+        } catch (err) {
+            setError(errorMessage(err));
+        } finally {
+            setDeleting(null);
         }
     };
 
@@ -185,6 +217,17 @@ export default function ContestsHome() {
                                                 <button onClick={() => navigate(`/contests/${c.id}/monitor`)} className="flex-1 py-2 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-200 text-sm font-semibold flex items-center justify-center gap-1.5">
                                                     <Activity size={15} /> Monitor
                                                 </button>
+                                                {(c.phase === 'DRAFT' || c.phase === 'ENDED') && (
+                                                    <button
+                                                        onClick={() => remove(c)}
+                                                        disabled={deleting === c.id}
+                                                        aria-label={`Delete ${c.title}`}
+                                                        title={c.phase === 'DRAFT' ? 'Delete this draft' : 'Delete this finished contest'}
+                                                        className="px-3 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-300 flex items-center justify-center transition-colors disabled:opacity-40"
+                                                    >
+                                                        <Trash2 size={15} />
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     ))}

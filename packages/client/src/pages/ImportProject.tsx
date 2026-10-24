@@ -4,6 +4,7 @@ import { Github, Download, ArrowLeft, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cloneRepository, createSession } from '../api';
 import LiquidEther from '../components/ui/LiquidEther';
+import { useToast } from '../contexts/toast';
 
 function generateRoomId(): string {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -19,6 +20,7 @@ export default function ImportProject() {
     const [repoUrl, setRepoUrl] = useState('');
     const [importing, setImporting] = useState(false);
     const [error, setError] = useState('');
+    const toast = useToast();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -33,6 +35,8 @@ export default function ImportProject() {
         try {
             await cloneRepository(repoUrl.trim(), roomId);
             await createSession(`Project ${roomId}`, roomId, roomId, username);
+            const repoName = repoUrl.trim().replace(/\.git$/, '').split('/').filter(Boolean).pop();
+            toast.success('Repository imported', `${repoName ?? 'The repository'} is ready in room ${roomId}.`);
             navigate(`/room/${roomId}`);
         } catch (err: any) {
             setError(err.message || 'Failed to import repository.');

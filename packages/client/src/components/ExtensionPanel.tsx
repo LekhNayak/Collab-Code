@@ -9,6 +9,7 @@ import {
     importExtensionFromUrl,
     type ExtensionInfo, type SessionInfo,
 } from '../api';
+import { useToast } from '../contexts/toast';
 
 interface ExtensionPanelProps {
     sessionId: string;
@@ -38,6 +39,8 @@ const CATEGORY_OPTIONS = ['theme', 'snippets', 'formatter', 'keybindings', 'visu
 
 export default function ExtensionPanel({ sessionId, installedExtensions, onExtensionChange }: ExtensionPanelProps) {
     const [extensions, setExtensions] = useState<ExtensionInfo[]>([]);
+    const toast = useToast();
+    const nameOf = useCallback((extId: string) => extensions.find(e => e.id === extId)?.name ?? extId, [extensions]);
     const [search, setSearch] = useState('');
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -79,13 +82,14 @@ export default function ExtensionPanel({ sessionId, installedExtensions, onExten
         try {
             const updated = await installExtension(sessionId, extId);
             onExtensionChange(updated);
+            toast.success('Extension installed', nameOf(extId));
         } catch (err: any) {
             console.error(err);
             setCreateError(`Install failed: ${err.message}`);
         } finally {
             setActionLoading(null);
         }
-    }, [sessionId, onExtensionChange]);
+    }, [sessionId, onExtensionChange, toast, nameOf]);
 
     const handleUninstall = useCallback(async (extId: string) => {
         setActionLoading(extId);
@@ -93,25 +97,28 @@ export default function ExtensionPanel({ sessionId, installedExtensions, onExten
         try {
             const updated = await uninstallExtension(sessionId, extId);
             onExtensionChange(updated);
+            toast.success('Extension uninstalled', nameOf(extId));
         } catch (err: any) {
             console.error(err);
             setCreateError(`Uninstall failed: ${err.message}`);
         } finally {
             setActionLoading(null);
         }
-    }, [sessionId, onExtensionChange]);
+    }, [sessionId, onExtensionChange, toast, nameOf]);
 
     const handleDeleteCustom = useCallback(async (extId: string) => {
         setActionLoading(extId);
         try {
             await apiDeleteCustomExt(extId);
             refreshExtensions();
+            toast.success('Extension deleted', nameOf(extId));
         } catch (err: any) {
             console.error(err);
+            toast.error('Could not delete the extension', err.message);
         } finally {
             setActionLoading(null);
         }
-    }, [refreshExtensions]);
+    }, [refreshExtensions, toast, nameOf]);
 
     // Create from form
     const handleCreateFromForm = async () => {
@@ -131,6 +138,7 @@ export default function ExtensionPanel({ sessionId, installedExtensions, onExten
                 config,
             });
             refreshExtensions();
+            toast.success('Extension created', formName || undefined);
             resetForm();
         } catch (err: any) {
             setCreateError(err.message);
@@ -144,8 +152,9 @@ export default function ExtensionPanel({ sessionId, installedExtensions, onExten
         setCreateError('');
         setCreateLoading(true);
         try {
-            await importExtensionFromUrl(importUrl);
+            const imported = await importExtensionFromUrl(importUrl);
             refreshExtensions();
+            toast.success('Extension imported', imported?.name);
             setImportUrl('');
             setShowImportUrl(false);
         } catch (err: any) {
@@ -166,6 +175,7 @@ export default function ExtensionPanel({ sessionId, installedExtensions, onExten
             }
             await createCustomExtension(ext);
             refreshExtensions();
+            toast.success('Extension imported', ext.name);
             setPasteJson('');
             setShowPasteJson(false);
         } catch (err: any) {

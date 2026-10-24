@@ -133,3 +133,21 @@ export const allowedLanguages = (contest: { languages: string[] }) =>
 
 // Path of a participant's file for a problem, e.g. "/A.cpp"
 export const solutionPath = (problemIndex: string, lang: ContestLanguage) => `/${problemIndex}.${lang.ext}`;
+
+// SQL problems always use this one; it isn't in CONTEST_LANGUAGES, so it never shows in the contest's
+// language settings
+export const SQL_LANGUAGE: ContestLanguage = {
+    id: 'sql',
+    label: 'SQL (SQLite)',
+    ext: 'sql',
+    template: `-- Write one query. The last SELECT is your answer.
+SELECT
+`,
+};
+
+// The language a submission for this problem may use, or undefined when it isn't allowed
+export function problemLanguage(contest: { languages: string[] }, problem: { kind: string }, id: string): ContestLanguage | undefined {
+    if (problem.kind === 'SQL') return id === SQL_LANGUAGE.id ? SQL_LANGUAGE : undefined;
+    const language = contestLanguage(id);
+    return language && allowedLanguages(contest).some(l => l.id === language.id) ? language : undefined;
+}

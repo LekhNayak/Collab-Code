@@ -2,7 +2,7 @@ import { Router } from 'express';
 import fs from 'fs';
 import multer from 'multer';
 import { Prisma } from '@prisma/client';
-import type { Contest } from '@prisma/client';
+import type { Contest, Problem, ProblemKind, TestCase } from '@prisma/client';
 import prisma from '../db';
 import { gitService } from '../services/GitService';
 import * as store from '../services/WorkspaceStore';
@@ -14,11 +14,16 @@ import {
     HttpError, handle, requireAccount, loadOwned, loadAccess, assertCanCompete, assertCanSeeProblems,
     phaseOf, contestWorkspaceId, withUniqueCode,
 } from '../services/contest/access';
-import { CONTEST_LANGUAGES, allowedLanguages, contestLanguage, solutionPath } from '../services/contest/languages';
-import { pumpJudge, queuePosition, judgeSettings, verdictForRun, PRIORITY_INTERACTIVE } from '../services/contest/judge';
+import { CONTEST_LANGUAGES, allowedLanguages, problemLanguage, solutionPath } from '../services/contest/languages';
+import {
+    pumpJudge, queuePosition, judgeSettings, verdictForRun, verdictForSql, sqlRunMessage, PRIORITY_INTERACTIVE,
+} from '../services/contest/judge';
 import { getLeaderboard, invalidateLeaderboard } from '../services/contest/leaderboard';
-import { expandUpload, pairTests, MAX_TESTS_PER_PROBLEM, MAX_TEST_FILE_BYTES } from '../services/contest/testUpload';
-import { clip } from '../services/contest/verdict';
+import { expandUpload, pairTests, sqlDatasets, MAX_TESTS_PER_PROBLEM, MAX_TEST_FILE_BYTES } from '../services/contest/testUpload';
+import { clip, clipTable, parseSqlTable, MAX_SHOWN_ROWS } from '../services/contest/verdict';
+import {
+    runSql, dumpSqlTables, SQL_MAX_TIME_LIMIT_MS, SQL_MEMORY_LIMIT_MB, type NamedSqlTable,
+} from '../services/contest/sqlRunner';
 
 const router = Router();
 
@@ -94,16 +99,64 @@ function parseSettings(body: any) {
     return data;
 }
 
-function parseProblem(body: any, partial: boolean) {
+function parseProblem(body: any, partial: boolean, currentKind: ProblemKind) {
     const data: Prisma.ProblemUncheckedUpdateInput = {};
+    if (body.kind !== undefined) {
+        if (body.kind !== 'CODE' && body.kind !== 'SQL') throw new HttpError(400, 'kind must be CODE or SQL');
+        data.kind = body.kind;
+    }
+    const kind = (data.kind as ProblemKind | undefined) ?? currentKind;
     if (body.title !== undefined || !partial) data.title = text(body.title, 'Title', 120, true).trim();
     if (body.statement !== undefined) data.statement = text(body.statement, 'Statement', 50_000);
     if (body.points !== undefined) data.points = intInRange(body.points, 'Points', 1, 10_000);
-    if (body.timeLimitMs !== undefined) data.timeLimitMs = intInRange(body.timeLimitMs, 'Time limit (ms)', 250, MAX_TIME_LIMIT_MS);
+    if (body.timeLimitMs !== undefined) {
+        data.timeLimitMs = intInRange(body.timeLimitMs, 'Time limit (ms)', 250, kind === 'SQL' ? SQL_MAX_TIME_LIMIT_MS : MAX_TIME_LIMIT_MS);
+    }
     if (body.memoryLimitMb !== undefined) {
         data.memoryLimitMb = body.memoryLimitMb === null || body.memoryLimitMb === '' ? null : intInRange(body.memoryLimitMb, 'Memory limit (MB)', 16, 2048);
     }
+    if (body.sqlSchema !== undefined) data.sqlSchema = normalizeNewlines(text(body.sqlSchema, 'Schema', MAX_CODE_BYTES));
+    if (body.sqlSolution !== undefined) data.sqlSolution = normalizeNewlines(text(body.sqlSolution, 'Reference query', MAX_CODE_BYTES));
+    if (body.sqlOrderMatters !== undefined) data.sqlOrderMatters = !!body.sqlOrderMatters;
     return data;
+}
+
+type SqlSetup = Pick<Problem, 'sqlSchema' | 'sqlSolution' | 'timeLimitMs'>;
+
+// SQL problems: runs the reference query on a dataset; its result is the test's expected output.
+// `label` names the test in error messages ("Test 3 · ").
+async function expectedFor(problem: SqlSetup, data: string, label = ''): Promise<string> {
+    if (!problem.sqlSolution.trim()) throw new HttpError(400, 'Write the reference query first');
+    const run = await runSql({ schema: problem.sqlSchema, data, query: problem.sqlSolution, timeLimitMs: problem.timeLimitMs });
+    if (run.kind === 'ok' && run.table) return JSON.stringify(run.table);
+    const reason = run.kind === 'ok' ? "Reference query: it didn't return a result (no SELECT)"
+        : run.kind === 'setup-error' ? run.message
+        : run.kind === 'tle' ? 'Reference query: it took longer than the time limit'
+        : `Reference query: ${run.message ?? 'it failed'}`;
+    throw new HttpError(400, `${label}${reason}`);
+}
+
+// Checks that a schema (and reference query, once written) still run, before any test exists
+async function checkSqlSetup(problem: SqlSetup) {
+    if (problem.sqlSolution.trim()) {
+        await expectedFor(problem, '', 'With no data · ');
+        return;
+    }
+    const run = await runSql({ schema: problem.sqlSchema, data: '', query: 'SELECT 1', timeLimitMs: problem.timeLimitMs });
+    if (run.kind === 'setup-error') throw new HttpError(400, run.message ?? 'The schema failed to load');
+}
+
+// Sample datasets as tables for participants; cached until the problem or its tests change
+const sampleTableCache = new Map<string, NamedSqlTable[] | { error: string }>();
+async function sampleTables(problem: Problem, test: Pick<TestCase, 'id' | 'input'>) {
+    const key = `${test.id}:${problem.updatedAt.getTime()}`;
+    let tables = sampleTableCache.get(key);
+    if (!tables) {
+        tables = await dumpSqlTables({ schema: problem.sqlSchema, data: test.input, maxRows: MAX_SHOWN_ROWS });
+        sampleTableCache.set(key, tables);
+        if (sampleTableCache.size > 500) sampleTableCache.delete(sampleTableCache.keys().next().value!);
+    }
+    return tables;
 }
 
 function parseTest(body: any, partial: boolean) {
@@ -136,15 +189,19 @@ function nextProblemIndex(used: string[]): string {
     throw new HttpError(400, `A contest can have at most ${MAX_PROBLEMS} problems`);
 }
 
-function validateSubmission(contest: Contest, body: any) {
-    const code = typeof body.code === 'string' ? body.code : '';
-    if (!code.trim()) throw new HttpError(400, 'Write some code first');
-    if (byteLength(code) > MAX_CODE_BYTES) throw new HttpError(400, 'Code is larger than 64 KB');
-    const language = contestLanguage(String(body.language ?? ''));
-    if (!language || !allowedLanguages(contest).some(l => l.id === language.id)) {
-        throw new HttpError(400, 'This language is not allowed in this contest');
+function languageFor(contest: Contest, problem: Problem, id: unknown) {
+    const language = problemLanguage(contest, problem, String(id ?? ''));
+    if (!language) {
+        throw new HttpError(400, problem.kind === 'SQL' ? 'This problem is answered with an SQL query' : 'This language is not allowed in this contest');
     }
-    return { code, language };
+    return language;
+}
+
+function validateSubmission(contest: Contest, problem: Problem, body: any) {
+    const code = typeof body.code === 'string' ? body.code : '';
+    if (!code.trim()) throw new HttpError(400, problem.kind === 'SQL' ? 'Write a query first' : 'Write some code first');
+    if (byteLength(code) > MAX_CODE_BYTES) throw new HttpError(400, 'Code is larger than 64 KB');
+    return { code, language: languageFor(contest, problem, body.language) };
 }
 
 const logEvent = (contestId: string, userId: string | null, type: Prisma.ContestEventCreateManyInput['type'], details?: object) =>
@@ -225,16 +282,18 @@ router.get('/:id/admin', handle(async (req, res) => {
     const { contest } = await loadOwned(req, req.params.id);
     const problems = await prisma.problem.findMany({ where: { contestId: contest.id }, orderBy: { index: 'asc' } });
     // Test metadata with short previews; full contents are fetched one test at a time
+    // SQL problems: the expected output is the result as JSON, so its row count is the useful preview
     const tests = problems.length === 0 ? [] : await prisma.$queryRaw<Array<{
         id: string; problemId: string; isSample: boolean; order: number;
-        inputPreview: string; inputSize: number; outputPreview: string; outputSize: number;
+        inputPreview: string; inputSize: number; outputPreview: string; outputSize: number; expectedRows: number | null;
     }>>`
-        SELECT id, "problemId", "isSample", "order",
-               left(input, 200) AS "inputPreview", octet_length(input) AS "inputSize",
-               left("expectedOutput", 200) AS "outputPreview", octet_length("expectedOutput") AS "outputSize"
-        FROM "TestCase"
-        WHERE "problemId" IN (${Prisma.join(problems.map(p => p.id))})
-        ORDER BY "order" ASC`;
+        SELECT t.id, t."problemId", t."isSample", t."order",
+               left(t.input, 200) AS "inputPreview", octet_length(t.input) AS "inputSize",
+               left(t."expectedOutput", 200) AS "outputPreview", octet_length(t."expectedOutput") AS "outputSize",
+               CASE WHEN p.kind = 'SQL' THEN json_array_length((t."expectedOutput"::json)->'rows') END AS "expectedRows"
+        FROM "TestCase" t JOIN "Problem" p ON p.id = t."problemId"
+        WHERE t."problemId" IN (${Prisma.join(problems.map(p => p.id))})
+        ORDER BY t."order" ASC`;
     const counts = await prisma.contest.findUnique({
         where: { id: contest.id },
         select: { _count: { select: { participants: true, submissions: true } } },
@@ -243,7 +302,12 @@ router.get('/:id/admin', handle(async (req, res) => {
         contest: contestSummary(contest),
         problems: problems.map(p => ({
             ...p,
-            tests: tests.filter(t => t.problemId === p.id).map(t => ({ ...t, inputSize: Number(t.inputSize), outputSize: Number(t.outputSize) })),
+            tests: tests.filter(t => t.problemId === p.id).map(t => ({
+                ...t,
+                inputSize: Number(t.inputSize),
+                outputSize: Number(t.outputSize),
+                expectedRows: t.expectedRows === null ? null : Number(t.expectedRows),
+            })),
         })),
         participantCount: counts?._count.participants ?? 0,
         submissionCount: counts?._count.submissions ?? 0,
@@ -324,12 +388,16 @@ router.get('/:id/judge-info', handle(async (req, res) => {
         maxTimeLimitMs: MAX_TIME_LIMIT_MS,
         maxTestsPerProblem: MAX_TESTS_PER_PROBLEM,
         languages: CONTEST_LANGUAGES.map(l => ({ id: l.id, label: l.label, ext: l.ext })),
+        sql: { engine: 'SQLite', maxTimeLimitMs: SQL_MAX_TIME_LIMIT_MS, memoryLimitMb: SQL_MEMORY_LIMIT_MB },
     });
 }));
 
 router.post('/:id/problems', handle(async (req, res) => {
     const { contest } = await loadOwned(req, req.params.id);
-    const data = parseProblem(req.body, false);
+    const data = parseProblem(req.body, false, 'CODE');
+    if (data.kind === 'SQL' && (data.sqlSchema !== undefined || data.sqlSolution !== undefined)) {
+        await checkSqlSetup({ sqlSchema: (data.sqlSchema as string) ?? '', sqlSolution: (data.sqlSolution as string) ?? '', timeLimitMs: (data.timeLimitMs as number) ?? 2000 });
+    }
     const used = (await prisma.problem.findMany({ where: { contestId: contest.id }, select: { index: true } })).map(p => p.index);
     const problem = await prisma.problem.create({
         data: { ...(data as Prisma.ProblemUncheckedCreateInput), title: data.title as string, contestId: contest.id, index: nextProblemIndex(used) },
@@ -340,8 +408,37 @@ router.post('/:id/problems', handle(async (req, res) => {
 router.patch('/:id/problems/:pid', handle(async (req, res) => {
     const { contest } = await loadOwned(req, req.params.id);
     const problem = await problemOf(contest, req.params.pid);
-    const data = parseProblem(req.body, true);
-    const updated = await prisma.problem.update({ where: { id: problem.id }, data });
+    const data = parseProblem(req.body, true, problem.kind);
+    const kind = (data.kind as ProblemKind | undefined) ?? problem.kind;
+    if (kind !== problem.kind) {
+        // Tests mean different things for the two types (stdin/stdout vs datasets)
+        const [tests, submissions] = await Promise.all([
+            prisma.testCase.count({ where: { problemId: problem.id } }),
+            prisma.submission.count({ where: { problemId: problem.id } }),
+        ]);
+        if (tests > 0 || submissions > 0) throw new HttpError(409, 'Delete this problem\'s tests before changing its type');
+    }
+
+    // SQL: a new schema or reference query changes every expected result, and all of them must still run
+    const recomputed: { id: string; expectedOutput: string }[] = [];
+    if (kind === 'SQL') {
+        const next: SqlSetup = {
+            sqlSchema: (data.sqlSchema as string | undefined) ?? problem.sqlSchema,
+            sqlSolution: (data.sqlSolution as string | undefined) ?? problem.sqlSolution,
+            timeLimitMs: (data.timeLimitMs as number | undefined) ?? problem.timeLimitMs,
+        };
+        if (next.sqlSchema !== problem.sqlSchema || next.sqlSolution !== problem.sqlSolution || kind !== problem.kind) {
+            const tests = await prisma.testCase.findMany({ where: { problemId: problem.id }, orderBy: { order: 'asc' }, select: { id: true, input: true } });
+            if (tests.length === 0) await checkSqlSetup(next);
+            for (const [i, test] of tests.entries()) {
+                recomputed.push({ id: test.id, expectedOutput: await expectedFor(next, test.input, `Test ${i + 1} · `) });
+            }
+        }
+    }
+    const [updated] = await prisma.$transaction([
+        prisma.problem.update({ where: { id: problem.id }, data }),
+        ...recomputed.map(t => prisma.testCase.update({ where: { id: t.id }, data: { expectedOutput: t.expectedOutput } })),
+    ]);
     // Points changed: rescale existing scores (each test stays worth an equal share)
     if (data.points !== undefined && data.points !== problem.points) {
         await prisma.$executeRaw`
@@ -390,6 +487,7 @@ router.post('/:id/problems/:pid/tests', handle(async (req, res) => {
     const data = parseTest(req.body, false);
     const existing = await prisma.testCase.aggregate({ where: { problemId: problem.id }, _count: true, _max: { order: true } });
     if (existing._count >= MAX_TESTS_PER_PROBLEM) throw new HttpError(400, `At most ${MAX_TESTS_PER_PROBLEM} tests per problem`);
+    if (problem.kind === 'SQL') data.expectedOutput = await expectedFor(problem, data.input ?? '');
     const test = await prisma.testCase.create({
         data: {
             problemId: problem.id,
@@ -408,7 +506,12 @@ router.patch('/:id/problems/:pid/tests/:tid', handle(async (req, res) => {
     const problem = await problemOf(contest, req.params.pid);
     const test = await prisma.testCase.findFirst({ where: { id: req.params.tid, problemId: problem.id } });
     if (!test) throw new HttpError(404, 'Test not found');
-    const updated = await prisma.testCase.update({ where: { id: test.id }, data: parseTest(req.body, true) });
+    const data = parseTest(req.body, true);
+    if (problem.kind === 'SQL') {
+        delete data.expectedOutput; // always computed
+        if (data.input !== undefined) data.expectedOutput = await expectedFor(problem, data.input);
+    }
+    const updated = await prisma.testCase.update({ where: { id: test.id }, data });
     await touchProblem(problem.id);
     res.json(updated);
 }));
@@ -431,7 +534,11 @@ router.post('/:id/problems/:pid/tests/upload', upload.any(), handle(async (req, 
     // Folder uploads send each file's relative path in `paths[]`, in the same order
     const rawPaths = req.body.paths;
     const paths: string[] = Array.isArray(rawPaths) ? rawPaths : rawPaths ? [rawPaths] : [];
-    const parsed = pairTests(expandUpload(files.map((f, i) => ({ name: paths[i] || f.originalname, data: f.buffer }))));
+    const uploaded = expandUpload(files.map((f, i) => ({ name: paths[i] || f.originalname, data: f.buffer })));
+    const parsed = problem.kind === 'SQL' ? sqlDatasets(uploaded) : pairTests(uploaded);
+    if (problem.kind === 'SQL') {
+        for (const test of parsed) test.expectedOutput = await expectedFor(problem, test.input, `${test.name} · `);
+    }
 
     const replace = req.body.mode === 'replace';
     const sampleCount = req.body.sampleCount !== undefined && req.body.sampleCount !== ''
@@ -483,12 +590,13 @@ router.get('/:id/problems', handle(async (req, res) => {
         where: { contestId: access.contest.id },
         orderBy: { index: 'asc' },
         include: {
-            tests: { where: { isSample: true }, orderBy: { order: 'asc' }, select: { input: true, expectedOutput: true } },
+            tests: { where: { isSample: true }, orderBy: { order: 'asc' }, select: { id: true, input: true, expectedOutput: true } },
             _count: { select: { tests: true } },
         },
     });
+    // The reference query (sqlSolution) never leaves the server
     res.json({
-        problems: problems.map(p => ({
+        problems: await Promise.all(problems.map(async p => ({
             id: p.id,
             index: p.index,
             title: p.title,
@@ -496,9 +604,22 @@ router.get('/:id/problems', handle(async (req, res) => {
             points: p.points,
             timeLimitMs: p.timeLimitMs,
             memoryLimitMb: p.memoryLimitMb,
-            samples: p.tests,
+            kind: p.kind,
+            ...(p.kind === 'SQL' ? { sqlSchema: p.sqlSchema, orderMatters: p.sqlOrderMatters } : {}),
+            samples: p.kind === 'SQL'
+                ? await Promise.all(p.tests.map(async t => {
+                    const tables = await sampleTables(p, t);
+                    return {
+                        input: t.input,
+                        expectedOutput: '',
+                        tables: Array.isArray(tables) ? tables : [],
+                        tablesError: Array.isArray(tables) ? undefined : tables.error,
+                        expected: clipTable(parseSqlTable(t.expectedOutput)),
+                    };
+                }))
+                : p.tests.map(t => ({ input: t.input, expectedOutput: t.expectedOutput })),
             testCount: p._count.tests,
-        })),
+        }))),
         judge: { backend: judgeBackend },
         serverNow: serverNow(),
     });
@@ -509,10 +630,7 @@ router.get('/:id/problems', handle(async (req, res) => {
 router.post('/:id/open', handle(async (req, res) => {
     const access = await loadAccess(req, req.params.id);
     const problem = await problemOf(access.contest, req.body?.problemId);
-    const language = contestLanguage(String(req.body?.language ?? ''));
-    if (!language || !allowedLanguages(access.contest).some(l => l.id === language.id)) {
-        throw new HttpError(400, 'This language is not allowed in this contest');
-    }
+    const language = languageFor(access.contest, problem, req.body?.language);
     let canCreate = true;
     if (!access.isOwner) {
         if (access.phase === 'ENDED' && access.participant && access.participant.status !== 'REMOVED') canCreate = false;
@@ -539,7 +657,8 @@ router.post('/:id/run', contestRunLimiter, handle(async (req, res) => {
     const access = await loadAccess(req, req.params.id);
     assertCanCompete(access);
     const problem = await problemOf(access.contest, req.body?.problemId);
-    const { code, language } = validateSubmission(access.contest, req.body);
+    const { code, language } = validateSubmission(access.contest, problem, req.body);
+    if (problem.kind === 'SQL') return res.json(await runSqlForParticipant(problem, code, req.body));
     const limits = { timeLimitMs: problem.timeLimitMs, memoryLimitMb: problem.memoryLimitMb, priority: PRIORITY_INTERACTIVE };
 
     if (req.body?.mode === 'custom') {
@@ -588,11 +707,58 @@ router.post('/:id/run', contestRunLimiter, handle(async (req, res) => {
     res.json({ mode: 'samples', results, compileOutput, totalSamples: samples.length });
 }));
 
+// SQL problems: run on the sample datasets (compared with their expected results), or on the schema
+// plus the participant's own INSERTs (custom)
+async function runSqlForParticipant(problem: Problem, code: string, body: any) {
+    const timeLimitMs = problem.timeLimitMs;
+    if (body?.mode === 'custom') {
+        const data = typeof body.stdin === 'string' ? body.stdin : '';
+        if (byteLength(data) > MAX_CUSTOM_INPUT_BYTES) throw new HttpError(400, 'Custom data is larger than 256 KB');
+        const run = await runSql({ schema: problem.sqlSchema, data, query: code, timeLimitMs });
+        const message = sqlRunMessage(run).replace(/^Data: /, 'Your extra data: ');
+        return {
+            mode: 'custom' as const,
+            kind: run.kind === 'setup-error' ? 're' : run.kind,
+            stdout: '',
+            stderr: clip(message),
+            compileOutput: '',
+            timeMs: run.timeMs ?? 0,
+            timeExact: true,
+            table: clipTable(run.table),
+            message: run.kind === 'ie' ? message : undefined,
+        };
+    }
+    const samples = await prisma.testCase.findMany({
+        where: { problemId: problem.id, isSample: true },
+        orderBy: { order: 'asc' },
+        take: MAX_SAMPLE_RUNS,
+    });
+    if (samples.length === 0) throw new HttpError(400, 'This problem has no sample tests. Use custom data instead.');
+    const results = [];
+    for (const sample of samples) {
+        const run = await runSql({ schema: problem.sqlSchema, data: sample.input, query: code, timeLimitMs });
+        const verdict = verdictForSql(run, sample.expectedOutput, problem.sqlOrderMatters);
+        results.push({
+            verdict,
+            stdout: '',
+            stderr: clip(sqlRunMessage(run)),
+            timeMs: run.timeMs ?? 0,
+            timeExact: true,
+            input: clip(sample.input),
+            expected: '',
+            table: clipTable(run.table),
+            expectedTable: clipTable(parseSqlTable(sample.expectedOutput)),
+            message: verdict === 'IE' ? run.message : undefined,
+        });
+    }
+    return { mode: 'samples' as const, results, compileOutput: null, totalSamples: samples.length };
+}
+
 router.post('/:id/submit', contestSubmitLimiter, handle(async (req, res) => {
     const access = await loadAccess(req, req.params.id);
     assertCanCompete(access);
     const problem = await problemOf(access.contest, req.body?.problemId);
-    const { code, language } = validateSubmission(access.contest, req.body);
+    const { code, language } = validateSubmission(access.contest, problem, req.body);
     const testCount = await prisma.testCase.count({ where: { problemId: problem.id } });
     if (testCount === 0) throw new HttpError(400, 'This problem has no test cases yet');
 

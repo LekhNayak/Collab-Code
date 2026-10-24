@@ -34,6 +34,7 @@ import { useCollabWorkspace, useDirtyPaths, openCollabFile } from '../collab/use
 import { getTokenUser } from '../auth';
 import { recordRecent } from '../recent';
 import { useProctoring } from '../hooks/useProctoring';
+import { useToast } from '../contexts/toast';
 import ProctoringOverlay from './ProctoringOverlay';
 import { getFileTree, readFile, flushWorkspace, initWorkspace, createFile as apiCreateFile, moveFile as apiMoveFile, deleteFile as apiDeleteFile, getSession, saveSession, createSession, getExtensions, uploadZip, uploadFolder, joinExam, downloadWorkspace, resolveExamRoom, sendTabSwitch, sendFullscreenExit, sendExamAlert, getMyExamSession, type SessionInfo, type ExtensionInfo, type ExamRoom } from '../api';
 import '../ide.css';
@@ -74,6 +75,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     const [files, setFiles] = useState<FileNode[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const toast = useToast();
     const [creatingFile, setCreatingFile] = useState<'file' | 'folder' | null>(null);
     const [newFileName, setNewFileName] = useState('');
 
@@ -494,12 +496,12 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                 setTabs(prev => [...prev, { path, name: name.trim(), language: lang }]);
                 setActiveTab(path);
             }
+            toast.success(isFolder ? 'Folder created' : 'File created', path);
         } catch (err: any) {
             console.error('Failed to create:', err);
-            setError(err.message);
-            setTimeout(() => setError(''), 3000);
+            toast.error(`Could not create ${name.trim()}`, err.message);
         }
-    }, [workspaceId, refreshTree]);
+    }, [workspaceId, refreshTree, toast]);
 
     const handleNestedCreateFile = useCallback(async (parentPath: string, name: string, isFolder: boolean) => {
         if (!name.trim()) return;
@@ -512,21 +514,20 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                 setTabs(prev => [...prev, { path: fullPath, name: name.trim(), language: lang }]);
                 setActiveTab(fullPath);
             }
+            toast.success(isFolder ? 'Folder created' : 'File created', fullPath);
         } catch (err: any) {
             console.error('Failed to create:', err);
-            setError(err.message);
-            setTimeout(() => setError(''), 3000);
+            toast.error(`Could not create ${name.trim()}`, err.message);
         }
-    }, [workspaceId, refreshTree]);
+    }, [workspaceId, refreshTree, toast]);
 
     const handleDownloadFile = useCallback(async (path?: string) => {
         try {
             await downloadWorkspace(workspaceId, path);
         } catch (err: any) {
-            setUploadStatus({ type: 'error', message: `✗ Download failed: ${err.message}` });
-            setTimeout(() => setUploadStatus(null), 4000);
+            toast.error('Download failed', err.message);
         }
-    }, [workspaceId]);
+    }, [workspaceId, toast]);
 
     const handleMoveFile = useCallback(async (oldPath: string, newPath: string) => {
         movingPaths.current.add(oldPath);
@@ -548,14 +549,16 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                 if (prev.startsWith(oldPath + '/')) return newPath + prev.slice(oldPath.length);
                 return prev;
             });
+            const parent = (p: string) => p.slice(0, p.lastIndexOf('/'));
+            const renamed = parent(oldPath) === parent(newPath);
+            toast.success(renamed ? 'Renamed' : 'Moved', `${oldPath.split('/').pop()} → ${renamed ? newPath.split('/').pop() : newPath}`);
         } catch (err: any) {
             console.error('Failed to move:', err);
-            setError(err.message);
-            setTimeout(() => setError(''), 3000);
+            toast.error(`Could not move ${oldPath.split('/').pop()}`, err.message);
         } finally {
             movingPaths.current.delete(oldPath);
         }
-    }, [workspaceId, refreshTree]);
+    }, [workspaceId, refreshTree, toast]);
 
     const handleDeleteFile = useCallback(async (path: string) => {
         try {
@@ -563,12 +566,12 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             await refreshTree();
             // Close tab if open
             closeTabs([path]);
+            toast.success(`Deleted ${path.split('/').pop()}`, path);
         } catch (err: any) {
             console.error('Failed to delete:', err);
-            setError(err.message);
-            setTimeout(() => setError(''), 3000);
+            toast.error(`Could not delete ${path.split('/').pop()}`, err.message);
         }
-    }, [workspaceId, refreshTree, closeTabs]);
+    }, [workspaceId, refreshTree, closeTabs, toast]);
 
     const handleRenameFile = useCallback(async (oldPath: string, newName: string) => {
         const parentDir = oldPath.substring(0, oldPath.lastIndexOf('/'));
@@ -597,14 +600,14 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
         setUploadStatus({ type: 'uploading', message: 'Uploading ZIP...' });
         try {
             const result = await uploadZip(workspaceId, file);
-            setUploadStatus({ type: 'success', message: `✓ ${result.uploaded} files extracted` });
             await refreshTree();
+            toast.success('ZIP uploaded', `${result.uploaded} files extracted from ${file.name}`);
         } catch (err: any) {
-            setUploadStatus({ type: 'error', message: `✗ ${err.message}` });
+            toast.error('ZIP upload failed', err.message);
         } finally {
-            setTimeout(() => setUploadStatus(null), 4000);
+            setUploadStatus(null);
         }
-    }, [workspaceId, refreshTree]);
+    }, [workspaceId, refreshTree, toast]);
 
     const handleUploadFolder = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
@@ -614,14 +617,14 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
         setUploadStatus({ type: 'uploading', message: `Uploading ${files.length} files...` });
         try {
             const result = await uploadFolder(workspaceId, files);
-            setUploadStatus({ type: 'success', message: `✓ ${result.uploaded} files uploaded` });
             await refreshTree();
+            toast.success('Folder uploaded', `${result.uploaded} files uploaded`);
         } catch (err: any) {
-            setUploadStatus({ type: 'error', message: `✗ ${err.message}` });
+            toast.error('Folder upload failed', err.message);
         } finally {
-            setTimeout(() => setUploadStatus(null), 4000);
+            setUploadStatus(null);
         }
-    }, [workspaceId, refreshTree]);
+    }, [workspaceId, refreshTree, toast]);
 
     // ---- Terminal file-system callbacks ----
     const flattenTree = useCallback((nodes: FileNode[], result: { name: string; path: string; type: string }[] = []) => {

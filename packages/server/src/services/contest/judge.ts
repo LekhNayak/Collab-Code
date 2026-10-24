@@ -6,10 +6,11 @@
 //  - on boot and periodically, RUNNING rows that stopped moving go back to QUEUED and start over
 //    (createdAt is kept, so rankings don't change)
 
-import type { Prisma, Verdict } from '@prisma/client';
+import type { Prisma, Problem, Submission, TestCase, Verdict } from '@prisma/client';
 import prisma from '../../db';
 import { runForJudge, judgeBackend, type JudgeRun } from '../executionService';
-import { clip, outputsMatch, overallVerdict, scoreFor } from './verdict';
+import { clip, clipTable, outputsMatch, overallVerdict, parseSqlTable, resultsMatch, scoreFor, type SqlTable } from './verdict';
+import { runSql, type SqlRun } from './sqlRunner';
 import { invalidateLeaderboard } from './leaderboard';
 
 const CONCURRENCY = Number(process.env.JUDGE_CONCURRENCY) || (judgeBackend === 'piston' ? 4 : 2);
@@ -19,6 +20,9 @@ const STOP_AFTER_TLE = process.env.JUDGE_STOP_AFTER_TLE
     ? process.env.JUDGE_STOP_AFTER_TLE !== 'false'
     : judgeBackend === 'wandbox';
 const STALE_AFTER_MS = 2 * 60_000;
+// Progress (which doubles as the heartbeat) is written at most this often: SQL tests take milliseconds
+// each, and a write per test would make the database the slowest part of judging
+const PROGRESS_SAVE_MS = 1_000;
 const RETRY_DELAYS_MS = [3_000, 15_000];
 
 // Wandbox queue priority (see executionService): interactive runs go before judging
@@ -33,6 +37,7 @@ export interface TestResult {
     // Only kept for sample tests; participants never see anything of hidden tests but the verdict
     stdout?: string;
     stderr?: string;
+    table?: (SqlTable & { totalRows: number }) | null; // SQL problems: the query's result
 }
 
 export function verdictForRun(run: JudgeRun, expected: string): Verdict {
@@ -47,6 +52,25 @@ export function verdictForRun(run: JudgeRun, expected: string): Verdict {
     }
 }
 
+export function verdictForSql(run: SqlRun, expectedJson: string, orderMatters: boolean): Verdict {
+    switch (run.kind) {
+        case 'ok': {
+            const expected = parseSqlTable(expectedJson);
+            if (!expected) return 'IE';
+            return run.table && resultsMatch(run.table, expected, orderMatters) ? 'AC' : 'WA';
+        }
+        case 're': return 'RE';
+        case 'tle': return 'TLE';
+        case 'mle': return 'MLE';
+        case 'ole': return 'OLE';
+        default: return 'IE'; // setup-error: the organizer's schema or data no longer loads
+    }
+}
+
+// What to show next to an SQL result: the SQLite error, or why there is no result
+export const sqlRunMessage = (run: SqlRun) =>
+    run.message ?? (run.kind === 'ok' && !run.table ? "Your query didn't return a result (no SELECT)" : '');
+
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Runs one test, retrying when the execution backend (not the program) failed
@@ -60,37 +84,93 @@ async function runTest(request: Parameters<typeof runForJudge>[0]): Promise<Judg
     return run;
 }
 
+interface TestOutcome {
+    result: TestResult;
+    compileOutput?: string; // CE
+    failure?: string;       // IE: the execution backend failed
+}
+
+async function judgeCodeTest(submission: Submission, problem: Problem, test: TestCase): Promise<TestOutcome> {
+    const run = await runTest({
+        code: submission.code,
+        language: submission.language,
+        stdin: test.input,
+        timeLimitMs: problem.timeLimitMs,
+        memoryLimitMb: problem.memoryLimitMb,
+        priority: PRIORITY_JUDGE,
+    });
+    const verdict = verdictForRun(run, test.expectedOutput);
+    return {
+        result: {
+            verdict,
+            timeMs: run.kind === 'ce' ? null : run.timeMs,
+            timeExact: run.timeExact,
+            sample: test.isSample,
+            ...(test.isSample ? { stdout: clip(run.stdout), stderr: clip(run.stderr) } : {}),
+        },
+        compileOutput: verdict === 'CE' ? clip(run.compileOutput) : undefined,
+        failure: verdict === 'IE' ? run.message || 'The code runner is unavailable' : undefined,
+    };
+}
+
+async function judgeSqlTest(submission: Submission, problem: Problem, test: TestCase): Promise<TestOutcome> {
+    const request = { schema: problem.sqlSchema, data: test.input, query: submission.code, timeLimitMs: problem.timeLimitMs };
+    let run = await runSql(request);
+    if (run.kind === 'ie') run = await runSql(request); // a crashed worker: one more try
+    const verdict = verdictForSql(run, test.expectedOutput, problem.sqlOrderMatters);
+    return {
+        result: {
+            verdict,
+            timeMs: run.timeMs,
+            timeExact: true,
+            sample: test.isSample,
+            ...(test.isSample ? { table: clipTable(run.table), stderr: clip(sqlRunMessage(run)) } : {}),
+        },
+        failure: verdict === 'IE' ? run.message || 'The test data could not be loaded' : undefined,
+    };
+}
+
 let accepting = true;
 let judging = 0;
 let pumping = false;
+let pumpAgain = false;
 
 // Claims queued submissions until all judge slots are busy
 export function pumpJudge() {
-    if (pumping || !accepting) return;
+    if (!accepting) return;
+    if (pumping) {
+        // The running pump may have read the queue before this submission arrived: look again after it,
+        // instead of leaving the submission to the 10-second safety net
+        pumpAgain = true;
+        return;
+    }
     pumping = true;
     void (async () => {
         try {
-            while (accepting && judging < CONCURRENCY) {
-                const next = await prisma.submission.findFirst({
-                    where: { status: 'QUEUED' },
-                    orderBy: { createdAt: 'asc' },
-                    select: { id: true },
-                });
-                if (!next) break;
-                const claimedAt = new Date();
-                const claim = await prisma.submission.updateMany({
-                    where: { id: next.id, status: 'QUEUED' },
-                    data: { status: 'RUNNING', startedAt: claimedAt, results: [], passed: 0, verdict: null, compileOutput: null },
-                });
-                if (claim.count !== 1) continue; // someone else got it
-                judging++;
-                judgeSubmission(next.id, claimedAt)
-                    .catch(err => console.error(`[Judge] Submission ${next.id} failed:`, err))
-                    .finally(() => {
-                        judging--;
-                        pumpJudge();
+            do {
+                pumpAgain = false;
+                while (accepting && judging < CONCURRENCY) {
+                    const next = await prisma.submission.findFirst({
+                        where: { status: 'QUEUED' },
+                        orderBy: { createdAt: 'asc' },
+                        select: { id: true },
                     });
-            }
+                    if (!next) break;
+                    const claimedAt = new Date();
+                    const claim = await prisma.submission.updateMany({
+                        where: { id: next.id, status: 'QUEUED' },
+                        data: { status: 'RUNNING', startedAt: claimedAt, results: [], passed: 0, verdict: null, compileOutput: null },
+                    });
+                    if (claim.count !== 1) continue; // someone else got it
+                    judging++;
+                    judgeSubmission(next.id, claimedAt)
+                        .catch(err => console.error(`[Judge] Submission ${next.id} failed:`, err))
+                        .finally(() => {
+                            judging--;
+                            pumpJudge();
+                        });
+                }
+            } while (pumpAgain && accepting);
         } catch (err) {
             console.error('[Judge] Could not read the queue:', err);
         } finally {
@@ -119,41 +199,34 @@ async function judgeSubmission(id: string, claimedAt: Date) {
     let compileOutput: string | null = null;
     let skipRest: Verdict | null = null;
     let backendFailure: string | null = null;
+    let lastSave = Date.now();
 
     for (const test of tests) {
         if (skipRest) {
             results.push({ verdict: skipRest, timeMs: null, timeExact: false, sample: test.isSample });
             continue;
         }
-        const run = await runTest({
-            code: submission.code,
-            language: submission.language,
-            stdin: test.input,
-            timeLimitMs: problem.timeLimitMs,
-            memoryLimitMb: problem.memoryLimitMb,
-            priority: PRIORITY_JUDGE,
-        });
-        const verdict = verdictForRun(run, test.expectedOutput);
+        const outcome = problem.kind === 'SQL'
+            ? await judgeSqlTest(submission, problem, test)
+            : await judgeCodeTest(submission, problem, test);
+        const { verdict } = outcome.result;
         if (verdict === 'AC') passed++;
-        results.push({
-            verdict,
-            timeMs: run.kind === 'ce' ? null : run.timeMs,
-            timeExact: run.timeExact,
-            sample: test.isSample,
-            ...(test.isSample ? { stdout: clip(run.stdout), stderr: clip(run.stderr) } : {}),
-        });
+        results.push(outcome.result);
 
         if (verdict === 'CE') {
-            compileOutput = clip(run.compileOutput);
+            compileOutput = outcome.compileOutput ?? '';
             skipRest = 'CE'; // the same code won't compile for the other tests either
         } else if (verdict === 'TLE' && STOP_AFTER_TLE) {
             skipRest = 'SKIPPED';
         } else if (verdict === 'IE') {
-            backendFailure = run.message || 'The code runner is unavailable';
+            backendFailure = outcome.failure ?? 'The code runner is unavailable';
             skipRest = 'SKIPPED';
         }
 
-        if (!(await save({ results: results as unknown as Prisma.InputJsonValue, passed }))) return;
+        if (Date.now() - lastSave >= PROGRESS_SAVE_MS) {
+            if (!(await save({ results: results as unknown as Prisma.InputJsonValue, passed }))) return;
+            lastSave = Date.now();
+        }
     }
 
     const failed = backendFailure !== null;
