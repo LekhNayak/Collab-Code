@@ -21,6 +21,7 @@ import {
     Upload,
     FolderArchive,
     Download, // Added Download icon
+    LogOut,
 } from 'lucide-react';
 import FileExplorer, { type FileNode } from './FileExplorer';
 import EditorTabs, { type TabInfo } from './EditorTabs';
@@ -721,6 +722,20 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
         }
     };
 
+    // Leave the room: save edits from the last moment first (the server autosaves anyway, so this never
+    // waits more than a few seconds), then go back to the room list
+    const [leaving, setLeaving] = useState(false);
+    const handleLeaveRoom = async () => {
+        if (leaving) return;
+        setLeaving(true);
+        await Promise.race([
+            flushWorkspace(workspaceId).catch(() => undefined),
+            new Promise(resolve => setTimeout(resolve, 3000)),
+        ]);
+        toast.success(`Left ${sessionName || roomId}`, 'Your work is saved. Reopen it anytime from your recent sessions.');
+        navigate('/collab');
+    };
+
     const handleCopyRoomLink = () => {
         const link = `${window.location.origin}/room/${roomId}`;
         navigator.clipboard.writeText(link);
@@ -809,45 +824,60 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             <div className={`ide-layout${!sidebarVisible ? ' sidebar-collapsed' : ''}`} style={{ height: isExamMode && timeLeft ? 'calc(100% - 32px)' : '100%' }}>
                 {/* Activity Bar */}
                 <div className="activity-bar">
-                    <div
+                    <button
+                        type="button"
                         className={`activity-bar-icon${activePanel === 'explorer' && sidebarVisible ? ' active' : ''}`}
                         onClick={() => toggleSidebar('explorer')}
                         title="Explorer"
+                        aria-label="Explorer"
+                        aria-pressed={activePanel === 'explorer' && sidebarVisible}
                     >
                         <Files size={24} />
-                    </div>
-                    <div
+                    </button>
+                    <button
+                        type="button"
                         className={`activity-bar-icon${activePanel === 'search' && sidebarVisible ? ' active' : ''}`}
                         onClick={() => toggleSidebar('search')}
                         title="Search"
+                        aria-label="Search"
+                        aria-pressed={activePanel === 'search' && sidebarVisible}
                     >
                         <Search size={24} />
-                    </div>
-                    <div
+                    </button>
+                    <button
+                        type="button"
                         className={`activity-bar-icon${activePanel === 'git' && sidebarVisible ? ' active' : ''}`}
                         onClick={() => toggleSidebar('git')}
                         title="Source Control"
+                        aria-label="Source Control"
+                        aria-pressed={activePanel === 'git' && sidebarVisible}
                     >
                         <GitBranch size={24} />
-                    </div>
+                    </button>
 
                     {!isExamMode && (
-                        <div
+                        <button
+                            type="button"
                             className={`activity-bar-icon${activePanel === 'users' && sidebarVisible ? ' active' : ''}`}
                             onClick={() => toggleSidebar('users')}
                             title="Collaborators"
+                            aria-label="Collaborators"
+                            aria-pressed={activePanel === 'users' && sidebarVisible}
                         >
                             <Users size={24} />
-                        </div>
+                        </button>
                     )}
 
-                    <div
+                    <button
+                        type="button"
                         className={`activity-bar-icon${activePanel === 'extensions' && sidebarVisible ? ' active' : ''}`}
                         onClick={() => toggleSidebar('extensions')}
                         title="Extensions"
+                        aria-label="Extensions"
+                        aria-pressed={activePanel === 'extensions' && sidebarVisible}
                     >
                         <Puzzle size={24} />
-                    </div>
+                    </button>
                     <div className="activity-bar-bottom">
                         <div className="activity-bar-icon" title="Settings">
                             <Settings size={24} />
@@ -1077,6 +1107,19 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                             </div>
                             <span className="user-badge-name">{username}</span>
                         </div>
+                        {!isExamMode && roomId && (
+                            <button
+                                type="button"
+                                className="leave-room-btn"
+                                onClick={handleLeaveRoom}
+                                disabled={leaving}
+                                title="Leave this room (your work is saved)"
+                                aria-label={`Leave room ${sessionName || roomId}`}
+                            >
+                                <LogOut size={14} aria-hidden="true" />
+                                {leaving ? 'Leaving…' : 'Leave'}
+                            </button>
+                        )}
                     </div>
                     <div className="editor-content">
                         {activeTab ? (
