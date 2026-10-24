@@ -150,7 +150,7 @@ function Screen({ children }: { children: React.ReactNode }) {
 function Lobby({ info, offsetMs, onBack, children }: { info: ResolveResponse; offsetMs: number; onBack: () => void; children: React.ReactNode }) {
     const { contest } = info;
     return (
-        <div className="min-h-[100dvh] w-full bg-[#0a0a0c] text-white overflow-y-auto">
+        <div className="h-[100dvh] w-full bg-[#0a0a0c] text-white overflow-y-auto">
             <div className="max-w-2xl mx-auto px-6 py-10">
                 <button onClick={onBack} className="mb-8 flex items-center gap-2 text-white/50 hover:text-white text-sm"><ArrowLeft size={16} /> Contests</button>
                 <div className="bg-white/[0.04] border border-white/10 rounded-3xl p-8 shadow-2xl">

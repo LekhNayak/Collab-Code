@@ -26,7 +26,7 @@ export default function ExamEntry() {
     };
 
     return (
-        <div className="min-h-[100dvh] bg-black text-white flex flex-col items-center justify-center p-4 md:p-8 font-sans relative overflow-hidden">
+        <div className="h-[100dvh] w-full bg-black text-white font-sans relative overflow-hidden">
             <LiquidEther className="absolute inset-0 z-0 opacity-100" />
 
             <div className="absolute top-6 left-6 z-20">
@@ -39,7 +39,8 @@ export default function ExamEntry() {
                 </button>
             </div>
 
-            <div className="max-w-lg w-full relative z-10 mt-12 md:mt-0">
+            <div className="absolute inset-0 z-10 overflow-x-hidden overflow-y-auto flex flex-col items-center p-4 md:p-8">
+            <div className="max-w-lg w-full relative my-auto pt-12 md:pt-0">
                 <motion.div
                     className="text-center mb-8"
                     initial={{ opacity: 0, y: -16 }}
@@ -117,6 +118,7 @@ export default function ExamEntry() {
                         </button>
                     </form>
                 </motion.div>
+            </div>
             </div>
         </div>
     );

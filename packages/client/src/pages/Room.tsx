@@ -138,7 +138,7 @@ export default function RoomPage() {
     };
 
     return (
-        <div className="min-h-[100dvh] bg-black text-white flex flex-col items-center justify-center p-4 md:p-8 font-sans relative overflow-x-hidden overflow-y-auto">
+        <div className="h-[100dvh] w-full bg-black text-white font-sans relative overflow-hidden">
             <LiquidEther className="absolute inset-0 z-0 opacity-100" />
 
             {/* Back button */}
@@ -152,7 +152,8 @@ export default function RoomPage() {
                 </button>
             </div>
 
-            <div className="max-w-3xl w-full relative z-10 flex flex-col gap-8 mt-12 md:mt-4">
+            <div className="absolute inset-0 z-10 overflow-x-hidden overflow-y-auto flex flex-col items-center p-4 md:p-6">
+            <div className="max-w-3xl w-full relative flex flex-col gap-6 my-auto pt-14 md:pt-6">
                 {/* Header */}
                 <motion.div
                     className="text-center"
@@ -161,14 +162,14 @@ export default function RoomPage() {
                     transition={{ duration: 0.55, ease: [0.34, 1.56, 0.64, 1] }}
                 >
                     <motion.div
-                        className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-[0_0_40px_rgba(99,102,241,0.35)] mx-auto mb-5"
+                        className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-[0_0_40px_rgba(99,102,241,0.35)] mx-auto mb-4"
                         initial={{ scale: 0.5, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ delay: 0.1, duration: 0.5, type: 'spring', stiffness: 200 }}
                     >
                         <Code2 size={32} className="text-white" />
                     </motion.div>
-                    <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white mb-3">
+                    <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white mb-2">
                         Collaboration Hub
                     </h1>
                     <p className="font-medium text-white/50 text-base">
@@ -307,9 +308,15 @@ export default function RoomPage() {
 
                             {/* Previous Sessions */}
                             {sessions.length > 0 && (
-                                <motion.div variants={staggerItem} className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-2xl mt-2">
+                                // Mounts after sessions load, when the parent stagger has already run, so it animates itself
+                                <motion.div
+                                    initial={{ opacity: 0, y: 16 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
+                                    className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-2xl"
+                                >
                                     <button
-                                        className="w-full flex items-center justify-between mb-4 group"
+                                        className={`w-full flex items-center justify-between group ${showSessions ? 'mb-4' : ''}`}
                                         onClick={() => setShowSessions(!showSessions)}
                                     >
                                         <div className="flex items-center gap-3">
@@ -375,6 +382,7 @@ export default function RoomPage() {
                         </motion.div>
                     )}
                 </AnimatePresence>
+            </div>
             </div>
         </div>
     );
