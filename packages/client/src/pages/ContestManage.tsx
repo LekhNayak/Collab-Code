@@ -464,7 +464,7 @@ function ProblemEditor({ contest, problem, judge, busy, act, onError, refresh }:
                     ))}
                 </div>
                 <span className="text-xs text-white/40">
-                    {isSql ? 'Participants write one SQLite query; each test is a dataset.' : 'Participants write a program that reads stdin and prints the answer.'}
+                    {isSql ? 'Participants write one SQL query (SQLite with common MySQL functions); each test is a dataset.' : 'Participants write a program that reads stdin and prints the answer.'}
                 </span>
             </div>
 
@@ -544,6 +544,11 @@ function ProblemEditor({ contest, problem, judge, busy, act, onError, refresh }:
                             />
                         </div>
                     </div>
+                    <p className="text-xs text-white/40">
+                        The schema can be written in SQLite or MySQL syntax: <code>AUTO_INCREMENT</code>, <code>ENUM(...)</code>, <code>ENGINE=…</code>,{' '}
+                        <code>KEY idx (...)</code> and <code>SET NAMES</code> lines are converted. Queries run on SQLite with common MySQL functions
+                        (<code>DATE_FORMAT</code>, <code>DATEDIFF</code>, <code>LEFT</code>, <code>IF</code>, <code>REGEXP</code>, …).
+                    </p>
                     <label className="flex items-center gap-2 text-sm cursor-pointer w-fit">
                         <input type="checkbox" checked={orderMatters} onChange={e => setOrderMatters(e.target.checked)} className="accent-sky-500 w-4 h-4" />
                         Row order matters <span className="text-white/40 text-xs">(when the statement asks for an ORDER BY)</span>

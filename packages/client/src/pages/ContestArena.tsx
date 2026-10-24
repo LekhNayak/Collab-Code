@@ -474,7 +474,7 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                                     <span className="px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/25 text-amber-200 font-semibold">{problem.points} points</span>
                                     <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60">Time limit {problem.timeLimitMs / 1000}s</span>
                                     {problem.memoryLimitMb && !isSql && <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60">Memory {problem.memoryLimitMb} MB</span>}
-                                    {isSql && <span className="px-2 py-1 rounded-md bg-sky-500/10 border border-sky-500/25 text-sky-200 font-semibold flex items-center gap-1"><Database size={12} /> SQL · SQLite</span>}
+                                    {isSql && <span className="px-2 py-1 rounded-md bg-sky-500/10 border border-sky-500/25 text-sky-200 font-semibold flex items-center gap-1"><Database size={12} /> SQL · SQLite + MySQL functions</span>}
                                     {isSql && <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60">{problem.orderMatters ? 'Row order matters' : 'Rows in any order'}</span>}
                                     <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60">{problem.testCount} test cases</span>
                                 </div>
@@ -482,6 +482,7 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                                 {isSql ? (
                                     <>
                                         {problem.sqlSchema && <div className="mt-5"><SampleBlock title="Schema" text={problem.sqlSchema} /></div>}
+                                        <SqlDialectNotes />
                                         {problem.samples.map((sample, i) => <SqlSample key={i} index={i} sample={sample} />)}
                                     </>
                                 ) : problem.samples.map((sample, i) => (
@@ -499,7 +500,10 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                 <section className="flex-1 min-h-0 flex flex-col">
                     <div className="h-12 shrink-0 border-b border-white/10 flex items-center gap-2 px-3">
                         {isSql ? (
-                            <span className="px-2.5 py-1.5 rounded-lg border border-sky-500/25 bg-sky-500/10 text-sky-200 text-sm font-semibold flex items-center gap-1.5">
+                            <span
+                                className="px-2.5 py-1.5 rounded-lg border border-sky-500/25 bg-sky-500/10 text-sky-200 text-sm font-semibold flex items-center gap-1.5"
+                                title="SQLite, with common MySQL functions added (see SQL dialect notes under the schema)"
+                            >
                                 <Database size={14} /> SQL · SQLite
                             </span>
                         ) : (
@@ -664,6 +668,45 @@ function SqlSample({ index, sample }: { index: number; sample: ParticipantProble
                 <div className="mt-2"><SampleBlock title="INSERT statements" text={sample.input} /></div>
             </details>
         </div>
+    );
+}
+
+// What participants can write: SQLite plus the MySQL functions the server adds (server/.../mysqlCompat.ts)
+function SqlDialectNotes() {
+    const code = 'font-mono text-sky-200/90';
+    return (
+        <details className="mt-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/60">
+            <summary className="cursor-pointer text-white/70 hover:text-white font-semibold">SQL dialect notes</summary>
+            <div className="mt-2 space-y-2 leading-relaxed">
+                <p>Queries run on <b className="text-white/80">SQLite</b>, with common <b className="text-white/80">MySQL</b> functions added, so most MySQL queries work as written.</p>
+                <ul className="list-disc pl-4 space-y-1">
+                    <li>
+                        <b className="text-white/75">Works:</b> joins, <span className={code}>GROUP BY</span> / <span className={code}>HAVING</span>, subqueries,{' '}
+                        <span className={code}>WITH</span>, window functions (<span className={code}>RANK</span>, <span className={code}>LAG</span>, …),{' '}
+                        <span className={code}>LIMIT a, b</span>, <span className={code}>IF</span>, <span className={code}>IFNULL</span>, <span className={code}>CASE</span>,{' '}
+                        <span className={code}>GROUP_CONCAT(x ORDER BY y)</span>, backtick names.
+                    </li>
+                    <li>
+                        <b className="text-white/75">MySQL functions:</b>{' '}
+                        <span className={code}>CONCAT LEFT RIGHT LPAD RPAD LOCATE SUBSTRING_INDEX CHAR_LENGTH UCASE LCASE REPEAT REVERSE</span>,{' '}
+                        <span className={code}>MOD TRUNCATE CEILING POW GREATEST LEAST</span>,{' '}
+                        <span className={code}>NOW CURDATE YEAR MONTH DAY HOUR DAYNAME MONTHNAME QUARTER WEEKDAY DAYOFWEEK LAST_DAY DATEDIFF DATE_FORMAT ADDDATE SUBDATE</span>,{' '}
+                        <span className={code}>REGEXP</span>, <span className={code}>REGEXP_LIKE</span>, <span className={code}>REGEXP_REPLACE</span>, <span className={code}>FROM DUAL</span>.
+                    </li>
+                    <li>
+                        <b className="text-white/75">Different from MySQL:</b> <span className={code}>5 / 2</span> is <span className={code}>2</span> (whole-number division; write{' '}
+                        <span className={code}>5 * 1.0 / 2</span>). Text <span className={code}>=</span> is case-sensitive (<span className={code}>LIKE</span> and{' '}
+                        <span className={code}>REGEXP</span> are not).
+                    </li>
+                    <li>
+                        <b className="text-white/75">Not supported:</b> <span className={code}>INTERVAL</span> (use <span className={code}>ADDDATE(d, 7)</span> or{' '}
+                        <span className={code}>date(d, '+7 day')</span>), <span className={code}>GROUP_CONCAT(x SEPARATOR ';')</span> (use{' '}
+                        <span className={code}>GROUP_CONCAT(x, ';')</span>), <span className={code}>DIV</span>, <span className={code}>&lt;=&gt;</span> (use{' '}
+                        <span className={code}>IS</span>), <span className={code}>@variables</span>.
+                    </li>
+                </ul>
+            </div>
+        </details>
     );
 }
 

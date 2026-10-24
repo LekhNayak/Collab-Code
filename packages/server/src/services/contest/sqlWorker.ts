@@ -7,6 +7,7 @@ import initSqlJs from 'sql.js';
 import type { Database, SqlJsStatic, SqlValue as RawValue, Statement } from 'sql.js';
 import type { SqlJob, SqlJobResult, SqlRun, NamedSqlTable } from './sqlRunner';
 import type { SqlTable, SqlValue } from './verdict';
+import { registerMysqlFunctions, mysqlSchemaToSqlite } from './mysqlCompat';
 
 const PAGE_SIZE = 4096;
 // SQLite reports running into the caps below with these messages
@@ -22,11 +23,12 @@ const toValue = (value: RawValue): SqlValue =>
     value instanceof Uint8Array ? `X'${Buffer.from(value).toString('hex').toUpperCase()}'` : value;
 
 // Caps SQLite's heap and the database size (pages), so a hostile query fails fast instead of growing
-// the worker's memory. Half of the budget goes to the database itself.
+// the worker's memory. Half of the budget goes to the database itself. Common MySQL functions are added.
 function openDatabase(SQL: SqlJsStatic, memoryLimitMb: number): Database {
     const db = new SQL.Database();
     const bytes = memoryLimitMb * 1024 * 1024;
     db.exec(`PRAGMA hard_heap_limit = ${bytes}; PRAGMA max_page_count = ${Math.floor(bytes / 2 / PAGE_SIZE)}; PRAGMA temp_store = MEMORY;`);
+    registerMysqlFunctions(db);
     return db;
 }
 
@@ -82,8 +84,8 @@ function failure(err: unknown, timeMs: number | null): SqlRun {
 function handle(SQL: SqlJsStatic, job: SqlJob): Omit<SqlJobResult, 'id' | 'external'> {
     const db = openDatabase(SQL, job.memoryLimitMb);
     try {
-        // The organizer's schema and the test's data load first; their time isn't the query's
-        for (const [label, sql] of [['Schema', job.schema], ['Data', job.data]] as const) {
+        // The organizer's schema (MySQL DDL allowed) and the test's data load first; their time isn't the query's
+        for (const [label, sql] of [['Schema', mysqlSchemaToSqlite(job.schema)], ['Data', job.data]] as const) {
             try {
                 db.exec(sql);
             } catch (err) {
