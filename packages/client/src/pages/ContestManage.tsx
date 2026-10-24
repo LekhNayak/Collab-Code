@@ -119,10 +119,11 @@ export default function ContestManage() {
     }, kind === 'SQL' ? 'SQL problem added' : 'Problem added');
 
     return (
-        <div className="h-[100dvh] w-full bg-[#0a0a0c] text-white overflow-y-auto">
-            <div className="max-w-7xl mx-auto px-5 md:px-8 py-6">
+        // Below xl the page scrolls as one column; from xl up it's a fixed bento where each column scrolls on its own
+        <div className="h-[100dvh] w-full bg-[#0a0a0c] text-white overflow-y-auto xl:overflow-hidden">
+            <div className="max-w-[1920px] mx-auto px-5 md:px-8 py-6 xl:h-full xl:flex xl:flex-col">
                 {/* Header */}
-                <div className="flex flex-wrap items-center gap-4 justify-between mb-6">
+                <div className="flex flex-wrap items-center gap-4 justify-between mb-6 shrink-0">
                     <div className="flex items-center gap-4 min-w-0">
                         <button onClick={() => navigate('/contests')} className="p-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10" title="All contests">
                             <ArrowLeft size={18} />
@@ -176,10 +177,10 @@ export default function ContestManage() {
                     </div>
                 </div>
 
-                {error && <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-200 flex justify-between">{error}<button onClick={() => setError('')}><X size={16} /></button></div>}
+                {error && <div className="mb-4 shrink-0 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-200 flex justify-between">{error}<button onClick={() => setError('')}><X size={16} /></button></div>}
 
                 {judge?.backend === 'wandbox' && problems.some(p => p.kind !== 'SQL') && (
-                    <div className="mb-5 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] px-4 py-3 text-amber-100/90 text-sm flex gap-3">
+                    <div className="mb-5 shrink-0 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] px-4 py-3 text-amber-100/90 text-sm flex gap-3">
                         <AlertTriangle size={18} className="shrink-0 mt-0.5 text-amber-300" />
                         <div>
                             Judging runs on the free Wandbox API: about 9 test runs per minute for the whole server, and time limits are approximate
@@ -189,8 +190,11 @@ export default function ContestManage() {
                     </div>
                 )}
 
+                <div className="grid grid-cols-1 xl:grid-cols-[400px_minmax(0,1fr)] gap-6 xl:flex-1 xl:min-h-0">
+                {/* Left column: schedule + settings */}
+                <div className="flex flex-col gap-6 xl:min-h-0 xl:overflow-y-auto xl:pr-1 [scrollbar-width:thin]">
                 {/* Schedule */}
-                <div className={`${cardClass} p-5 mb-6`}>
+                <div className={`${cardClass} p-5 shrink-0`}>
                     <div className="flex flex-wrap items-center gap-x-8 gap-y-4 justify-between">
                         <div className="flex items-center gap-3">
                             <Clock size={20} className="text-white/40" />
@@ -256,11 +260,12 @@ export default function ContestManage() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 xl:grid-cols-[340px_1fr] gap-6">
                     <SettingsCard key={contest.id} contest={contest} judge={judge} busy={busy} onSave={settings => act(() => contestApi.update(contest.id, settings), 'Settings saved')} />
+                </div>
 
-                    <div className={`${cardClass} p-5`}>
-                        <div className="flex items-center justify-between mb-4">
+                    {/* Right column: problems + tests, header fixed and the editor scrolling under it */}
+                    <div className={`${cardClass} flex flex-col xl:min-h-0`}>
+                        <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5 pb-4 shrink-0">
                             <h2 className="text-lg font-bold">Problems</h2>
                             <div className="flex flex-wrap gap-2">
                                 <button
@@ -277,10 +282,10 @@ export default function ContestManage() {
                             </div>
                         </div>
                         {problems.length === 0 ? (
-                            <div className="text-white/40 text-sm py-10 text-center">No problems yet. Add one to start writing its statement and test cases.</div>
+                            <div className="text-white/40 text-sm py-10 text-center px-5">No problems yet. Add one to start writing its statement and test cases.</div>
                         ) : (
                             <>
-                                <div className="flex flex-wrap gap-2 mb-5">
+                                <div className="flex flex-wrap gap-2 px-5 pb-4 border-b border-white/10 shrink-0">
                                     {problems.map(p => (
                                         <button
                                             key={p.id}
@@ -294,16 +299,18 @@ export default function ContestManage() {
                                     ))}
                                 </div>
                                 {selected && (
-                                    <ProblemEditor
-                                        key={`${selected.id}:${selected.kind}`} // fresh fields after a type change
-                                        contest={contest}
-                                        problem={selected}
-                                        judge={judge}
-                                        busy={busy}
-                                        act={act}
-                                        onError={setError}
-                                        refresh={refresh}
-                                    />
+                                    <div className="p-5 xl:flex-1 xl:min-h-0 xl:overflow-y-auto [scrollbar-width:thin]">
+                                        <ProblemEditor
+                                            key={`${selected.id}:${selected.kind}`} // fresh fields after a type change
+                                            contest={contest}
+                                            problem={selected}
+                                            judge={judge}
+                                            busy={busy}
+                                            act={act}
+                                            onError={setError}
+                                            refresh={refresh}
+                                        />
+                                    </div>
                                 )}
                             </>
                         )}
