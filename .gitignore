@@ -3,3 +3,4 @@
 /sessions
 postgres_data/
 .env
+/brag-output
