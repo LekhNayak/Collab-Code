@@ -9,6 +9,8 @@ import ExamEntry from './pages/ExamEntry';
 import ImportProject from './pages/ImportProject';
 import { DialogProvider } from './contexts/DialogContext';
 import { ToastProvider } from './contexts/ToastContext';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { MotionConfig } from 'framer-motion';
 
 // The editor pages pull in Monaco (several MB), so they load on demand
 const IDELayout = lazy(() => import('./components/IDELayout'));
@@ -25,6 +27,8 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
   return (
+    <ThemeProvider>
+    <MotionConfig reducedMotion="user">
       <ToastProvider>
       <DialogProvider>
       <Router>
@@ -88,6 +92,8 @@ function App() {
       </Router>
       </DialogProvider>
       </ToastProvider>
+    </MotionConfig>
+    </ThemeProvider>
   );
 }
 

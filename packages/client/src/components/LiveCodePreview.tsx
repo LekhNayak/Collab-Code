@@ -5,7 +5,8 @@ import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { MonacoBinding } from '../collab/monacoBinding';
 import { getLanguageFromFilename } from './Editor';
-import { MONACO_THEME } from '../monacoSetup';
+import { monacoThemeFor } from '../monacoSetup';
+import { useTheme } from '../contexts/theme';
 import { WS_BASE } from '../config';
 
 interface LiveCodePreviewProps {
@@ -20,6 +21,7 @@ interface LiveCodePreviewProps {
 // Read-only, live view of another user's code, following whichever file they have open
 // (their editor publishes `activeFile` through Yjs awareness). Used by the exam and contest monitors.
 export default function LiveCodePreview({ roomName, params, followUserId, onConnectedChange, onViewingFileChange, fontSize = 12 }: LiveCodePreviewProps) {
+    const { theme: appTheme } = useTheme();
     const cleanupRef = useRef<(() => void) | null>(null);
     const callbacks = useRef({ onConnectedChange, onViewingFileChange });
     useEffect(() => {
@@ -88,7 +90,7 @@ export default function LiveCodePreview({ roomName, params, followUserId, onConn
     return (
         <Editor
             height="100%"
-            theme={MONACO_THEME}
+            theme={monacoThemeFor(appTheme)}
             keepCurrentModel
             onMount={handleMount}
             options={{

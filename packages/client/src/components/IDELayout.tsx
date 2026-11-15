@@ -7,7 +7,6 @@ import {
     Files,
     Search,
     GitBranch,
-    Settings,
     PanelBottomOpen,
     PanelBottomClose,
     Users,
@@ -27,6 +26,7 @@ import {
 } from 'lucide-react';
 import FileExplorer, { type FileNode } from './FileExplorer';
 import IconTile from './ui/IconTile';
+import ThemeToggle from './ThemeToggle';
 import Button from './ui/Button';
 import EditorTabs, { type TabInfo } from './EditorTabs';
 import CodeEditor, { getLanguageFromFilename } from './Editor';
@@ -795,7 +795,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     }
 
     return (
-        <div className="editor-root" data-theme="dark" style={{ width: '100%', height: '100%', position: 'relative' }}>
+        <div className="editor-root" style={{ width: '100%', height: '100%', position: 'relative' }}>
 
             {/* Exam timer bar */}
             {isExamMode && timeLeft && (
@@ -865,9 +865,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                         <Puzzle size={24} />
                     </button>
                     <div className="activity-bar-bottom">
-                        <div className="activity-bar-icon" title="Settings">
-                            <Settings size={24} />
-                        </div>
+                        <ThemeToggle variant="bare" className="activity-bar-icon" />
                     </div>
                 </div>
 

@@ -1,3 +1,4 @@
+import ThemeToggle from '../components/ThemeToggle';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -122,7 +123,8 @@ export default function ContestMonitor() {
                             </div>
                         </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <ThemeToggle />
                         <button onClick={() => navigate(`/contests/${contest.id}/manage`)} className={`${buttonClass} bg-tint-2 hover:bg-tint-3`}><Settings2 size={16} /> Manage</button>
                         <button onClick={() => act(load)} disabled={busy} className={`${buttonClass} bg-tint-2 hover:bg-tint-3`} title="Refresh now"><RefreshCw size={16} /></button>
                         {(contest.phase === 'DRAFT' || contest.phase === 'SCHEDULED') && (

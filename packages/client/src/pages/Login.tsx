@@ -6,6 +6,7 @@ import Button from '../components/ui/Button';
 import Field from '../components/ui/Field';
 import Card from '../components/ui/Card';
 import Wordmark from '../components/ui/Wordmark';
+import ThemeToggle from '../components/ThemeToggle';
 import { API_BASE } from '../config';
 
 const Login: React.FC = () => {
@@ -56,9 +57,11 @@ const Login: React.FC = () => {
     };
 
     return (
-        <div className="flex h-[100dvh] w-full flex-col items-center justify-center overflow-y-auto bg-canvas p-6 font-sans">
+        <div className="relative flex h-[100dvh] w-full flex-col items-center justify-center overflow-y-auto bg-canvas p-6 font-sans">
+            <div aria-hidden className="ground-dots pointer-events-none absolute inset-x-0 top-0 h-[360px]" />
+            <div className="absolute right-4 top-4 z-10"><ThemeToggle /></div>
             <motion.div
-                className="w-full max-w-[400px]"
+                className="relative w-full max-w-[400px]"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}

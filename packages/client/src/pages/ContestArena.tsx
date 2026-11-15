@@ -5,6 +5,7 @@ import {
     ArrowLeft, Ban, CheckCircle2, Clock, Copy, Loader2, LogIn, Play, Send, Trophy, X, Lock, FlaskConical, ListChecks, Database,
 } from 'lucide-react';
 import CodeEditor from '../components/Editor';
+import ThemeToggle from '../components/ThemeToggle';
 import Markdown from '../components/contest/Markdown';
 import Countdown from '../components/contest/Countdown';
 import Leaderboard from '../components/contest/Leaderboard';
@@ -440,6 +441,7 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                 <div className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-tint-2 tabular-nums">
                     {formatScore(totalScore)} <span className="text-fg-3">/ {maxScore}</span>
                 </div>
+                <ThemeToggle />
                 <button onClick={() => setShowBoard(true)} className={`${panelButton} bg-accent/15  text-accent-text hover:bg-accent/25`}>
                     <ListChecks size={16} /> Leaderboard
                 </button>

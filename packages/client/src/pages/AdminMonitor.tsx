@@ -8,6 +8,7 @@ import {
     ShieldAlert, Terminal, ArrowLeft, Filter, UserPlus, MonitorOff,
     AppWindow, Ban, CheckCircle, UserX, Users, RefreshCw, ChevronDown
 } from 'lucide-react';
+import ThemeToggle from '../components/ThemeToggle';
 import { buttonClass } from '../components/ui/buttonStyles';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -239,6 +240,7 @@ export default function AdminMonitor() {
                     >
                         <RefreshCw size={16} />
                     </button>
+                    <ThemeToggle />
                 </motion.div>
 
                 {/* Stats Row */}

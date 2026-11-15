@@ -5,10 +5,10 @@ export type Size = 'sm' | 'md' | 'lg';
 
 // A filled button keeps its own color under the pointer (one step lighter); it never swaps to gray.
 const VARIANTS: Record<Variant, string> = {
-    primary: 'bg-accent-solid text-white hover:bg-accent',
-    danger: 'bg-danger-solid text-white hover:bg-danger',
-    success: 'bg-success-solid text-white hover:bg-success',
-    secondary: 'bg-tint-2 text-fg shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.10)] hover:bg-tint-3',
+    primary: 'bg-accent-solid text-white shadow-[var(--button-light),0_1px_2px_rgb(0_0_0_/_0.25)] hover:bg-accent',
+    danger: 'bg-danger-solid text-white shadow-[var(--button-light),0_1px_2px_rgb(0_0_0_/_0.25)] hover:bg-danger',
+    success: 'bg-success-solid text-white shadow-[var(--button-light),0_1px_2px_rgb(0_0_0_/_0.25)] hover:bg-success',
+    secondary: 'bg-tint-2 text-fg shadow-[inset_0_0_0_1px_rgb(var(--ink)_/_0.10)] hover:bg-tint-3',
     ghost: 'text-fg-2 hover:bg-tint-2 hover:text-fg',
 };
 
@@ -19,5 +19,5 @@ const SIZES: Record<Size, string> = {
 };
 
 export function buttonClass(variant: Variant = 'secondary', size: Size = 'md', extra = '') {
-    return `inline-flex shrink-0 select-none items-center justify-center whitespace-nowrap rounded-lg font-medium transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50 ${VARIANTS[variant]} ${SIZES[size]} ${extra}`.trim();
+    return `inline-flex shrink-0 select-none items-center justify-center whitespace-nowrap rounded-lg font-medium transition-[color,background-color,transform,box-shadow] duration-150 ease-arrive active:translate-y-px active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 ${VARIANTS[variant]} ${SIZES[size]} ${extra}`.trim();
 }

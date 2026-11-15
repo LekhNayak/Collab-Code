@@ -299,7 +299,7 @@ export const PHASE_LABEL: Record<Phase, string> = {
 export const PHASE_STYLE: Record<Phase, string> = {
     DRAFT: QUIET,
     SCHEDULED: 'text-accent-text bg-accent/15',
-    LIVE: OK,
+    LIVE: `${OK} phase-live`,
     ENDED: 'text-fg-3 bg-tint-1',
 };
 

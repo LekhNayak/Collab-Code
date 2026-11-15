@@ -12,8 +12,8 @@ export default function Field({ label, hint, error, icon, className = '', id, ..
     const autoId = useId();
     const inputId = id ?? autoId;
     return (
-        <div className="flex w-full flex-col gap-1.5">
-            {label && <label htmlFor={inputId} className="ui-label">{label}</label>}
+        <div className="group/field flex w-full flex-col gap-1.5">
+            {label && <label htmlFor={inputId} className="ui-label group-focus-within/field:text-accent-text">{label}</label>}
             <div className="relative">
                 {icon && <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-3">{icon}</span>}
                 <input

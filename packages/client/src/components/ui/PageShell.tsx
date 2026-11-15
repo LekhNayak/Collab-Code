@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Button from './Button';
+import ThemeToggle from '../ThemeToggle';
 
 interface PageShellProps {
     title: string;
@@ -24,16 +25,17 @@ const WIDTH = { sm: 'max-w-md', md: 'max-w-2xl', lg: 'max-w-4xl', xl: 'max-w-6xl
 export default function PageShell({ title, subtitle, backTo, backLabel = 'Back', actions, width = 'md', centered = false, children }: PageShellProps) {
     const navigate = useNavigate();
     return (
-        <div className="flex h-[100dvh] w-full flex-col overflow-y-auto overflow-x-hidden bg-canvas font-sans text-fg">
+        <div className="relative flex h-[100dvh] w-full flex-col overflow-y-auto overflow-x-hidden bg-canvas font-sans text-fg">
+            <div aria-hidden className="ground-dots pointer-events-none absolute inset-x-0 top-0 h-[360px]" />
             <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b border-line bg-canvas/90 px-4 backdrop-blur-md sm:px-6">
                 {backTo ? (
                     <Button variant="ghost" size="sm" onClick={() => (typeof backTo === 'number' ? navigate(backTo) : navigate(backTo))} icon={<ArrowLeft size={15} />}>
                         {backLabel}
                     </Button>
                 ) : <span />}
-                {actions && <div className="flex items-center gap-2">{actions}</div>}
+                <div className="flex items-center gap-2">{actions}<ThemeToggle /></div>
             </header>
-            <main className={`mx-auto w-full flex-1 px-4 pb-16 pt-10 sm:px-6 ${WIDTH[width]}`}>
+            <main className={`animate-arrive relative mx-auto w-full flex-1 px-4 pb-16 pt-10 sm:px-6 ${WIDTH[width]}`}>
                 <div className={`mb-8 ${centered ? 'text-center' : ''}`}>
                     <h1 className="text-2xl font-semibold tracking-tight text-fg">{title}</h1>
                     {subtitle && <p className="mt-1.5 text-sm leading-relaxed text-fg-2">{subtitle}</p>}

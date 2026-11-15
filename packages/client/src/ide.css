@@ -222,7 +222,7 @@
 
 .activity-bar-icon:hover {
     color: var(--text-bright);
-    background: rgba(255, 255, 255, 0.05);
+    background: rgb(var(--ink) / 0.05);
     /* Subtle highlight like VS Code */
 }
 
@@ -230,15 +230,33 @@
     color: var(--text-bright);
 }
 
-.activity-bar-icon.active::before {
+.activity-bar-icon::before {
     content: '';
     position: absolute;
     left: 0;
-    top: 6px;
-    bottom: 6px;
+    top: 12px;
+    bottom: 12px;
     width: 2px;
-    background: var(--text-bright);
+    background: var(--accent-primary);
     border-radius: 0 2px 2px 0;
+    transform: scaleY(0);
+    transition: transform var(--transition-normal);
+}
+
+.activity-bar-icon.active::before {
+    transform: scaleY(1);
+}
+
+.activity-bar-icon > svg {
+    transition: transform var(--transition-fast);
+}
+
+.activity-bar-icon:hover > svg {
+    transform: scale(1.08);
+}
+
+.activity-bar-icon:active > svg {
+    transform: scale(0.94);
 }
 
 .activity-bar-bottom {
@@ -436,7 +454,7 @@
     border-radius: 6px;
     padding: 4px 0;
     min-width: 160px;
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 4px 16px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-float);
 }
 
 .file-context-menu button {
@@ -463,7 +481,7 @@
 }
 
 .file-context-menu button.context-menu-danger:hover {
-    background: rgba(255, 80, 80, 0.1);
+    background: color-mix(in srgb, var(--accent-error) 12%, transparent);
 }
 
 .context-menu-divider {
@@ -789,7 +807,7 @@
 }
 
 .panel-terminal-tab-close:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgb(var(--ink) / 0.1);
     color: var(--text-bright);
 }
 
@@ -1916,7 +1934,7 @@
     border-radius: 6px;
     padding: 4px;
     min-width: 155px;
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 4px 16px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-float);
     animation: fadeInDown 0.12s ease;
 }
 

@@ -18,17 +18,17 @@ export default {
         fg: { DEFAULT: rgb('fg'), 2: rgb('fg-2'), 3: rgb('fg-3') },
         // Translucent fills for hover, selected and quiet placeholder shapes
         tint: {
-          1: 'rgb(255 255 255 / 0.05)',
-          2: 'rgb(255 255 255 / 0.07)',
-          3: 'rgb(255 255 255 / 0.10)',
-          4: 'rgb(255 255 255 / 0.13)',
-          5: 'rgb(255 255 255 / 0.20)',
+          1: 'rgb(var(--ink) / 0.05)',
+          2: 'rgb(var(--ink) / 0.07)',
+          3: 'rgb(var(--ink) / 0.10)',
+          4: 'rgb(var(--ink) / 0.13)',
+          5: 'rgb(var(--ink) / 0.20)',
         },
         // Hairlines
         line: {
-          DEFAULT: 'rgb(255 255 255 / 0.08)',
-          faint: 'rgb(255 255 255 / 0.05)',
-          strong: 'rgb(255 255 255 / 0.16)',
+          DEFAULT: 'rgb(var(--ink) / 0.08)',
+          faint: 'rgb(var(--ink) / 0.05)',
+          strong: 'rgb(var(--ink) / 0.16)',
         },
         // One accent. `solid` carries white text (a filled button); the base is for rings and fills.
         accent: {
@@ -62,13 +62,15 @@ export default {
         mono: ['"Cascadia Code"', '"SF Mono"', 'ui-monospace', 'Consolas', 'monospace'],
       },
       boxShadow: {
-        // On dark, depth is mostly a lighter surface; shadows only separate floating things
-        card: '0 1px 2px rgb(0 0 0 / 0.25)',
-        float: '0 0 0 1px rgb(255 255 255 / 0.10), 0 4px 16px rgb(0 0 0 / 0.4), 0 12px 32px rgb(0 0 0 / 0.3)',
-        lift: '0 0 0 1px rgb(255 255 255 / 0.10), 0 12px 28px -6px rgb(0 0 0 / 0.6)',
+        // Depth is a lighter surface on dark and a whisper of shadow on light; both come from tokens
+        card: 'var(--shadow-card)',
+        float: 'var(--shadow-float)',
+        lift: 'var(--shadow-lift)',
       },
       transitionTimingFunction: {
-        out: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        // Arrival from nowhere, and travel; the only two curves besides linear
+        arrive: 'cubic-bezier(0.25, 0.8, 0.25, 1)',
+        travel: 'cubic-bezier(0.45, 0, 0.1, 1)',
       },
     },
   },

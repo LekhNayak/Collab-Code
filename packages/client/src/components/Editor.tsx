@@ -5,7 +5,8 @@ import type * as Y from 'yjs';
 import type { WebsocketProvider } from 'y-websocket';
 import { sendExamAlert } from '../api';
 import { MonacoBinding } from '../collab/monacoBinding';
-import { MONACO_THEME } from '../monacoSetup';
+import { monacoThemeFor } from '../monacoSetup';
+import { useTheme } from '../contexts/theme';
 
 interface CodeEditorProps {
     path: string;                  // active file
@@ -76,6 +77,7 @@ export default function CodeEditor({
     onCursorChange,
     onAlert,
 }: CodeEditorProps) {
+    const { theme: appTheme } = useTheme();
     const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
     const monacoRef = useRef<typeof Monaco | null>(null);
     const [ready, setReady] = useState(false);
@@ -266,7 +268,7 @@ export default function CodeEditor({
     return (
         <Editor
             height="100%"
-            theme={MONACO_THEME}
+            theme={monacoThemeFor(appTheme)}
             keepCurrentModel
             onMount={handleMount}
             loading={

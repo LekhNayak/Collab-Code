@@ -4,6 +4,7 @@ import {
     ArrowLeft, Activity, CalendarClock, Copy, Eye, FileUp, Pencil, Play, Plus, RefreshCw, Save, Square,
     Trash2, Trophy, X, AlertTriangle, Clock, FolderUp, Code2, Database,
 } from 'lucide-react';
+import ThemeToggle from '../components/ThemeToggle';
 import Markdown from '../components/contest/Markdown';
 import ResultTable from '../components/contest/ResultTable';
 import {
@@ -145,6 +146,7 @@ export default function ContestManage() {
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                        <ThemeToggle />
                         <button onClick={() => navigate(`/c/${contest.code}`)} className={`${buttonClass} bg-tint-2 hover:bg-tint-3`} title="Open the contest as a participant would see it (your submissions don't count)">
                             <Eye size={16} /> Try it
                         </button>

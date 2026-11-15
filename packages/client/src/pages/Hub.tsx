@@ -8,6 +8,8 @@ import { motion } from 'framer-motion';
 import GitHubOnboarding from '../components/GitHubOnboarding';
 import Button from '../components/ui/Button';
 import Wordmark from '../components/ui/Wordmark';
+import PresenceDemo from '../components/ui/PresenceDemo';
+import ThemeToggle from '../components/ThemeToggle';
 import { getRecent, removeRecent, timeAgo, type RecentItem } from '../recent';
 
 const staggerContainer = {
@@ -76,9 +78,9 @@ function PillarCard({ pillar, onAction }: { pillar: Pillar; onAction: (action: P
     const SecondaryIcon = pillar.secondary.icon;
     return (
         <motion.div variants={staggerItem} className="h-full">
-            <div className="ui-card flex h-full flex-col p-6">
+            <div className="ui-card-interactive group flex h-full cursor-default flex-col p-6">
                 <div className="mb-5 flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent-text">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent-text transition-colors duration-200 group-hover:bg-accent-solid group-hover:text-white">
                         <Icon size={20} />
                     </div>
                     <div className="min-w-0">
@@ -181,9 +183,12 @@ export default function Hub() {
 
     return (
         <>
-        <div className="flex h-[100dvh] w-full flex-col overflow-y-auto overflow-x-hidden bg-canvas font-sans text-fg">
+        <div className="relative flex h-[100dvh] w-full flex-col overflow-y-auto overflow-x-hidden bg-canvas font-sans text-fg">
+            <div aria-hidden className="ground-dots pointer-events-none absolute inset-x-0 top-0 h-[460px]" />
             <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b border-line bg-canvas/90 px-5 backdrop-blur-md sm:px-8">
                 <Wordmark />
+                <div className="flex items-center gap-1">
+                <ThemeToggle />
                 <Button
                     variant="ghost"
                     size="sm"
@@ -194,22 +199,33 @@ export default function Hub() {
                 >
                     Log out
                 </Button>
+                </div>
             </header>
 
-            <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-5 pb-16 pt-14 sm:px-8 md:pt-20">
-                <motion.div
-                    className="mx-auto mb-14 flex max-w-3xl flex-col items-center text-center"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                >
-                    <h1 className="mb-5 text-4xl font-semibold leading-[1.1] tracking-tight text-fg md:text-5xl">
-                        The coding environment,<br /> made fluid at your fingertips.
-                    </h1>
-                    <p className="max-w-2xl text-base leading-relaxed text-fg-2">
-                        Choose your destination. Hop into a collaborative pair programming session, securely take an exam, monitor a live test, or host a coding contest.
-                    </p>
-                </motion.div>
+            <main className="relative mx-auto flex w-full max-w-7xl flex-1 flex-col px-5 pb-16 pt-14 sm:px-8 md:pt-20">
+                <div className="mx-auto mb-16 grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,500px)]">
+                    <motion.div
+                        className="flex flex-col items-center text-center lg:items-start lg:text-left"
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, ease: [0.25, 0.8, 0.25, 1] }}
+                    >
+                        <h1 className="mb-5 text-4xl font-semibold leading-[1.1] tracking-tight text-fg md:text-5xl">
+                            The coding environment, <span className="text-accent-text">made fluid</span> at your fingertips.
+                        </h1>
+                        <p className="max-w-xl text-base leading-relaxed text-fg-2">
+                            Choose your destination. Hop into a collaborative pair programming session, securely take an exam, monitor a live test, or host a coding contest.
+                        </p>
+                    </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.12, ease: [0.25, 0.8, 0.25, 1] }}
+                        className="mx-auto w-full max-w-[500px]"
+                    >
+                        <PresenceDemo />
+                    </motion.div>
+                </div>
 
                 <RecentStrip items={recent} now={now} onOpen={openRecent} onRemove={item => setRecent(removeRecent(item.kind, item.id))} />
 

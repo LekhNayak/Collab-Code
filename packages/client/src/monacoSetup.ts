@@ -23,8 +23,11 @@ self.MonacoEnvironment = {
 loader.config({ monaco });
 
 // The editor surface in the product's own grays: the same canvas, hairlines and blue accent as the chrome around it
-export const MONACO_THEME = 'colab-dark';
-monaco.editor.defineTheme(MONACO_THEME, {
+export const MONACO_DARK = 'colab-dark';
+export const MONACO_LIGHT = 'colab-light';
+export const monacoThemeFor = (theme: 'light' | 'dark') => (theme === 'dark' ? MONACO_DARK : MONACO_LIGHT);
+
+monaco.editor.defineTheme(MONACO_DARK, {
     base: 'vs-dark',
     inherit: true,
     rules: [],
@@ -60,6 +63,45 @@ monaco.editor.defineTheme(MONACO_THEME, {
         'scrollbarSlider.hoverBackground': '#ffffff33',
         'scrollbarSlider.activeBackground': '#ffffff40',
         'minimap.background': '#141416',
+    },
+});
+
+monaco.editor.defineTheme(MONACO_LIGHT, {
+    base: 'vs',
+    inherit: true,
+    rules: [],
+    colors: {
+        'editor.background': '#ffffff',
+        'editor.foreground': '#2a2a2d',
+        'editorLineNumber.foreground': '#b0b0b6',
+        'editorLineNumber.activeForeground': '#55555b',
+        'editor.lineHighlightBackground': '#f6f5f4',
+        'editor.lineHighlightBorder': '#00000000',
+        'editor.selectionBackground': '#bfd4fa',
+        'editor.inactiveSelectionBackground': '#dbe7fd',
+        'editor.selectionHighlightBackground': '#3b82f622',
+        'editor.wordHighlightBackground': '#00000010',
+        'editorCursor.foreground': '#2563eb',
+        'editorIndentGuide.background1': '#0000000f',
+        'editorIndentGuide.activeBackground1': '#00000026',
+        'editorWhitespace.foreground': '#0000001a',
+        'editorBracketMatch.background': '#2563eb22',
+        'editorBracketMatch.border': '#2563eb00',
+        'editorGutter.background': '#ffffff',
+        'editorWidget.background': '#ffffff',
+        'editorWidget.border': '#00000014',
+        'editorSuggestWidget.background': '#ffffff',
+        'editorSuggestWidget.border': '#00000014',
+        'editorSuggestWidget.selectedBackground': '#ecebe9',
+        'editorHoverWidget.background': '#ffffff',
+        'editorHoverWidget.border': '#00000014',
+        'input.background': '#ffffff',
+        'input.border': '#0000001f',
+        'focusBorder': '#2563eb',
+        'scrollbarSlider.background': '#0000001f',
+        'scrollbarSlider.hoverBackground': '#00000033',
+        'scrollbarSlider.activeBackground': '#00000040',
+        'minimap.background': '#ffffff',
     },
 });
 
