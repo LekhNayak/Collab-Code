@@ -9,6 +9,7 @@ import executionRoutes from './routes/execution';
 import sessionRoutes from './routes/sessions';
 import examRoutes from './routes/exam';
 import contestRoutes from './routes/contests';
+import collabRoutes from './routes/collab';
 import { requestLogger } from './middleware/requestLogger';
 import { globalApiLimiter } from './middleware/rateLimiter';
 
@@ -54,6 +55,7 @@ app.use('/execute', requireAuth, executionRoutes);
 app.use('/sessions', requireAuth, sessionRoutes);
 app.use('/exam', requireAuth, examRoutes);
 app.use('/contests', requireAuth, contestRoutes);
+app.use('/collab', requireAuth, collabRoutes);
 
 app.get('/', (req, res) => {
     res.send('Collaborative IDE API Gateway');

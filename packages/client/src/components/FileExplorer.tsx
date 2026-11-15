@@ -89,9 +89,10 @@ export default function FileExplorer({
     }, []);
 
     const startRename = useCallback((node: FileNode) => {
+        if (!onRenameFile) return; // read-only: no rename
         setRenamingPath(node.path);
         setRenameValue(node.name);
-    }, []);
+    }, [onRenameFile]);
 
     // A menu opened from the keyboard takes focus; Esc or Tab puts it back on the row it came from
     useEffect(() => {
@@ -210,7 +211,7 @@ export default function FileExplorer({
                     className="file-context-menu"
                     style={{ top: contextMenu.y, left: contextMenu.x }}
                 >
-                    {contextMenu.node.type === 'folder' && (
+                    {contextMenu.node.type === 'folder' && onCreateFile && (
                         <>
                             <button role="menuitem" onClick={() => {
                                 setInlineCreate({ parentPath: contextMenu.node.path, type: 'file' });
@@ -229,24 +230,28 @@ export default function FileExplorer({
                             <div className="context-menu-divider" />
                         </>
                     )}
-                    <button role="menuitem" onClick={() => {
-                        startRename(contextMenu.node);
-                        setContextMenu(null);
-                    }}>
-                        <Pencil size={13} /> Rename
-                    </button>
+                    {onRenameFile && (
+                        <button role="menuitem" onClick={() => {
+                            startRename(contextMenu.node);
+                            setContextMenu(null);
+                        }}>
+                            <Pencil size={13} /> Rename
+                        </button>
+                    )}
                     <button role="menuitem" onClick={() => {
                         onDownloadFile?.(contextMenu.node.path);
                         setContextMenu(null);
                     }}>
                         <Download size={13} /> Download
                     </button>
-                    <button role="menuitem" className="context-menu-danger" onClick={() => {
-                        onDeleteFile?.(contextMenu.node.path);
-                        setContextMenu(null);
-                    }}>
-                        <Trash2 size={13} /> Delete
-                    </button>
+                    {onDeleteFile && (
+                        <button role="menuitem" className="context-menu-danger" onClick={() => {
+                            onDeleteFile(contextMenu.node.path);
+                            setContextMenu(null);
+                        }}>
+                            <Trash2 size={13} /> Delete
+                        </button>
+                    )}
                 </div>
             )}
         </div>

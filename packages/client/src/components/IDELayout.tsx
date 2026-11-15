@@ -23,6 +23,7 @@ import {
     LogOut,
     Lock,
     ShieldOff,
+    MessageSquare,
 } from 'lucide-react';
 import FileExplorer, { type FileNode } from './FileExplorer';
 import IconTile from './ui/IconTile';
@@ -35,6 +36,12 @@ import Terminal from './Terminal';
 import GitPanel from './GitPanel';
 import ExtensionPanel from './ExtensionPanel';
 import UserPresence from './UserPresence';
+import RoomGate from './RoomGate';
+import RoomMembers from './RoomMembers';
+import CommentsPanel from './CommentsPanel';
+import { useRoomAccess } from '../collab/useRoomAccess';
+import { ROLE_LABEL } from '../roomApi';
+import { useDialog } from '../contexts/dialog';
 import { useCollabWorkspace, useDirtyPaths, openCollabFile } from '../collab/useCollabWorkspace';
 import { getTokenUser } from '../auth';
 import { recordRecent } from '../recent';
@@ -44,7 +51,7 @@ import ProctoringOverlay from './ProctoringOverlay';
 import { getFileTree, readFile, flushWorkspace, initWorkspace, createFile as apiCreateFile, moveFile as apiMoveFile, deleteFile as apiDeleteFile, getSession, saveSession, createSession, getExtensions, uploadZip, uploadFolder, joinExam, downloadWorkspace, resolveExamRoom, sendTabSwitch, sendFullscreenExit, sendExamAlert, getMyExamSession, type SessionInfo, type ExtensionInfo, type ExamRoom } from '../api';
 import '../ide.css';
 
-type SidebarPanel = 'explorer' | 'search' | 'git' | 'users' | 'extensions';
+type SidebarPanel = 'explorer' | 'search' | 'git' | 'users' | 'comments' | 'extensions';
 
 export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?: boolean }) {
     const { roomId } = useParams<{ roomId?: string }>();
@@ -65,9 +72,39 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
         ? `${roomId}__${currentUserId}`
         : (roomId || 'default');
 
+    // Where this person stands in a collab room: waiting to be let in, inside with a role, or removed.
+    // Exams and the room-less editor have no such rules ('off').
+    const toast = useToast();
+    const access = useRoomAccess(roomId, username, !!roomId && !isExamMode);
+    const roomReady = access.status === 'off' || access.status === 'active';
+    const readOnly = !access.canWrite;
+    const canWriteRef = useRef(access.canWrite);
+    useEffect(() => { canWriteRef.current = access.canWrite; }, [access.canWrite]);
+    const dialog = useDialog();
+
     // Shared editor doc for this workspace: one WebSocket for the whole session, file contents
-    // loaded and autosaved by the server
-    const collab = useCollabWorkspace(roomId, { name: username, id: currentUserId }, !roomBlocked);
+    // loaded and autosaved by the server. It only connects once the person is inside the room.
+    const collab = useCollabWorkspace(roomId, { name: username, id: currentUserId }, !roomBlocked && roomReady);
+
+    // Moving between read-only and editing changes which of this client's updates the server accepts. Reconnecting the
+    // document socket re-syncs both sides, so edits dropped while read-only can't leave later ones stuck.
+    const wasWriter = useRef(access.canWrite);
+    useEffect(() => {
+        if (wasWriter.current === access.canWrite) return;
+        wasWriter.current = access.canWrite;
+        collab?.provider.disconnect();
+        collab?.provider.connect();
+    }, [access.canWrite, collab]);
+
+    // Tell owners and co-owners when someone asks to join
+    const waitingCount = access.state?.members.filter(m => m.status === 'PENDING').length ?? 0;
+    const lastWaiting = useRef(0);
+    useEffect(() => {
+        if (access.canManage && waitingCount > lastWaiting.current) {
+            toast.info('Someone wants to join', 'Open Collaborators to let them in.');
+        }
+        lastWaiting.current = waitingCount;
+    }, [waitingCount, access.canManage, toast]);
 
     const [activePanel, setActivePanel] = useState<SidebarPanel>('explorer');
     const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -80,7 +117,6 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     const [files, setFiles] = useState<FileNode[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const toast = useToast();
     const [creatingFile, setCreatingFile] = useState<'file' | 'folder' | null>(null);
     const [newFileName, setNewFileName] = useState('');
 
@@ -273,12 +309,13 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
 
     // Load file tree from backend
     useEffect(() => {
+        if (!roomReady) return;
         const loadFileTree = async () => {
             setLoading(true);
             setError('');
             try {
-                // Initialize workspace if needed
-                await initWorkspace(workspaceId);
+                // Initialize workspace if needed (that writes, so people who can only read leave it to someone who can)
+                if (canWriteRef.current) await initWorkspace(workspaceId);
                 const tree = await getFileTree(workspaceId);
                 // Map backend format to FileNode format
                 const mapTree = (nodes: any[]): FileNode[] =>
@@ -297,10 +334,11 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             }
         };
         loadFileTree();
-    }, [workspaceId]);
+    }, [workspaceId, roomReady]);
 
     // Load session data + extensions on mount
     useEffect(() => {
+        if (!roomReady) return;
         const loadSession = async () => {
             // Load extensions registry first
             let extsList: ExtensionInfo[] = [];
@@ -350,7 +388,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             }
         };
         loadSession();
-    }, [workspaceId, username]);
+    }, [workspaceId, username, roomReady]);
 
     // Remember this room for the Hub's "Jump back in" list (collab rooms only, not exams)
     const sessionName = sessionData?.name;
@@ -737,6 +775,21 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     const [leaving, setLeaving] = useState(false);
     const handleLeaveRoom = async () => {
         if (leaving) return;
+        const room = access.state;
+        if (room && room.me.userId === room.ownerId) {
+            const hasCoOwner = room.members.some(m => m.status === 'ACTIVE' && m.role === 'CO_OWNER');
+            const othersHere = room.members.some(m => m.userId !== room.me.userId && m.online);
+            if (!hasCoOwner && othersHere) {
+                const leave = await dialog.confirm({
+                    title: 'Leave without a co-owner?',
+                    message: 'While you are away nobody can accept new people, change roles or remove anyone. Make someone a co-owner from Collaborators first so they can look after the room.',
+                    confirmLabel: 'Leave anyway',
+                    cancelLabel: 'Stay',
+                    tone: 'danger',
+                });
+                if (!leave) return;
+            }
+        }
         setLeaving(true);
         await Promise.race([
             flushWorkspace(workspaceId).catch(() => undefined),
@@ -770,6 +823,19 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     );
 
     const collabRoomId = roomId;
+
+    // ── Not (yet) inside the room: waiting for approval, removed, declined, or offline ──
+    if (roomId && !isExamMode && access.status !== 'off' && access.status !== 'active') {
+        return (
+            <RoomGate
+                status={access.status}
+                roomId={roomId}
+                error={access.error}
+                onRetry={access.retry}
+                onLeave={() => navigate('/collab')}
+            />
+        );
+    }
 
     // ── Room type mismatch / exam block screen ──
     if (roomBlocked) {
@@ -847,10 +913,24 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                             className={`activity-bar-icon${activePanel === 'users' && sidebarVisible ? ' active' : ''}`}
                             onClick={() => toggleSidebar('users')}
                             title="Collaborators"
-                            aria-label="Collaborators"
+                            aria-label={access.canManage && waitingCount > 0 ? `Collaborators, ${waitingCount} waiting to join` : 'Collaborators'}
                             aria-pressed={activePanel === 'users' && sidebarVisible}
                         >
                             <Users size={24} />
+                            {access.canManage && waitingCount > 0 && <span className="rbac-count" aria-hidden>{waitingCount}</span>}
+                        </button>
+                    )}
+
+                    {!isExamMode && roomId && (
+                        <button
+                            type="button"
+                            className={`activity-bar-icon${activePanel === 'comments' && sidebarVisible ? ' active' : ''}`}
+                            onClick={() => toggleSidebar('comments')}
+                            title="Comments"
+                            aria-label="Comments"
+                            aria-pressed={activePanel === 'comments' && sidebarVisible}
+                        >
+                            <MessageSquare size={24} />
                         </button>
                     )}
 
@@ -877,6 +957,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                             {activePanel === 'search' && 'Search'}
                             {activePanel === 'git' && 'Source control'}
                             {activePanel === 'users' && 'Collaborators'}
+                            {activePanel === 'comments' && 'Comments'}
                             {activePanel === 'extensions' && 'Extensions'}
                             {isExamMode && (
                                 <div className="sidebar-header-actions exam-mode-label">
@@ -918,6 +999,8 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                 ) : (
                                     <>
                                         <div className="explorer-actions">
+                                            {!readOnly && (
+                                                <>
                                             <button
                                                 className="explorer-action-btn"
                                                 onClick={() => { setCreatingFile('file'); setNewFileName(''); }}
@@ -932,6 +1015,8 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                             >
                                                 <FolderPlus size={14} />
                                             </button>
+                                                </>
+                                            )}
                                             {/* Upload button */}
 
                                             <button
@@ -941,6 +1026,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                             >
                                                 <Download size={14} />
                                             </button>
+                                            {!readOnly && (
                                             <div className="upload-menu-wrapper" ref={uploadMenuRef}>
                                                 <button
                                                     className="explorer-action-btn"
@@ -968,6 +1054,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                                     </div>
                                                 )}
                                             </div>
+                                            )}
 
                                             {/* Hidden file inputs */}
                                             <input
@@ -1020,10 +1107,10 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                             files={files}
                                             onFileSelect={handleFileSelect}
                                             selectedPath={activeTab}
-                                            onMoveFile={handleMoveFile}
-                                            onCreateFile={handleNestedCreateFile}
-                                            onDeleteFile={handleDeleteFile}
-                                            onRenameFile={handleRenameFile}
+                                            onMoveFile={readOnly ? undefined : handleMoveFile}
+                                            onCreateFile={readOnly ? undefined : handleNestedCreateFile}
+                                            onDeleteFile={readOnly ? undefined : handleDeleteFile}
+                                            onRenameFile={readOnly ? undefined : handleRenameFile}
                                             onDownloadFile={handleDownloadFile}
                                         />
                                     </>
@@ -1048,6 +1135,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                     onExtensionChange={handleExtensionChange}
                                 />
                             )}
+                            {activePanel === 'comments' && roomId && <CommentsPanel access={access} />}
                             {activePanel === 'users' && (
                                 <>
                                     {roomId && (
@@ -1065,6 +1153,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                             </div>
                                         </div>
                                     )}
+                                    {roomId && !isExamMode && <RoomMembers access={access} />}
                                     <UserPresence provider={collab?.provider ?? null} currentUser={username} />
                                     {!roomId && (
                                         <div style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: 12 }}>
@@ -1092,6 +1181,12 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                             </div>
                             <span className="user-badge-name">{username}</span>
                         </div>
+                        {!isExamMode && roomId && access.state && (
+                            <span className="role-badge" data-role={access.state.me.role} title="What you can do in this room">
+                                <span className="role-badge-dot" aria-hidden />
+                                {ROLE_LABEL[access.state.me.role]}
+                            </span>
+                        )}
                         {!isExamMode && roomId && (
                             <button
                                 type="button"
@@ -1116,6 +1211,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                     openPaths={tabPaths}
                                     awareness={collab?.provider.awareness ?? null}
                                     roomId={collabRoomId}
+                                    readOnly={readOnly}
                                     examId={resolvedExamId || undefined}
                                     onCursorChange={(line, col) => setCursorPos({ line, column: col })}
                                     onAlert={setEditorAlert}

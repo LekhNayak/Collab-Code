@@ -6,17 +6,19 @@ import prisma from '../db';
 import { initCollabPersistence, docNameFor, isLive } from '../collab/persistence';
 import { isValidWorkspaceId } from '../services/WorkspaceStore';
 import { phaseOf } from '../services/contest/access';
+import { attachControl, attachDocSocket, documentAccess, mayListen } from '../collab/rooms';
 
 // Drops document updates from a read-only client while still letting it receive the document:
 // sync step 1 (asking for state) and awareness (cursors/presence) pass through, sync step 2 and
-// incremental updates (message type 0, sub-type 1 or 2) are discarded.
+// incremental updates (message type 0, sub-type 1 or 2) are discarded. Reads ws.readOnly on every
+// message, so a collab room can switch someone between read-only and editing without reconnecting.
 const makeReadOnly = (ws: any) => {
     const on = ws.on.bind(ws);
     ws.on = (event: string, listener: (...args: any[]) => void) => {
         if (event !== 'message') return on(event, listener);
         return on(event, (data: any, ...rest: any[]) => {
             const bytes = new Uint8Array(data);
-            if (bytes[0] === 0 && bytes[1] !== 0) return;
+            if (ws.readOnly && bytes[0] === 0 && bytes[1] !== 0) return;
             listener(data, ...rest);
         });
     };
@@ -27,14 +29,22 @@ export const setupWebSocket = (server: Server) => {
     const wss = new WebSocketServer({ noServer: true });
 
     wss.on('connection', (ws: any, req: any, socketConfig: any) => {
-        const { docName, isReadOnly } = socketConfig as any;
+        const { docName, isReadOnly, collab } = socketConfig as any;
+
+        // The control channel carries room events (who is here, requests, roles, comments), not the document
+        if (collab?.control) {
+            attachControl(ws, collab.roomId, collab.userId);
+            return;
+        }
 
         // Override req.url so y-websocket's setupWSConnection uses our computed docName
         // y-websocket defaults to req.url.slice(1).split('?')[0] if no docName option given
         // But passing docName as option SHOULD work. Belt-and-suspenders: override req.url too.
         req.url = '/' + docName;
 
-        if (isReadOnly) makeReadOnly(ws);
+        ws.readOnly = !!isReadOnly;
+        makeReadOnly(ws);
+        if (collab) attachDocSocket(ws, collab.roomId, collab.userId, !!isReadOnly);
         setupWSConnection(ws, req, { docName });
 
         console.log(`[WS] Yjs doc registered: "${docName}"`);
@@ -61,6 +71,7 @@ export const setupWebSocket = (server: Server) => {
             // Each doc mirrors one workspace: ws-<workspaceId>, the same id the REST API uses
             let docName: string;
             let isReadOnly = false;
+            let collab: { roomId: string; userId: string; control?: boolean } | undefined;
 
             if (mode === 'admin-monitor' || pathRoomId.startsWith('EX-')) {
                 // Exam modes need the real user (role, exam session); collab only needs the token
@@ -168,12 +179,33 @@ export const setupWebSocket = (server: Server) => {
                     return socket.destroy();
                 }
                 docName = docNameFor(pathRoomId);
+
+                // Rooms that have been set up admit only people who were let in, and only editors may change the doc.
+                // A room nobody has set up yet has no rules and stays open.
+                const userId = String(decoded.id);
+                if (mode === 'collab-control') {
+                    if (!(await mayListen(pathRoomId, userId))) {
+                        socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+                        return socket.destroy();
+                    }
+                    collab = { roomId: pathRoomId, userId, control: true };
+                } else {
+                    const access = await documentAccess(pathRoomId, userId);
+                    if (access) {
+                        if (!access.allowed) {
+                            socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+                            return socket.destroy();
+                        }
+                        isReadOnly = access.readOnly;
+                        collab = { roomId: pathRoomId, userId };
+                    }
+                }
             }
 
             console.log(`[WS] user=${decoded.username} role=${decoded.role || 'GUEST'} path=${pathRoomId} mode=${mode || 'normal'} → doc="${docName}" readOnly=${isReadOnly}`);
 
             wss.handleUpgrade(request, socket, head, (ws) => {
-                wss.emit('connection', ws, request, { docName, isReadOnly });
+                wss.emit('connection', ws, request, { docName, isReadOnly, collab });
             });
         } catch (err: any) {
             console.error('[WS Upgrade] Error:', err.message);

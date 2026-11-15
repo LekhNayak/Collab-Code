@@ -3,6 +3,7 @@ import { gitService } from '../services/GitService';
 import * as store from '../services/WorkspaceStore';
 import { withLock } from '../collab/lock';
 import { inWorkspace, persist, canAccessWorkspace } from '../collab/workspace';
+import { filesAccessError } from '../collab/rooms';
 import { openFile, flushWorkspace, liveContent, detachPaths, writeDetached, reloadFromDisk } from '../collab/persistence';
 import { cloneLimiter } from '../middleware/rateLimiter';
 import prisma from '../db';
@@ -28,11 +29,26 @@ function workspaceAccessError(req: Request, id: unknown): string | null {
     return null;
 }
 
-router.param('workspaceId', (req, res, next, id) => {
+// Collab rooms have roles: reading needs a seat in the room, changing anything needs write access. Opening a file
+// into the live doc and flushing it are POSTs but only read the room's files, so they count as reading.
+const readsOnly = (req: Request) => req.method === 'GET' || req.method === 'HEAD' || /^\/(open|flush)\//.test(req.path);
+
+router.param('workspaceId', async (req, res, next, id) => {
     const error = workspaceAccessError(req, id);
     if (error) return res.status(error.startsWith('Invalid') ? 400 : 403).json({ error });
-    next();
+    try {
+        const denied = await filesAccessError(id, (req as any).user?.id, !readsOnly(req));
+        if (denied) return res.status(403).json({ error: denied });
+        next();
+    } catch (err) {
+        next(err);
+    }
 });
+
+// For the routes that take the workspace in the body instead of the path (clone, init): those always change files
+async function roleAccessError(req: Request, id: string): Promise<string | null> {
+    return filesAccessError(id, (req as any).user?.id, true);
+}
 
 // Mirrors a bulk change (clone, upload, pull, checkout) into the DB after the response is sent.
 // Queued on the lock, so later requests for the workspace see a consistent DB.
@@ -49,7 +65,7 @@ router.post('/clone', cloneLimiter, async (req: Request, res: Response) => {
     if (!repoUrl || !workspaceId) {
         return res.status(400).json({ error: 'repoUrl and workspaceId are required' });
     }
-    const accessError = workspaceAccessError(req, workspaceId);
+    const accessError = workspaceAccessError(req, workspaceId) ?? await roleAccessError(req, workspaceId);
     if (accessError) {
         return res.status(accessError.startsWith('Invalid') ? 400 : 403).json({ error: accessError });
     }
@@ -69,7 +85,7 @@ router.post('/init', async (req: Request, res: Response) => {
     if (!workspaceId) {
         return res.status(400).json({ error: 'workspaceId is required' });
     }
-    const accessError = workspaceAccessError(req, workspaceId);
+    const accessError = workspaceAccessError(req, workspaceId) ?? await roleAccessError(req, workspaceId);
     if (accessError) {
         return res.status(accessError.startsWith('Invalid') ? 400 : 403).json({ error: accessError });
     }

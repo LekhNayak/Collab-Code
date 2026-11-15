@@ -559,6 +559,36 @@
     white-space: nowrap;
 }
 
+/* What you may do in this room: another full-height segment of the top bar, quiet text with a small status dot
+   (the word carries the meaning; the dot only echoes it) */
+.role-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    padding: 0 12px;
+    border-left: 1px solid var(--border-color);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.role-badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+}
+
+.role-badge[data-role='OWNER'] .role-badge-dot,
+.role-badge[data-role='CO_OWNER'] .role-badge-dot {
+    background: var(--accent-primary);
+}
+
+.role-badge[data-role='WRITE'] .role-badge-dot {
+    background: var(--accent-success);
+}
+
 /* Leave room: a full-height segment of the top bar, like the user badge next to it */
 .leave-room-btn {
     display: flex;
@@ -2083,4 +2113,320 @@
     min-width: 24px;
     min-height: 24px;
     justify-content: center;
+}
+
+/* ==========================================================================
+   Room access: members, requests and the comment thread
+   ========================================================================== */
+.rbac {
+    display: flex;
+    flex-direction: column;
+    font-size: var(--font-size-sm);
+}
+
+.rbac-section {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 6px;
+}
+
+.rbac-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px 4px;
+}
+
+.rbac-heading h3 {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.rbac-link {
+    background: none;
+    border: none;
+    color: var(--accent-primary);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.rbac-link:hover:not(:disabled) {
+    text-decoration: underline;
+}
+
+.rbac-link:disabled,
+.rbac-icon:disabled,
+.rbac-select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.rbac-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 12px;
+    min-height: 32px;
+}
+
+.rbac-row:hover {
+    background: var(--bg-hover);
+}
+
+.rbac-avatar {
+    position: relative;
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--bg-active);
+    color: var(--text-bright);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.rbac-presence {
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    border: 2px solid var(--bg-secondary);
+}
+
+.rbac-presence.on {
+    background: var(--accent-success);
+}
+
+.rbac-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-primary);
+}
+
+.rbac-you {
+    color: var(--text-muted);
+}
+
+/* Role pills are neutral so their text always has strong contrast; the dot only echoes the role (the word carries it) */
+.rbac-badge {
+    flex-shrink: 0;
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    background: var(--bg-active);
+    color: var(--text-primary);
+}
+
+.rbac-badge::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+}
+
+.rbac-badge-OWNER::before,
+.rbac-badge-CO_OWNER::before {
+    background: var(--accent-primary);
+}
+
+.rbac-badge-WRITE::before {
+    background: var(--accent-success);
+}
+
+.rbac-select {
+    flex-shrink: 0;
+    max-width: 118px;
+    padding: 3px 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-input);
+    border-radius: 4px;
+    font: inherit;
+}
+
+.rbac-select-wide {
+    max-width: none;
+    flex: 1;
+}
+
+.rbac-icon {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    min-height: 24px;
+    background: none;
+    border: none;
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.rbac-icon-accept:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent-success) 20%, transparent);
+    color: var(--accent-success);
+}
+
+.rbac-icon-decline:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent-error) 20%, transparent);
+    color: var(--accent-error);
+}
+
+.rbac-empty {
+    padding: 2px 12px 6px;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+.rbac-empty-center {
+    text-align: center;
+    padding: 20px 12px;
+}
+
+.rbac-note {
+    margin: 8px 12px 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: var(--bg-active);
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.rbac-note-warn {
+    border: 1px solid var(--accent-warning);
+}
+
+.rbac-comments {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.rbac-thread {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 6px 0;
+}
+
+.rbac-comment {
+    padding: 6px 12px;
+}
+
+.rbac-comment:hover {
+    background: var(--bg-hover);
+}
+
+.rbac-comment header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 24px;
+}
+
+.rbac-comment-author {
+    font-weight: 600;
+    color: var(--text-bright);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rbac-comment-time {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.rbac-comment-delete {
+    margin-left: 0;
+}
+
+.rbac-comment p {
+    margin-top: 2px;
+    color: var(--text-primary);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.rbac-composer {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 12px 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.rbac-composer textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 56px;
+    max-height: 160px;
+    padding: 6px 8px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-input);
+    border-radius: 4px;
+    font: inherit;
+}
+
+.rbac-send {
+    align-self: flex-end;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    min-height: 26px;
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.rbac-send:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* The activity-bar icon shows how many people are waiting */
+.activity-bar-icon .rbac-count {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: #dc2626;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
 }

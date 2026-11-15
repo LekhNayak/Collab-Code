@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Plus, LogIn, Copy, Users, Code2, Clock, Puzzle, Trash2, ArrowRight, CheckCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getSessions, createSession, deleteSession, type SessionInfo } from '../api';
+import { createRoom, ROLE_HELP, ROLE_LABEL, type MemberRole } from '../roomApi';
 import PageShell from '../components/ui/PageShell';
 import Button from '../components/ui/Button';
 import Field from '../components/ui/Field';
@@ -50,6 +51,8 @@ export default function RoomPage() {
     const [sessionName, setSessionName] = useState('');
     const [showSessions, setShowSessions] = useState(true);
     const [sessionPage, setSessionPage] = useState(0);
+    // What everyone who joins this room may do. Chosen on purpose: there is no pre-selected answer.
+    const [joinRole, setJoinRole] = useState<MemberRole | null>(null);
 
     useEffect(() => {
         getSessions().then(setSessions).catch(console.error);
@@ -60,8 +63,20 @@ export default function RoomPage() {
             setError('Please enter a display name');
             return;
         }
+        if (!joinRole) {
+            setError('Choose what people can do when they join the room');
+            return;
+        }
         localStorage.setItem('collab-username', username.trim());
         const roomId = generateRoomId();
+
+        // The room (and so its owner and the role newcomers get) is recorded first; nothing else makes sense without it
+        try {
+            await createRoom(roomId, joinRole, username.trim());
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Could not create the room');
+            return;
+        }
 
         const name = sessionName.trim() || `Session ${new Date().toLocaleDateString()}`;
         try {
@@ -237,6 +252,28 @@ export default function RoomPage() {
                                     onChange={e => setSessionName(e.target.value)}
                                     aria-label="Session name"
                                 />
+                                <fieldset className="flex flex-col gap-2">
+                                    <legend className="ui-label mb-1.5">People who join can</legend>
+                                    {(['WRITE', 'COMMENT', 'READ'] as MemberRole[]).map(role => (
+                                        <label
+                                            key={role}
+                                            className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 transition-colors ${joinRole === role ? 'border-accent bg-accent/10' : 'border-line hover:bg-tint-1'}`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="join-role"
+                                                value={role}
+                                                checked={joinRole === role}
+                                                onChange={() => { setJoinRole(role); setError(''); }}
+                                                className="mt-0.5 h-4 w-4 accent-accent"
+                                            />
+                                            <span>
+                                                <span className="block text-[13px] font-medium text-fg">{ROLE_LABEL[role]}</span>
+                                                <span className="block text-xs text-fg-3">{ROLE_HELP[role]}</span>
+                                            </span>
+                                        </label>
+                                    ))}
+                                </fieldset>
                                 <Button variant="primary" onClick={handleCreateRoom} icon={<Plus size={15} />} className="w-full">
                                     Create session
                                 </Button>

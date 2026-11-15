@@ -341,3 +341,58 @@ model ContestEvent {
 
   @@index([contestId, createdAt])
 }
+
+// ── Collab room access control ──────────────────────────────────────────────
+// A collaborative room (CR-xxxxxxxx) has one owner, optional co-owners, and everyone else holds a
+// role that limits what they can do. People ask to join the first time and are let in by the owner
+// or a co-owner. User ids are plain strings (guest tokens have no User row).
+
+enum CollabRole {
+  OWNER
+  CO_OWNER
+  WRITE
+  COMMENT
+  READ
+}
+
+enum CollabMemberStatus {
+  PENDING
+  ACTIVE
+  KICKED
+}
+
+model CollabRoom {
+  id          String     @id
+  ownerId     String
+  defaultRole CollabRole @default(WRITE) // what a newly admitted person gets: READ, COMMENT or WRITE
+  createdAt   DateTime   @default(now())
+
+  members  CollabMember[]
+  comments CollabComment[]
+}
+
+model CollabMember {
+  roomId       String
+  userId       String
+  username     String
+  role         CollabRole
+  status       CollabMemberStatus
+  coOwnerSince DateTime? // orders co-owners: the earliest takes over while the owner is away
+  joinedAt     DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  room         CollabRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, userId])
+}
+
+model CollabComment {
+  id        String     @id @default(uuid())
+  roomId    String
+  userId    String
+  username  String
+  text      String
+  createdAt DateTime   @default(now())
+  room      CollabRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt])
+}
