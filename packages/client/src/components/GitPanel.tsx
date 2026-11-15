@@ -1,3 +1,4 @@
+import { buttonProps } from '../a11y';
 import { useState, useEffect, useCallback } from 'react';
 import {
     GitBranch, Plus, Check, Upload, Download, RefreshCw,
@@ -264,7 +265,7 @@ export default function GitPanel({ workspaceId, username, onRefreshTree }: GitPa
                     <div className="git-input-row">
                         <input
                             className="git-input"
-                            placeholder="https://github.com/user/repo.git"
+                            aria-label="Https://github.com/user/repo.git" placeholder="https://github.com/user/repo.git"
                             value={cloneUrl}
                             onChange={e => setCloneUrl(e.target.value)}
                             onKeyDown={e => { if (e.key === 'Enter') handleClone(); }}
@@ -293,7 +294,7 @@ export default function GitPanel({ workspaceId, username, onRefreshTree }: GitPa
             {/* Branch & Sync */}
             <div className="git-section">
                 <div className="git-row git-row-between">
-                    <div className="git-branch-badge" onClick={() => setShowBranches(!showBranches)}>
+                    <div className="git-branch-badge" aria-label={`Branch ${statusData.branch || 'main'}. Switch branch`} {...buttonProps(() => setShowBranches(!showBranches), showBranches)}>
                         <GitBranch size={13} />
                         <span>{statusData.branch || 'main'}</span>
                         <ChevronDown size={12} />
@@ -330,7 +331,7 @@ export default function GitPanel({ workspaceId, username, onRefreshTree }: GitPa
                                 <input
                                     autoFocus
                                     className="git-input git-input-sm"
-                                    placeholder="branch-name"
+                                    aria-label="Branch-name" placeholder="branch-name"
                                     value={newBranchName}
                                     onChange={e => setNewBranchName(e.target.value)}
                                     onKeyDown={e => {
@@ -354,7 +355,7 @@ export default function GitPanel({ workspaceId, username, onRefreshTree }: GitPa
                 <div className="git-commit-box">
                     <input
                         className="git-input"
-                        placeholder="Commit message..."
+                        aria-label="Commit message" placeholder="Commit message..."
                         value={commitMessage}
                         onChange={e => setCommitMessage(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleCommit(); }}
@@ -430,7 +431,7 @@ export default function GitPanel({ workspaceId, username, onRefreshTree }: GitPa
 
             {/* Remote */}
             <div className="git-section">
-                <div className="git-section-header" onClick={() => setShowRemote(!showRemote)}>
+                <div className="git-section-header" {...buttonProps(() => setShowRemote(!showRemote), showRemote)}>
                     {showRemote ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     <Globe size={13} />
                     <span>Remotes</span>
@@ -448,7 +449,7 @@ export default function GitPanel({ workspaceId, username, onRefreshTree }: GitPa
                         <div className="git-input-row" style={{ padding: '4px 8px' }}>
                             <input
                                 className="git-input git-input-sm"
-                                placeholder="https://github.com/user/repo.git"
+                                aria-label="Https://github.com/user/repo.git" placeholder="https://github.com/user/repo.git"
                                 value={remoteUrl}
                                 onChange={e => setRemoteUrl(e.target.value)}
                                 onKeyDown={e => { if (e.key === 'Enter') handleAddRemote(); }}
@@ -463,7 +464,7 @@ export default function GitPanel({ workspaceId, username, onRefreshTree }: GitPa
 
             {/* Commit Log */}
             <div className="git-section">
-                <div className="git-section-header" onClick={() => setShowLog(!showLog)}>
+                <div className="git-section-header" {...buttonProps(() => setShowLog(!showLog), showLog)}>
                     {showLog ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     <GitCommitHorizontal size={13} />
                     <span>Commits</span>

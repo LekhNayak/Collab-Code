@@ -35,7 +35,7 @@ export default function PageShell({ title, subtitle, backTo, backLabel = 'Back',
                 ) : <span />}
                 <div className="flex items-center gap-2">{actions}<ThemeToggle /></div>
             </header>
-            <main className={`animate-arrive relative mx-auto w-full flex-1 px-4 pb-16 pt-10 sm:px-6 ${WIDTH[width]}`}>
+            <main id="main-content" tabIndex={-1} className={`animate-arrive relative mx-auto focus:outline-none w-full flex-1 px-4 pb-16 pt-10 sm:px-6 ${WIDTH[width]}`}>
                 <div className={`mb-8 ${centered ? 'text-center' : ''}`}>
                     <h1 className="text-2xl font-semibold tracking-tight text-fg">{title}</h1>
                     {subtitle && <p className="mt-1.5 text-sm leading-relaxed text-fg-2">{subtitle}</p>}

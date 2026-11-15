@@ -429,6 +429,7 @@ export default function Terminal({
                 <input
                     ref={inputRef}
                     type="text"
+                    aria-label="Terminal command"
                     className="terminal-cmd-input"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}

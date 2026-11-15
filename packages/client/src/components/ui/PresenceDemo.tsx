@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { Pause, Play } from 'lucide-react';
 import Badge from './Badge';
 
 // The product in one frame: three people in the same file. Lekh types a new line, Chiranjan arrives and selects, Linus
@@ -17,12 +19,12 @@ function Person({ name, color }: { name: string; color: string }) {
 }
 
 export default function PresenceDemo({ className = '' }: { className?: string }) {
+    // The loop runs on its own for far longer than 5 seconds, so it has to be stoppable (WCAG 2.2.2)
+    const [paused, setPaused] = useState(false);
     return (
         <div
-            className={`pd ui-card overflow-hidden ${className}`}
+            className={`pd ui-card relative overflow-hidden ${paused ? 'pd-paused' : ''} ${className}`}
             style={{ boxShadow: 'var(--shadow-float)' }}
-            role="img"
-            aria-label="Three people editing the same Python file at once: Lekh types a new line, Chiranjan selects a range and Linus follows along, then the program runs and prints 55."
         >
             <div className="flex h-9 items-center justify-between border-b border-line bg-chrome px-3">
                 <span className="font-mono text-xs text-fg">fib.py</span>
@@ -33,7 +35,11 @@ export default function PresenceDemo({ className = '' }: { className?: string })
                 </div>
             </div>
 
-            <div className="pd-code">
+            <div
+                className="pd-code"
+                role="img"
+                aria-label="Three people editing the same Python file at once: Lekh types a new line, Chiranjan selects a range and Linus follows along, then the program runs and prints 55."
+            >
                 <div className="pd-gutter" aria-hidden>{'1\n2\n3\n4\n5\n6'}</div>
                 <div><span className="pd-kw">def</span> <span className="pd-fn">fib</span>(n):</div>
                 <div>    a, b = <span className="pd-num">0</span>, <span className="pd-num">1</span></div>
@@ -61,6 +67,16 @@ export default function PresenceDemo({ className = '' }: { className?: string })
                     <Badge tone="success" dot>Passed</Badge>
                     <span className="font-mono text-[13px] text-fg-2">fib(10) = <span className="font-semibold text-fg">55</span></span>
                 </div>
+                <button
+                    type="button"
+                    onClick={() => setPaused(p => !p)}
+                    aria-pressed={paused}
+                    aria-label={paused ? 'Play the demo animation' : 'Pause the demo animation'}
+                    title={paused ? 'Play animation' : 'Pause animation'}
+                    className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-md text-fg-3 transition-colors hover:bg-tint-2 hover:text-fg active:scale-90"
+                >
+                    {paused ? <Play size={14} /> : <Pause size={14} />}
+                </button>
             </div>
         </div>
     );

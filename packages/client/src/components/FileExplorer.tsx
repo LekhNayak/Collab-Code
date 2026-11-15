@@ -23,6 +23,26 @@ interface FileExplorerProps {
     onDownloadFile?: (path: string) => void;
 }
 
+// What opening the context menu needs from an event, so a mouse click and a key press can both provide it
+interface MenuPoint {
+    clientX: number;
+    clientY: number;
+    preventDefault: () => void;
+    stopPropagation: () => void;
+}
+
+// The tree is a flat list of rows in the DOM (nested groups just indent them), so moving between rows is moving
+// through that list. A folder that is closed has no rows below it, so the list is exactly what is visible.
+function treeRows(from: HTMLElement): HTMLElement[] {
+    const tree = from.closest('[role="tree"]');
+    return tree ? [...tree.querySelectorAll<HTMLElement>('[role="treeitem"]')] : [];
+}
+
+function focusRow(row: HTMLElement | undefined) {
+    row?.focus();
+    row?.scrollIntoView({ block: 'nearest' });
+}
+
 // Context menu state
 interface ContextMenu {
     x: number;
@@ -60,11 +80,56 @@ export default function FileExplorer({
         }
     }, [contextMenu]);
 
-    const handleContextMenu = useCallback((e: React.MouseEvent, node: FileNode) => {
+    const menuTrigger = useRef<HTMLElement | null>(null);
+
+    const handleContextMenu = useCallback((e: MenuPoint, node: FileNode) => {
         e.preventDefault();
         e.stopPropagation();
         setContextMenu({ x: e.clientX, y: e.clientY, node });
     }, []);
+
+    const startRename = useCallback((node: FileNode) => {
+        setRenamingPath(node.path);
+        setRenameValue(node.name);
+    }, []);
+
+    // A menu opened from the keyboard takes focus; Esc or Tab puts it back on the row it came from
+    useEffect(() => {
+        if (!contextMenu) return;
+        menuTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    }, [contextMenu]);
+
+    const closeMenu = (restoreFocus: boolean) => {
+        setContextMenu(null);
+        if (restoreFocus) menuTrigger.current?.focus();
+    };
+
+    const onMenuKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+        const items = [...(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
+        const index = items.indexOf(document.activeElement as HTMLElement);
+        const go = (i: number) => { e.preventDefault(); items[(i + items.length) % items.length]?.focus(); };
+        switch (e.key) {
+            case 'ArrowDown': go(index + 1); break;
+            case 'ArrowUp': go(index - 1); break;
+            case 'Home': go(0); break;
+            case 'End': go(items.length - 1); break;
+            case 'Escape':
+            case 'Tab':
+                e.preventDefault();
+                closeMenu(true);
+                break;
+        }
+    };
+
+    // Exactly one row is a tab stop (the selected one, else the first), and it follows focus
+    const treeRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const first = treeRef.current?.querySelector<HTMLElement>('[role="treeitem"]');
+        if (!first) return;
+        const rows = treeRows(first);
+        if (!rows.some(r => r.tabIndex === 0)) rows[0].tabIndex = 0;
+    });
 
     const handleInlineSubmit = useCallback((e: React.FormEvent) => {
         e.preventDefault();
@@ -83,7 +148,19 @@ export default function FileExplorer({
     }, [renamingPath, renameValue, onRenameFile]);
 
     return (
-        <div className="file-explorer" onContextMenu={(e) => e.preventDefault()}>
+        <div
+            ref={treeRef}
+            className="file-explorer"
+            role="tree"
+            aria-label="Files"
+            onContextMenu={(e) => e.preventDefault()}
+            onFocus={(e) => {
+                // Roving tab stop: the row that has focus is the one Tab will come back to
+                const row = e.target as HTMLElement;
+                if (row.getAttribute('role') !== 'treeitem') return;
+                treeRows(row).forEach(r => { r.tabIndex = r === row ? 0 : -1; });
+            }}
+        >
             {files.map((node) => (
                 <TreeItem
                     key={node.path}
@@ -103,6 +180,7 @@ export default function FileExplorer({
                     onRenameValueChange={setRenameValue}
                     onRenameSubmit={handleRenameSubmit}
                     onRenameCancel={() => { setRenamingPath(null); setRenameValue(''); }}
+                    onStartRename={startRename}
                 />
             ))}
 
@@ -116,6 +194,7 @@ export default function FileExplorer({
                         onChange={(e) => setInlineName(e.target.value)}
                         onBlur={() => { setInlineCreate(null); setInlineName(''); }}
                         onKeyDown={(e) => { if (e.key === 'Escape') { setInlineCreate(null); setInlineName(''); } }}
+                        aria-label={inlineCreate.type === 'folder' ? 'New folder name' : 'New file name'}
                         placeholder={inlineCreate.type === 'folder' ? 'folder name...' : 'filename.ext...'}
                     />
                 </form>
@@ -125,19 +204,22 @@ export default function FileExplorer({
             {contextMenu && (
                 <div
                     ref={menuRef}
+                    role="menu"
+                    aria-label="File actions"
+                    onKeyDown={onMenuKeyDown}
                     className="file-context-menu"
                     style={{ top: contextMenu.y, left: contextMenu.x }}
                 >
                     {contextMenu.node.type === 'folder' && (
                         <>
-                            <button onClick={() => {
+                            <button role="menuitem" onClick={() => {
                                 setInlineCreate({ parentPath: contextMenu.node.path, type: 'file' });
                                 setInlineName('');
                                 setContextMenu(null);
                             }}>
                                 <FilePlus2 size={13} /> New File
                             </button>
-                            <button onClick={() => {
+                            <button role="menuitem" onClick={() => {
                                 setInlineCreate({ parentPath: contextMenu.node.path, type: 'folder' });
                                 setInlineName('');
                                 setContextMenu(null);
@@ -147,20 +229,19 @@ export default function FileExplorer({
                             <div className="context-menu-divider" />
                         </>
                     )}
-                    <button onClick={() => {
-                        setRenamingPath(contextMenu.node.path);
-                        setRenameValue(contextMenu.node.name);
+                    <button role="menuitem" onClick={() => {
+                        startRename(contextMenu.node);
                         setContextMenu(null);
                     }}>
                         <Pencil size={13} /> Rename
                     </button>
-                    <button onClick={() => {
+                    <button role="menuitem" onClick={() => {
                         onDownloadFile?.(contextMenu.node.path);
                         setContextMenu(null);
                     }}>
                         <Download size={13} /> Download
                     </button>
-                    <button className="context-menu-danger" onClick={() => {
+                    <button role="menuitem" className="context-menu-danger" onClick={() => {
                         onDeleteFile?.(contextMenu.node.path);
                         setContextMenu(null);
                     }}>
@@ -177,7 +258,7 @@ interface TreeItemProps {
     depth: number;
     onFileSelect: (file: FileNode) => void;
     selectedPath?: string;
-    onContextMenu: (e: React.MouseEvent, node: FileNode) => void;
+    onContextMenu: (e: MenuPoint, node: FileNode) => void;
     onMoveFile?: (oldPath: string, newPath: string) => void;
     inlineCreate: { parentPath: string; type: 'file' | 'folder' } | null;
     inlineName: string;
@@ -189,6 +270,7 @@ interface TreeItemProps {
     onRenameValueChange: (v: string) => void;
     onRenameSubmit: (e: React.FormEvent) => void;
     onRenameCancel: () => void;
+    onStartRename: (node: FileNode) => void;
 }
 
 function TreeItem({
@@ -208,6 +290,7 @@ function TreeItem({
     onRenameValueChange,
     onRenameSubmit,
     onRenameCancel,
+    onStartRename,
 }: TreeItemProps) {
     const [isOpen, setIsOpen] = useState(depth < 1);
     const [dragOver, setDragOver] = useState(false);
@@ -223,6 +306,56 @@ function TreeItem({
     };
 
     const isSelected = node.path === selectedPath;
+
+    // Keyboard: the arrows walk the tree, Enter/Space open a file or fold a folder, F2 renames and the menu key (or
+    // Shift+F10) opens the same actions a right-click does (WCAG 2.1.1)
+    const onRowKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+        if (e.target !== e.currentTarget || isRenaming) return;
+        const row = e.currentTarget;
+        const rows = treeRows(row);
+        const at = rows.indexOf(row);
+        const level = depth + 1;
+        switch (e.key) {
+            case 'Enter':
+            case ' ':
+                e.preventDefault();
+                handleClick();
+                break;
+            case 'ArrowDown': e.preventDefault(); focusRow(rows[at + 1]); break;
+            case 'ArrowUp': e.preventDefault(); focusRow(rows[at - 1]); break;
+            case 'Home': e.preventDefault(); focusRow(rows[0]); break;
+            case 'End': e.preventDefault(); focusRow(rows[rows.length - 1]); break;
+            case 'ArrowRight':
+                if (node.type !== 'folder') break;
+                e.preventDefault();
+                if (!isOpen) setIsOpen(true);
+                else if (node.children?.length) focusRow(rows[at + 1]);
+                break;
+            case 'ArrowLeft':
+                e.preventDefault();
+                if (node.type === 'folder' && isOpen) {
+                    setIsOpen(false);
+                } else {
+                    // Up to the folder this row is in: the nearest row above with a shallower level
+                    for (let i = at - 1; i >= 0; i--) {
+                        if (Number(rows[i].getAttribute('aria-level')) < level) { focusRow(rows[i]); break; }
+                    }
+                }
+                break;
+            case 'F2':
+                e.preventDefault();
+                onStartRename(node);
+                break;
+            case 'ContextMenu':
+            case 'F10': {
+                if (e.key === 'F10' && !e.shiftKey) break;
+                e.preventDefault();
+                const box = row.getBoundingClientRect();
+                onContextMenu({ clientX: box.left + 28, clientY: box.bottom, preventDefault: () => {}, stopPropagation: () => {} }, node);
+                break;
+            }
+        }
+    };
 
     // ---- Drag source ----
     const handleDragStart = (e: React.DragEvent) => {
@@ -269,6 +402,12 @@ function TreeItem({
         <>
             <div
                 className={`file-tree-item${isSelected ? ' selected' : ''}${dragOver ? ' drag-over' : ''}`}
+                role="treeitem"
+                aria-level={depth + 1}
+                aria-selected={isSelected}
+                aria-expanded={node.type === 'folder' ? isOpen : undefined}
+                tabIndex={isSelected ? 0 : -1}
+                onKeyDown={onRowKeyDown}
                 onClick={handleClick}
                 onContextMenu={(e) => onContextMenu(e, node)}
                 style={{ paddingLeft: depth * 12 + 4 }}
@@ -279,19 +418,20 @@ function TreeItem({
                 onDrop={handleDrop}
             >
                 {node.type === 'folder' ? (
-                    <span className={`chevron${isOpen ? ' open' : ''}`}>
+                    <span className={`chevron${isOpen ? ' open' : ''}`} aria-hidden>
                         <ChevronRight size={14} />
                     </span>
                 ) : (
-                    <span className="indent" style={{ width: 16 }} />
+                    <span className="indent" aria-hidden style={{ width: 16 }} />
                 )}
-                <span className="file-icon">
+                <span className="file-icon" aria-hidden>
                     <FileIcon name={node.name} isFolder={node.type === 'folder'} isOpen={isOpen} />
                 </span>
                 {isRenaming ? (
                     <form onSubmit={onRenameSubmit} className="inline-rename-form">
                         <input
                             autoFocus
+                            aria-label="New name"
                             className="inline-create-input"
                             value={renameValue}
                             onChange={(e) => onRenameValueChange(e.target.value)}
@@ -307,6 +447,7 @@ function TreeItem({
             <AnimatePresence initial={false}>
                 {node.type === 'folder' && isOpen && (
                     <motion.div
+                        role="group"
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
@@ -327,6 +468,7 @@ function TreeItem({
                                     onChange={(e) => onInlineNameChange(e.target.value)}
                                     onBlur={onInlineCancel}
                                     onKeyDown={(e) => { if (e.key === 'Escape') onInlineCancel(); }}
+                                    aria-label={inlineCreate!.type === 'folder' ? 'New folder name' : 'New file name'}
                                     placeholder={inlineCreate!.type === 'folder' ? 'folder name...' : 'filename.ext...'}
                                 />
                             </form>
@@ -356,6 +498,7 @@ function TreeItem({
                                     onRenameValueChange={onRenameValueChange}
                                     onRenameSubmit={onRenameSubmit}
                                     onRenameCancel={onRenameCancel}
+                                    onStartRename={onStartRename}
                                 />
                             ))}
                     </motion.div>

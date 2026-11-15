@@ -24,7 +24,7 @@ export default function Pager({ page, pageSize, total, onChange, className = '' 
             <button type="button" className={step} disabled={current === 0} onClick={() => onChange(current - 1)} aria-label="Previous page">
                 <ChevronLeft size={15} />
             </button>
-            <span className="min-w-[5.5rem] text-center tabular-nums">{from}–{to} of {total}</span>
+            <span className="min-w-[5.5rem] text-center tabular-nums" aria-live="polite" aria-atomic="true">{from}–{to} of {total}</span>
             <button type="button" className={step} disabled={current >= pageCount - 1} onClick={() => onChange(current + 1)} aria-label="Next page">
                 <ChevronRight size={15} />
             </button>

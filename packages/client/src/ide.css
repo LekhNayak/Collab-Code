@@ -2047,3 +2047,40 @@
     color: var(--accent-error);
     font-weight: 600;
 }
+
+/* ==========================================================================
+   Accessibility
+   Text fields keep a 3:1 edge against the panel behind them (WCAG 1.4.11) and show
+   a clear ring on focus; the terminal prompt has no box, so it is left alone.
+   ========================================================================== */
+.editor-root :is(.git-input, .ext-search-input, .ext-form-input, .ext-form-select, .ext-form-textarea) {
+    border-color: var(--border-input);
+}
+
+.editor-root :is(input, select, textarea):not(.terminal-cmd-input):focus-visible {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px var(--accent-primary);
+}
+
+/* Rows and headers that act like buttons: the same ring the rest of the product uses, drawn inside the row */
+.editor-root :is(.file-tree-item, .editor-tab, .git-section-header, .ext-section-header, .git-branch-badge):focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: -2px;
+}
+
+/* Small controls get a 24px target (WCAG 2.5.8) without growing the glyph */
+.editor-tab .tab-close {
+    width: 24px;
+    height: 24px;
+}
+
+.editor-tab:focus-visible .tab-close {
+    opacity: 1;
+}
+
+.room-info-copy,
+.ext-form-close {
+    min-width: 24px;
+    min-height: 24px;
+    justify-content: center;
+}

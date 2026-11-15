@@ -60,8 +60,10 @@ const Login: React.FC = () => {
         <div className="relative flex h-[100dvh] w-full flex-col items-center justify-center overflow-y-auto bg-canvas p-6 font-sans">
             <div aria-hidden className="ground-dots pointer-events-none absolute inset-x-0 top-0 h-[360px]" />
             <div className="absolute right-4 top-4 z-10"><ThemeToggle /></div>
-            <motion.div
-                className="relative w-full max-w-[400px]"
+            <motion.main
+                id="main-content"
+                tabIndex={-1}
+                className="relative w-full max-w-[400px] focus:outline-none"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
@@ -157,7 +159,7 @@ const Login: React.FC = () => {
                         {isLogin ? 'Sign up' : 'Sign in'}
                     </button>
                 </p>
-            </motion.div>
+            </motion.main>
         </div>
     );
 }

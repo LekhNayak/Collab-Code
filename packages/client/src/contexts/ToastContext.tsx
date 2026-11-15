@@ -52,6 +52,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             {children}
             {createPortal(
                 <div
+                    role="region"
                     aria-label="Notifications"
                     className="fixed bottom-4 right-4 z-[10001] flex flex-col gap-2 w-[min(380px,calc(100vw-2rem))] pointer-events-none"
                 >
@@ -86,6 +87,8 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
             onMouseEnter={() => setPaused(true)}
             onMouseLeave={() => setPaused(false)}
+            onFocus={() => setPaused(true)}
+            onBlur={() => setPaused(false)}
             className="pointer-events-auto relative flex items-start gap-3 overflow-hidden rounded-xl bg-raised p-3 pr-10 text-fg shadow-float"
         >
             <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${tile}`}>
@@ -98,12 +101,13 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
             <button
                 onClick={() => onDismiss(toast.id)}
                 aria-label="Dismiss notification"
-                className="absolute top-2.5 right-2.5 p-1 rounded-md text-fg-3 hover:text-fg hover:bg-tint-3 transition-colors"
+                className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-md text-fg-3 transition-colors hover:bg-tint-3 hover:text-fg"
             >
                 <X size={14} />
             </button>
             {/* Time left before it closes */}
             <motion.div
+                aria-hidden
                 key={paused ? 'paused' : 'running'}
                 className={`absolute bottom-0 left-0 h-0.5 opacity-60 ${bar}`}
                 initial={{ width: '100%' }}

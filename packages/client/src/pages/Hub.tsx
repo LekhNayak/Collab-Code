@@ -213,7 +213,7 @@ export default function Hub() {
               </div>
             </header>
 
-            <main className="relative mx-auto flex w-full max-w-[92rem] flex-1 flex-col px-5 pb-16 pt-10 sm:px-8 md:pt-14">
+            <main id="main-content" tabIndex={-1} className="relative mx-auto flex w-full max-w-[92rem] focus:outline-none flex-1 flex-col px-5 pb-16 pt-10 sm:px-8 md:pt-14">
                 <div className="mb-14 grid w-full items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.02fr)] lg:gap-14">
                     <motion.div
                         className="flex flex-col items-center text-center lg:items-start lg:text-left"

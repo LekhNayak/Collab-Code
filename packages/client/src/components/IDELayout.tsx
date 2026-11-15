@@ -774,7 +774,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     // ── Room type mismatch / exam block screen ──
     if (roomBlocked) {
         return (
-            <div className="flex h-screen w-full items-center justify-center bg-canvas p-8">
+            <main id="main-content" tabIndex={-1} className="flex h-screen w-full items-center justify-center bg-canvas p-8 focus:outline-none">
                 <motion.div
                     className="ui-card w-full max-w-md p-8 text-center"
                     initial={{ opacity: 0, y: 8 }}
@@ -790,7 +790,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                         Return to hub
                     </Button>
                 </motion.div>
-            </div>
+            </main>
         );
     }
 
@@ -1007,6 +1007,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                                 <input
                                                     autoFocus
                                                     className="new-file-input"
+                                                    aria-label={creatingFile === 'folder' ? 'New folder name' : 'New file name'}
                                                     placeholder={creatingFile === 'folder' ? 'folder name...' : 'filename.ext...'}
                                                     value={newFileName}
                                                     onChange={(e) => setNewFileName(e.target.value)}
@@ -1054,7 +1055,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                             <div className="room-info-row">
                                                 <span className="room-info-label">Room ID</span>
                                                 <code className="room-info-value">{roomId}</code>
-                                                <button className="room-info-copy" onClick={handleCopyRoomLink}>
+                                                <button className="room-info-copy" onClick={handleCopyRoomLink} aria-label="Copy room link" title="Copy room link">
                                                     <Copy size={12} />
                                                 </button>
                                             </div>
@@ -1077,7 +1078,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                 )}
 
                 {/* Main Editor Area */}
-                <div className="main-area">
+                <div className="main-area" id="main-content" role="main" tabIndex={-1} style={{ outline: 'none' }}>
                     <div className="editor-topbar">
                         <EditorTabs
                             tabs={displayTabs}

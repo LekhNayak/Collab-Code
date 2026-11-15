@@ -213,7 +213,7 @@ export default function AdminMonitor() {
         <div className="relative flex h-screen overflow-hidden bg-canvas font-sans text-fg">
 
             {/* ── Left Panel: Student Code Previews ── */}
-            <div className="relative z-10 flex flex-1 flex-col gap-6 overflow-y-auto p-6">
+            <main id="main-content" tabIndex={-1} className="relative z-10 flex flex-1 flex-col gap-6 overflow-y-auto p-6 focus:outline-none">
                 {/* Header */}
                 <motion.div
                     className="ui-card flex items-center gap-4 p-4"
@@ -223,6 +223,7 @@ export default function AdminMonitor() {
                 >
                     <button
                         onClick={() => navigate('/admin')}
+                        aria-label="Back to exams"
                         className="shrink-0 rounded-lg bg-tint-2 p-2 text-fg-2 transition-colors hover:bg-tint-3 hover:text-fg"
                     >
                         <ArrowLeft size={17} />
@@ -297,7 +298,7 @@ export default function AdminMonitor() {
                         </motion.div>
                     )}
                 </div>
-            </div>
+            </main>
 
             {/* ── Right Panel: Event Log Console ── */}
             <div className="relative z-10 flex w-[420px] flex-col border-l border-line bg-surface">
@@ -317,6 +318,7 @@ export default function AdminMonitor() {
                         <div className="flex items-center gap-2 bg-canvas rounded-lg border border-line px-3 py-2">
                             <Filter size={14} className="text-fg-3 flex-shrink-0" />
                             <select
+                                aria-label="Filter by event type"
                                 value={filterType}
                                 onChange={e => setFilterType(e.target.value)}
                                 className="flex-1 bg-transparent text-sm text-fg outline-none appearance-none cursor-pointer"
@@ -337,6 +339,7 @@ export default function AdminMonitor() {
                             <div className="flex items-center gap-2 bg-canvas rounded-lg border border-line px-3 py-2">
                                 <Users size={14} className="text-fg-3 flex-shrink-0" />
                                 <select
+                                    aria-label="Filter by student"
                                     value={filterStudent}
                                     onChange={e => setFilterStudent(e.target.value)}
                                     className="flex-1 bg-transparent text-sm text-fg outline-none appearance-none cursor-pointer"

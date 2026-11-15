@@ -208,7 +208,7 @@ export default function ContestManage() {
                         <div className="flex flex-wrap items-center gap-2">
                             {(phase === 'DRAFT' || phase === 'SCHEDULED') && (
                                 <>
-                                    <input type="datetime-local" value={scheduleAt} onChange={e => setScheduleAt(e.target.value)} className={`${inputClass} w-auto`} />
+                                    <input type="datetime-local" aria-label="Start time" value={scheduleAt} onChange={e => setScheduleAt(e.target.value)} className={`${inputClass} w-auto`} />
                                     <button disabled={busy} onClick={() => act(() => contestApi.start(contest.id, new Date(scheduleAt).toISOString()), 'Contest scheduled')} className={`${buttonClass} bg-accent/15  text-accent-text hover:bg-accent/25`}>
                                         <CalendarClock size={16} /> {phase === 'SCHEDULED' ? 'Reschedule' : 'Schedule'}
                                     </button>
@@ -346,16 +346,16 @@ function SettingsCard({ contest, judge, busy, onSave }: {
             <h2 className="text-lg font-semibold mb-4">Settings</h2>
             <div className="space-y-4">
                 <div>
-                    <label className={labelClass}>Title</label>
-                    <input value={title} onChange={e => setTitle(e.target.value)} className={inputClass} />
+                    <label htmlFor="cm-1" className={labelClass}>Title</label>
+                    <input id="cm-1" value={title} onChange={e => setTitle(e.target.value)} className={inputClass} />
                 </div>
                 <div>
-                    <label className={labelClass}>Description (markdown, shown in the lobby)</label>
-                    <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4} className={`${inputClass} font-mono text-xs`} placeholder="Rules, prizes, scoring notes…" />
+                    <label htmlFor="cm-2" className={labelClass}>Description (markdown, shown in the lobby)</label>
+                    <textarea id="cm-2" value={description} onChange={e => setDescription(e.target.value)} rows={4} className={`${inputClass} font-mono text-xs`} placeholder="Rules, prizes, scoring notes…" />
                 </div>
                 <div>
-                    <label className={labelClass}>Duration (minutes)</label>
-                    <input type="number" min={5} value={duration} onChange={e => setDuration(e.target.value)} disabled={contest.phase === 'ENDED'} className={inputClass} />
+                    <label htmlFor="cm-3" className={labelClass}>Duration (minutes)</label>
+                    <input id="cm-3" type="number" min={5} value={duration} onChange={e => setDuration(e.target.value)} disabled={contest.phase === 'ENDED'} className={inputClass} />
                 </div>
                 <div>
                     <label className={labelClass}>Languages {languages.length === 0 && <span className="normal-case text-fg-3">(all allowed)</span>}</label>
@@ -373,8 +373,8 @@ function SettingsCard({ contest, judge, busy, onSave }: {
                     </div>
                 </div>
                 <div>
-                    <label className={labelClass}>Leaderboard</label>
-                    <select value={leaderboard} onChange={e => setLeaderboard(e.target.value as 'LIVE' | 'AFTER_END')} className={inputClass}>
+                    <label htmlFor="cm-4" className={labelClass}>Leaderboard</label>
+                    <select id="cm-4" value={leaderboard} onChange={e => setLeaderboard(e.target.value as 'LIVE' | 'AFTER_END')} className={inputClass}>
                         <option value="LIVE">Visible to participants during the contest</option>
                         <option value="AFTER_END">Hidden until the contest ends</option>
                     </select>
@@ -388,7 +388,7 @@ function SettingsCard({ contest, judge, busy, onSave }: {
                     {proctoring && (
                         <div className="mt-3 flex items-center gap-2 text-sm">
                             Block after
-                            <input type="number" min={1} value={maxTabSwitches} onChange={e => setMaxTabSwitches(e.target.value)} className={`${inputClass} w-20`} />
+                            <input type="number" min={1} aria-label="Tab switches before a participant is blocked" value={maxTabSwitches} onChange={e => setMaxTabSwitches(e.target.value)} className={`${inputClass} w-20`} />
                             tab switches
                         </div>
                     )}
@@ -479,16 +479,16 @@ function ProblemEditor({ contest, problem, judge, busy, act, onError, refresh }:
 
             <div className="grid grid-cols-1 md:grid-cols-[1fr_110px_130px_130px] gap-3">
                 <div>
-                    <label className={labelClass}>{problem.index} · Title</label>
-                    <input value={title} onChange={e => setTitle(e.target.value)} className={inputClass} />
+                    <label htmlFor="cm-5" className={labelClass}>{problem.index} · Title</label>
+                    <input id="cm-5" value={title} onChange={e => setTitle(e.target.value)} className={inputClass} />
                 </div>
                 <div>
-                    <label className={labelClass}>Points</label>
-                    <input type="number" min={1} value={points} onChange={e => setPoints(e.target.value)} className={inputClass} />
+                    <label htmlFor="cm-6" className={labelClass}>Points</label>
+                    <input id="cm-6" type="number" min={1} value={points} onChange={e => setPoints(e.target.value)} className={inputClass} />
                 </div>
                 <div>
-                    <label className={labelClass}>Time limit (ms)</label>
-                    <input type="number" min={250} max={isSql ? judge?.sql.maxTimeLimitMs : judge?.maxTimeLimitMs} value={timeLimit} onChange={e => setTimeLimit(e.target.value)} className={inputClass} />
+                    <label htmlFor="cm-7" className={labelClass}>Time limit (ms)</label>
+                    <input id="cm-7" type="number" min={250} max={isSql ? judge?.sql.maxTimeLimitMs : judge?.maxTimeLimitMs} value={timeLimit} onChange={e => setTimeLimit(e.target.value)} className={inputClass} />
                 </div>
                 {isSql ? (
                     <div>
@@ -499,15 +499,15 @@ function ProblemEditor({ contest, problem, judge, busy, act, onError, refresh }:
                     </div>
                 ) : (
                     <div>
-                        <label className={labelClass} title="Only enforced by Piston">Memory (MB)</label>
-                        <input type="number" min={16} value={memoryLimit} onChange={e => setMemoryLimit(e.target.value)} disabled={judge?.backend !== 'piston'} placeholder={judge?.backend === 'piston' ? 'none' : 'Piston only'} className={inputClass} />
+                        <label htmlFor="cm-8" className={labelClass} title="Only enforced by Piston">Memory (MB)</label>
+                        <input id="cm-8" type="number" min={16} value={memoryLimit} onChange={e => setMemoryLimit(e.target.value)} disabled={judge?.backend !== 'piston'} placeholder={judge?.backend === 'piston' ? 'none' : 'Piston only'} className={inputClass} />
                     </div>
                 )}
             </div>
 
             <div>
                 <div className="flex items-center justify-between mb-1.5">
-                    <label className={`${labelClass} mb-0`}>Statement (markdown)</label>
+                    <label htmlFor="cm-statement" className={`${labelClass} mb-0`}>Statement (markdown)</label>
                     <button onClick={() => setPreview(p => !p)} className="text-xs text-accent-text/80 hover:text-accent-text flex items-center gap-1">
                         {preview ? <><Pencil size={12} /> Edit</> : <><Eye size={12} /> Preview</>}
                     </button>
@@ -516,6 +516,7 @@ function ProblemEditor({ contest, problem, judge, busy, act, onError, refresh }:
                     <div className="min-h-[220px] rounded-lg border border-line bg-canvas p-4"><Markdown>{statement || '_Nothing written yet._'}</Markdown></div>
                 ) : (
                     <textarea
+                        id="cm-statement"
                         value={statement}
                         onChange={e => setStatement(e.target.value)}
                         rows={10}
@@ -531,8 +532,8 @@ function ProblemEditor({ contest, problem, judge, busy, act, onError, refresh }:
                 <div className="space-y-3">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                         <div>
-                            <label className={labelClass}>Schema · shown to participants</label>
-                            <textarea
+                            <label htmlFor="cm-9" className={labelClass}>Schema · shown to participants</label>
+                            <textarea id="cm-9"
                                 value={sqlSchema}
                                 onChange={e => setSqlSchema(e.target.value)}
                                 rows={9}
@@ -542,8 +543,8 @@ function ProblemEditor({ contest, problem, judge, busy, act, onError, refresh }:
                             />
                         </div>
                         <div>
-                            <label className={labelClass}>Reference query · hidden, computes every expected result</label>
-                            <textarea
+                            <label htmlFor="cm-10" className={labelClass}>Reference query · hidden, computes every expected result</label>
+                            <textarea id="cm-10"
                                 value={sqlSolution}
                                 onChange={e => setSqlSolution(e.target.value)}
                                 rows={9}
@@ -697,8 +698,8 @@ function TestsPanel({ contest, problem, judge, onError, refresh }: {
                 <div className="mb-4 rounded-lg  bg-accent/4 p-4 space-y-3">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                         <div>
-                            <label className={labelClass}>Dataset (INSERT statements)</label>
-                            <textarea
+                            <label htmlFor="cm-11" className={labelClass}>Dataset (INSERT statements)</label>
+                            <textarea id="cm-11"
                                 value={editing.input}
                                 onChange={e => setEditing({ ...editing, input: e.target.value })}
                                 rows={10}
@@ -735,12 +736,12 @@ function TestsPanel({ contest, problem, judge, onError, refresh }: {
                 <div className="mb-4 rounded-lg  bg-accent/4 p-4 space-y-3">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                            <label className={labelClass}>Input (stdin)</label>
-                            <textarea value={editing.input} onChange={e => setEditing({ ...editing, input: e.target.value })} rows={7} className={`${inputClass} font-mono text-xs`} />
+                            <label htmlFor="cm-12" className={labelClass}>Input (stdin)</label>
+                            <textarea id="cm-12" value={editing.input} onChange={e => setEditing({ ...editing, input: e.target.value })} rows={7} className={`${inputClass} font-mono text-xs`} />
                         </div>
                         <div>
-                            <label className={labelClass}>Expected output</label>
-                            <textarea value={editing.expectedOutput} onChange={e => setEditing({ ...editing, expectedOutput: e.target.value })} rows={7} className={`${inputClass} font-mono text-xs`} />
+                            <label htmlFor="cm-13" className={labelClass}>Expected output</label>
+                            <textarea id="cm-13" value={editing.expectedOutput} onChange={e => setEditing({ ...editing, expectedOutput: e.target.value })} rows={7} className={`${inputClass} font-mono text-xs`} />
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -781,6 +782,7 @@ function TestsPanel({ contest, problem, judge, onError, refresh }: {
                                     <td className="py-2 px-3 text-center">
                                         <input
                                             type="checkbox"
+                                            aria-label="Sample test: shown to participants"
                                             checked={t.isSample}
                                             disabled={working}
                                             onChange={e => run(() => contestApi.updateTest(contest.id, problem.id, t.id, { isSample: e.target.checked }))}
@@ -834,11 +836,11 @@ function TestsPanel({ contest, problem, judge, onError, refresh }: {
                     </p>
                 )}
                 <div className="flex flex-wrap items-center gap-2">
-                    <select value={uploadMode} onChange={e => setUploadMode(e.target.value as 'append' | 'replace')} className={`${inputClass} w-auto`}>
+                    <select aria-label="Upload mode" value={uploadMode} onChange={e => setUploadMode(e.target.value as 'append' | 'replace')} className={`${inputClass} w-auto`}>
                         <option value="append">Add to existing tests</option>
                         <option value="replace">Replace all tests</option>
                     </select>
-                    <input type="number" min={0} value={sampleCount} onChange={e => setSampleCount(e.target.value)} placeholder="Samples: auto" className={`${inputClass} w-36`} title="Mark the first N uploaded tests as samples (leave empty to use file names)" />
+                    <input type="number" min={0} aria-label="Number of sample tests" value={sampleCount} onChange={e => setSampleCount(e.target.value)} placeholder="Samples: auto" className={`${inputClass} w-36`} title="Mark the first N uploaded tests as samples (leave empty to use file names)" />
                     <input ref={filesRef} type="file" multiple accept={isSql ? '.zip,.sql' : '.zip,.in,.out,.ans,.txt,.input,.output,.answer'} className="hidden" onChange={e => upload(e.target.files)} />
                     <input ref={folderRef} type="file" multiple className="hidden" onChange={e => upload(e.target.files)} {...({ webkitdirectory: '' } as Record<string, string>)} />
                     <button disabled={working} onClick={() => filesRef.current?.click()} className={`${buttonClass} bg-tint-3 border border-line-strong hover:bg-tint-5`}><FileUp size={16} /> Files or .zip</button>

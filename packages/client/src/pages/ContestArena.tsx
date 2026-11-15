@@ -16,6 +16,7 @@ import { useCollabWorkspace, openCollabFile } from '../collab/useCollabWorkspace
 import { useProctoring } from '../hooks/useProctoring';
 import { getTokenUser } from '../auth';
 import { recordRecent } from '../recent';
+import Overlay from '../components/ui/Overlay';
 import { languageLabel, monacoLanguageFor, solutionPath, SQL_LANGUAGE, type ContestLanguageInfo } from '../contest/languages';
 import {
     contestApi, errorMessage, formatScore, PHASE_LABEL, PHASE_STYLE, VERDICT_STYLE,
@@ -145,14 +146,14 @@ export default function ContestArena() {
 }
 
 function Screen({ children }: { children: React.ReactNode }) {
-    return <div className="h-[100dvh] w-full bg-canvas text-fg flex items-center justify-center p-6">{children}</div>;
+    return <main id="main-content" tabIndex={-1} className="h-[100dvh] w-full bg-canvas text-fg flex items-center justify-center p-6 focus:outline-none">{children}</main>;
 }
 
 function Lobby({ info, offsetMs, onBack, children }: { info: ResolveResponse; offsetMs: number; onBack: () => void; children: React.ReactNode }) {
     const { contest } = info;
     return (
         <div className="h-[100dvh] w-full bg-canvas text-fg overflow-y-auto">
-            <div className="max-w-2xl mx-auto px-6 py-10">
+            <main id="main-content" tabIndex={-1} className="max-w-2xl mx-auto px-6 py-10 focus:outline-none">
                 <button onClick={onBack} className="mb-8 flex items-center gap-2 text-fg-3 hover:text-fg text-sm"><ArrowLeft size={16} /> Contests</button>
                 <div className="ui-card p-8">
                     <div className="flex items-center gap-4 mb-6">
@@ -200,7 +201,7 @@ function Lobby({ info, offsetMs, onBack, children }: { info: ResolveResponse; of
                 <p className="text-center text-fg-3 text-xs mt-6">
                     Each problem's points are split evenly across its test cases. Your best submission per problem counts; ties go to whoever reached their score first.
                 </p>
-            </div>
+            </main>
         </div>
     );
 }
@@ -429,7 +430,7 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
         <div className="h-[100dvh] w-full bg-canvas text-fg flex flex-col overflow-hidden">
             {/* Header */}
             <header className="h-14 shrink-0 border-b border-line flex items-center gap-4 px-4">
-                <button onClick={() => navigate('/contests')} className="p-2 rounded-lg hover:bg-tint-3 text-fg-2" title="Leave"><ArrowLeft size={18} /></button>
+                <button onClick={() => navigate('/contests')} className="p-2 rounded-lg hover:bg-tint-3 text-fg-2" title="Leave" aria-label="Leave the contest"><ArrowLeft size={18} /></button>
                 <Trophy size={18} className="text-accent-text shrink-0" />
                 <div className="font-semibold truncate">{contest.title}</div>
                 {isOwner && <span className="inline-flex h-5 items-center rounded-full px-2 text-[11px] font-medium  bg-accent/10 text-accent-text flex items-center gap-1 shrink-0"><FlaskConical size={12} /> Organizer test mode: not ranked</span>}
@@ -447,7 +448,7 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                 </button>
             </header>
 
-            <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
+            <div id="main-content" role="main" tabIndex={-1} className="flex-1 min-h-0 flex flex-col focus:outline-none lg:flex-row">
                 {/* Problem */}
                 <section className="lg:w-[42%] min-h-0 flex flex-col border-b lg:border-b-0 lg:border-r border-line">
                     <div className="flex gap-1 px-3 pt-3 overflow-x-auto shrink-0">
@@ -510,6 +511,7 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                             </span>
                         ) : (
                             <select
+                                aria-label="Programming language"
                                 value={language?.id ?? ''}
                                 onChange={e => chooseLanguage(e.target.value)}
                                 disabled={readOnly}
@@ -580,6 +582,7 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 h-full">
                                     <div className="flex flex-col gap-2">
                                         <textarea
+                                            aria-label="Custom input"
                                             value={customInput}
                                             onChange={e => setCustomInput(e.target.value)}
                                             placeholder={isSql ? 'INSERT statements to run after the schema (the sample data is not included)' : 'Input (stdin)'}
@@ -622,11 +625,16 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
 
             {/* Leaderboard drawer */}
             {showBoard && (
-                <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm" onClick={() => setShowBoard(false)}>
-                    <div className="w-full max-w-3xl h-full bg-surface border-l border-line p-5 overflow-y-auto" onClick={e => e.stopPropagation()}>
+                <Overlay
+                    label="Leaderboard"
+                    onClose={() => setShowBoard(false)}
+                    className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm"
+                    panelClassName="w-full max-w-3xl h-full bg-surface border-l border-line p-5 overflow-y-auto"
+                >
+                    <div>
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-xl font-semibold flex items-center gap-2"><Trophy size={20} className="text-accent-text" /> Leaderboard</h2>
-                            <button onClick={() => setShowBoard(false)} className="p-2 rounded-lg hover:bg-tint-3"><X size={18} /></button>
+                            <button onClick={() => setShowBoard(false)} className="p-2 rounded-lg hover:bg-tint-3" aria-label="Close leaderboard"><X size={18} /></button>
                         </div>
                         {!board ? <Loader2 className="animate-spin text-fg-3" /> : board.hidden ? (
                             <div className="text-fg-3 py-10 text-center">The organizer hides the leaderboard until the contest ends.</div>
@@ -634,7 +642,7 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                             <Leaderboard rows={board.rows} problems={board.problems} startsAt={contest.startsAt} highlightUserId={user?.id} />
                         )}
                     </div>
-                </div>
+                </Overlay>
             )}
 
             <ProctoringOverlay overlay={proctoring.overlay} onDismiss={proctoring.dismissOverlay} label="contest" maxStrikes={contest.maxTabSwitches} />

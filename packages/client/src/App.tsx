@@ -11,6 +11,8 @@ import { DialogProvider } from './contexts/DialogContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { MotionConfig } from 'framer-motion';
+import SkipLink from './components/ui/SkipLink';
+import RouteA11y from './components/RouteA11y';
 
 // The editor pages pull in Monaco (several MB), so they load on demand
 const IDELayout = lazy(() => import('./components/IDELayout'));
@@ -32,7 +34,9 @@ function App() {
       <ToastProvider>
       <DialogProvider>
       <Router>
-        <Suspense fallback={<div className="flex h-full items-center justify-center bg-canvas text-sm text-fg-3">Loading…</div>}>
+        <SkipLink />
+        <RouteA11y />
+        <Suspense fallback={<div role="status" className="flex h-full items-center justify-center bg-canvas text-sm text-fg-3">Loading…</div>}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route

@@ -1,3 +1,4 @@
+import { buttonProps } from '../a11y';
 import { useState, useEffect, useCallback } from 'react';
 import {
     Search, Download, Trash2, ChevronDown, ChevronRight,
@@ -214,7 +215,7 @@ export default function ExtensionPanel({ sessionId, installedExtensions, onExten
                 <Search size={13} className="ext-search-icon" />
                 <input
                     className="ext-search-input"
-                    placeholder="Search extensions..."
+                    aria-label="Search extensions" placeholder="Search extensions..."
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                 />
@@ -255,21 +256,22 @@ export default function ExtensionPanel({ sessionId, installedExtensions, onExten
                 <div className="ext-create-form">
                     <div className="ext-form-header">
                         <span>Create extension</span>
-                        <button className="ext-form-close" onClick={resetForm}><X size={12} /></button>
+                        <button className="ext-form-close" onClick={resetForm} aria-label="Close the form"><X size={12} /></button>
                     </div>
-                    <input className="ext-form-input" placeholder="Extension ID (e.g. custom-my-theme)" value={formId} onChange={e => setFormId(e.target.value)} />
-                    <input className="ext-form-input" placeholder="Name *" value={formName} onChange={e => setFormName(e.target.value)} />
-                    <input className="ext-form-input" placeholder="Description" value={formDesc} onChange={e => setFormDesc(e.target.value)} />
+                    <input className="ext-form-input" aria-label="Extension ID" placeholder="Extension ID (e.g. custom-my-theme)" value={formId} onChange={e => setFormId(e.target.value)} />
+                    <input className="ext-form-input" aria-label="Name" placeholder="Name *" value={formName} onChange={e => setFormName(e.target.value)} />
+                    <input className="ext-form-input" aria-label="Description" placeholder="Description" value={formDesc} onChange={e => setFormDesc(e.target.value)} />
                     <div className="ext-form-row">
-                        <select className="ext-form-select" value={formCategory} onChange={e => setFormCategory(e.target.value)}>
+                        <select className="ext-form-select" aria-label="Category" value={formCategory} onChange={e => setFormCategory(e.target.value)}>
                             {CATEGORY_OPTIONS.map(c => (
                                 <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
                             ))}
                         </select>
-                        <input className="ext-form-input ext-form-icon" placeholder="Icon" value={formIcon} onChange={e => setFormIcon(e.target.value)} maxLength={2} />
+                        <input className="ext-form-input ext-form-icon" aria-label="Icon" placeholder="Icon" value={formIcon} onChange={e => setFormIcon(e.target.value)} maxLength={2} />
                     </div>
                     <textarea
                         className="ext-form-textarea"
+                        aria-label="Config JSON"
                         placeholder={'Config JSON (for themes, use bgPrimary, accentPrimary, etc)'}
                         value={formConfig}
                         onChange={e => setFormConfig(e.target.value)}
@@ -289,7 +291,7 @@ export default function ExtensionPanel({ sessionId, installedExtensions, onExten
                         <button className="ext-form-close" onClick={() => setShowImportUrl(false)}><X size={12} /></button>
                     </div>
                     <p className="ext-form-hint">Paste a URL to a JSON file containing an extension definition.</p>
-                    <input className="ext-form-input" placeholder="https://gist.github.com/.../raw/ext.json" value={importUrl} onChange={e => setImportUrl(e.target.value)} />
+                    <input className="ext-form-input" aria-label="Https://gist.github.com/.../raw/ext.json" placeholder="https://gist.github.com/.../raw/ext.json" value={importUrl} onChange={e => setImportUrl(e.target.value)} />
                     <button className="ext-form-submit" onClick={handleImportFromUrl} disabled={!importUrl || createLoading}>
                         {createLoading ? 'Importing...' : 'Import Extension'}
                     </button>
@@ -306,6 +308,7 @@ export default function ExtensionPanel({ sessionId, installedExtensions, onExten
                     <p className="ext-form-hint">Paste a full extension JSON object with id, name, category, and config fields.</p>
                     <textarea
                         className="ext-form-textarea"
+                        aria-label="Extension JSON"
                         placeholder={'{\n  "id": "custom-my-theme",\n  "name": "My Custom Theme",\n  "category": "theme",\n  "icon": "🎨",\n  "config": {\n    "bgPrimary": "#1a1a2e",\n    ...\n  }\n}'}
                         value={pasteJson}
                         onChange={e => setPasteJson(e.target.value)}
@@ -319,7 +322,7 @@ export default function ExtensionPanel({ sessionId, installedExtensions, onExten
 
             {/* Installed */}
             <div className="ext-section">
-                <div className="ext-section-header" onClick={() => setShowInstalled(!showInstalled)}>
+                <div className="ext-section-header" {...buttonProps(() => setShowInstalled(!showInstalled), showInstalled)}>
                     {showInstalled ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     <span>Installed</span>
                     <span className="ext-count">{installed.length}</span>
@@ -346,7 +349,7 @@ export default function ExtensionPanel({ sessionId, installedExtensions, onExten
 
             {/* Available */}
             <div className="ext-section">
-                <div className="ext-section-header" onClick={() => setShowAvailable(!showAvailable)}>
+                <div className="ext-section-header" {...buttonProps(() => setShowAvailable(!showAvailable), showAvailable)}>
                     {showAvailable ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     <span>Available</span>
                     <span className="ext-count">{available.length}</span>

@@ -9,6 +9,8 @@ import Leaderboard from '../components/contest/Leaderboard';
 import VerdictBadge from '../components/contest/VerdictBadge';
 import Countdown from '../components/contest/Countdown';
 import LiveCodePreview from '../components/LiveCodePreview';
+import Overlay from '../components/ui/Overlay';
+import { useDialogPanel } from '../components/ui/useDialog';
 import Pager from '../components/ui/Pager';
 import IconTile from '../components/ui/IconTile';
 import Button from '../components/ui/Button';
@@ -113,7 +115,7 @@ export default function ContestMonitor() {
 
     if (!data) {
         return (
-            <div className="h-[100dvh] bg-canvas text-fg flex items-center justify-center">
+            <div role="status" className="h-[100dvh] bg-canvas text-fg flex items-center justify-center">
                 {error ? <div className="text-danger-text">{error}</div> : <Loader2 className="animate-spin text-fg-3" size={32} />}
             </div>
         );
@@ -131,7 +133,7 @@ export default function ContestMonitor() {
 
     return (
         <div className="h-[100dvh] w-full overflow-y-auto bg-canvas text-fg xl:overflow-hidden">
-            <div className="mx-auto max-w-[110rem] px-5 py-5 md:px-8 xl:flex xl:h-full xl:flex-col">
+            <main id="main-content" tabIndex={-1} className="mx-auto max-w-[110rem] px-5 py-5 focus:outline-none md:px-8 xl:flex xl:h-full xl:flex-col">
                 {/* Header */}
                 <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-4 min-w-0">
@@ -189,7 +191,7 @@ export default function ContestMonitor() {
                     </div>
                 </div>
 
-                {error && <div role="alert" className="mb-4 flex shrink-0 justify-between rounded-lg bg-danger/10 px-4 py-3 text-danger-text">{error}<button onClick={() => setError('')} aria-label="Dismiss"><X size={16} /></button></div>}
+                {error && <div role="alert" className="mb-4 flex shrink-0 justify-between rounded-lg bg-danger/10 px-4 py-3 text-danger-text">{error}<button onClick={() => setError('')} aria-label="Dismiss error" className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-tint-3"><X size={16} /></button></div>}
 
                 {/* Stats */}
                 <div className="mb-4 grid shrink-0 grid-cols-2 gap-4 md:grid-cols-4">
@@ -359,7 +361,7 @@ export default function ContestMonitor() {
                         </div>
                     </div>
                 </div>
-            </div>
+            </main>
 
             {/* A full page over the monitor: several codespaces together */}
             <AnimatePresence>
@@ -378,8 +380,13 @@ export default function ContestMonitor() {
             </AnimatePresence>
 
             {openSubmission && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setOpenSubmission(null)}>
-                    <div className="w-full max-w-4xl max-h-[90vh] bg-raised shadow-float rounded-xl p-6 overflow-y-auto" onClick={e => e.stopPropagation()}>
+                <Overlay
+                    label={`Submission by ${openSubmission.user.username}, problem ${openSubmission.problem.index}`}
+                    onClose={() => setOpenSubmission(null)}
+                    className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+                    panelClassName="w-full max-w-4xl max-h-[90vh] bg-raised shadow-float rounded-xl p-6 overflow-y-auto"
+                >
+                    <div>
                         <div className="flex items-start justify-between gap-4 mb-4">
                             <div>
                                 <h2 className="text-xl font-semibold">{openSubmission.user.username} · {openSubmission.problem.index}. {openSubmission.problem.title}</h2>
@@ -410,9 +417,9 @@ export default function ContestMonitor() {
                         {openSubmission.compileOutput && (
                             <pre className="mb-4 rounded-lg  bg-danger/10 p-3 font-mono text-xs text-danger-text whitespace-pre-wrap max-h-48 overflow-auto">{openSubmission.compileOutput}</pre>
                         )}
-                        <pre className="rounded-lg border border-line bg-canvas p-4 font-mono text-xs text-fg whitespace-pre overflow-auto max-h-[55vh]">{openSubmission.code}</pre>
+                        <pre tabIndex={0} aria-label="Submitted code" className="rounded-lg border border-line bg-canvas p-4 font-mono text-xs text-fg whitespace-pre overflow-auto max-h-[55vh]">{openSubmission.code}</pre>
                     </div>
-                </div>
+                </Overlay>
             )}
         </div>
     );
@@ -439,23 +446,23 @@ function CodeWall({ contestId, title, participants, pinned, onToggle, onWatchAll
     const visible = pinned.slice(current * perPage, (current + 1) * perPage);
     const candidates = participants.filter(p => p.status !== 'REMOVED');
 
-    // Esc closes the wall; the arrow keys turn its pages (unless a field has the keys)
+    const wall = useDialogPanel<HTMLDivElement>('Code wall', onClose);
+
+    // The arrow keys turn the wall's pages (unless a field has the keys); Esc is the dialog's own
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
             if ((e.target as HTMLElement | null)?.closest('.monaco-editor, input, textarea, select')) return;
             if (e.key === 'ArrowRight') setPage(p => Math.min(lastPage, p + 1));
             if (e.key === 'ArrowLeft') setPage(p => Math.max(0, p - 1));
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-    }, [onClose, lastPage]);
+    }, [lastPage]);
 
     return (
         <motion.div
-            role="dialog"
-            aria-label="Code wall"
-            className="fixed inset-0 z-40 flex flex-col bg-canvas"
+            {...wall.props}
+            className="fixed inset-0 z-40 flex flex-col bg-canvas focus:outline-none"
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 24 }}
