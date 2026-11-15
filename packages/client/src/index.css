@@ -399,25 +399,28 @@ html.theme-switching *::after {
    frame, so reduced motion (animations off) shows the poster.
    ========================================================================== */
 .pd {
-  --pd-line: 24px;
-  --pd-ada: #4ec9b0;
-  --pd-linus: #ff7a5c;
+  /* Everything in the loop is measured in em/ch, so the whole picture scales with one font size:
+     a little smaller on a small laptop, a little larger on a big monitor, never cropped */
+  --pd-line: 1.9em;
+  --pd-lekh: #4ec9b0;
+  --pd-chiranjan: #ff7a5c;
+  --pd-linus: #5aa9ff;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: clamp(12px, 0.5vw + 6.4px, 15px);
   line-height: var(--pd-line);
 }
 
 .pd-code {
   position: relative;
-  padding: 14px 16px 6px 44px;
+  padding: 1em 1.4em 0.6em 3.6em;
   white-space: pre;
 }
 
 .pd-gutter {
   position: absolute;
   left: 0;
-  top: 14px;
-  width: 32px;
+  top: 1em;
+  width: 2.5em;
   text-align: right;
   color: rgb(var(--fg-3));
   user-select: none;
@@ -435,16 +438,21 @@ html.theme-switching *::after {
   animation: pd-type 14s var(--ease-travel) infinite;
 }
 
+.pd-caret,
+.pd-cursor {
+  width: 2px;
+  height: calc(var(--pd-line) * 0.78);
+  margin-top: calc(var(--pd-line) * 0.11);
+  border-radius: 1px;
+}
+
 .pd-caret {
   display: inline-block;
   vertical-align: top;
-  width: 2px;
-  height: 18px;
-  margin: 3px 0 0 1px;
-  border-radius: 1px;
-  background: var(--pd-ada);
+  margin-left: 1px;
+  background: var(--pd-lekh);
   position: relative;
-  animation: pd-ada-caret 14s linear infinite;
+  animation: pd-lekh-caret 14s linear infinite;
 }
 
 .pd-tag {
@@ -459,28 +467,35 @@ html.theme-switching *::after {
   pointer-events: none;
 }
 
+.pd-cursor {
+  position: absolute;
+}
+
 .pd-select {
   position: absolute;
-  left: calc(44px + 13ch);
-  top: calc(14px + var(--pd-line) * 2);
+  left: calc(3.6em + 13ch);
+  top: calc(1em + var(--pd-line) * 2);
   width: 8ch;
   height: var(--pd-line);
   border-radius: 3px;
-  background: color-mix(in srgb, var(--pd-linus) 30%, transparent);
+  background: color-mix(in srgb, var(--pd-chiranjan) 30%, transparent);
   transform-origin: left center;
   animation: pd-select 14s var(--ease-travel) infinite;
 }
 
+.pd-chiranjan {
+  left: calc(3.6em + 21ch);
+  top: calc(1em + var(--pd-line) * 2);
+  background: var(--pd-chiranjan);
+  animation: pd-chiranjan 14s var(--ease-travel) infinite;
+}
+
+/* Linus rests at the end of "fib" on the first line, reading */
 .pd-linus {
-  position: absolute;
-  left: calc(44px + 21ch);
-  top: calc(14px + var(--pd-line) * 2);
-  width: 2px;
-  height: 18px;
-  margin-top: 3px;
-  border-radius: 1px;
+  left: calc(3.6em + 7ch);
+  top: 1em;
   background: var(--pd-linus);
-  animation: pd-linus 14s var(--ease-travel) infinite;
+  animation: pd-linus 14s var(--ease-arrive) infinite;
 }
 
 .pd-out {
@@ -495,7 +510,7 @@ html.theme-switching *::after {
   91.1%, 100% { max-width: 0; opacity: 0; }
 }
 
-@keyframes pd-ada-caret {
+@keyframes pd-lekh-caret {
   0%, 4% { opacity: 1; }
   24% { opacity: 1; }
   27% { opacity: 0.2; }
@@ -513,15 +528,20 @@ html.theme-switching *::after {
   100% { transform: scaleX(0); opacity: 0; }
 }
 
-@keyframes pd-linus {
-  0% { transform: translate(34ch, 54px); opacity: 0; }
-  6% { transform: translate(34ch, 54px); opacity: 0; }
-  10% { transform: translate(30ch, 40px); opacity: 1; }
+@keyframes pd-chiranjan {
+  0%, 6% { transform: translate(14ch, calc(var(--pd-line) * 2.2)); opacity: 0; }
+  10% { transform: translate(12ch, calc(var(--pd-line) * 1.6)); opacity: 1; }
   38% { transform: translate(0, 0); opacity: 1; }
-  44% { transform: translate(0, 0); opacity: 1; }
-  89% { transform: translate(0, 0); opacity: 1; }
-  96% { transform: translate(14ch, -36px); opacity: 0; }
-  100% { transform: translate(34ch, 54px); opacity: 0; }
+  44%, 89% { transform: translate(0, 0); opacity: 1; }
+  96% { transform: translate(6ch, calc(var(--pd-line) * -1)); opacity: 0; }
+  100% { transform: translate(14ch, calc(var(--pd-line) * 2.2)); opacity: 0; }
+}
+
+@keyframes pd-linus {
+  0%, 12% { opacity: 0; transform: translateY(calc(var(--pd-line) * 0.5)); }
+  18% { opacity: 1; transform: translateY(0); }
+  88% { opacity: 1; transform: translateY(0); }
+  93%, 100% { opacity: 0; transform: translateY(0); }
 }
 
 @keyframes pd-out {

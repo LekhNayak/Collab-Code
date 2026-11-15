@@ -12,7 +12,7 @@ export interface RecentItem {
     at: number;      // last opened, ms since epoch
 }
 
-const MAX_ITEMS = 8;
+const MAX_ITEMS = 30;
 
 const storageKey = () => {
     const user = getTokenUser();

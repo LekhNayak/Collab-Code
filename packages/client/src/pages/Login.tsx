@@ -67,7 +67,7 @@ const Login: React.FC = () => {
                 transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             >
                 <div className="mb-8 flex flex-col items-center text-center">
-                    <Wordmark className="mb-6 !text-base" />
+                    <Wordmark className="mb-6 !text-xl" />
                     <h1 className="text-2xl font-semibold tracking-tight text-fg">
                         {isLogin ? 'Sign in to your workspace' : 'Create your account'}
                     </h1>

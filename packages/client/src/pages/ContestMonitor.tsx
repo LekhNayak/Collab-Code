@@ -1,13 +1,17 @@
 import ThemeToggle from '../components/ThemeToggle';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
-    ArrowLeft, Ban, CheckCircle, Clock, Eye, Loader2, Play, Plus, RefreshCw, Settings2, Square, Trophy, UserX, Users, X, Send, Activity,
+    ArrowLeft, Ban, CheckCircle, Clock, Eye, Loader2, Maximize2, Play, Plus, RefreshCw, Settings2, Square, Trophy, UserX, Users, X, Send, Activity,
 } from 'lucide-react';
 import Leaderboard from '../components/contest/Leaderboard';
 import VerdictBadge from '../components/contest/VerdictBadge';
 import Countdown from '../components/contest/Countdown';
 import LiveCodePreview from '../components/LiveCodePreview';
+import Pager from '../components/ui/Pager';
+import IconTile from '../components/ui/IconTile';
+import Button from '../components/ui/Button';
 import {
     contestApi, errorMessage, formatScore, PHASE_LABEL, PHASE_STYLE, VERDICT_STYLE,
     type MonitorData, type SubmissionDetail,
@@ -16,9 +20,24 @@ import { useDialog } from '../contexts/dialog';
 import { useToast } from '../contexts/toast';
 import { languageLabel } from '../contest/languages';
 
-const MAX_PREVIEWS = 4;
+// Any number of participants can be watched; two code windows show at a time and the rest are on pages
+const MAX_WATCH = 12;
+const WATCH_PAGE = 2;
+const WALL_LAYOUTS = [1, 2, 4, 6] as const;
+type WallLayout = typeof WALL_LAYOUTS[number];
+const WALL_GRID: Record<WallLayout, string> = {
+    1: 'grid-cols-1 grid-rows-1',
+    2: 'grid-cols-1 grid-rows-2 lg:grid-cols-2 lg:grid-rows-1',
+    4: 'grid-cols-1 lg:grid-cols-2 lg:grid-rows-2',
+    6: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 lg:grid-rows-2',
+};
+
 const buttonClass = 'h-8 px-3 rounded-lg text-[13px] font-medium flex items-center gap-1.5 transition-colors disabled:opacity-40';
 const cardClass = 'ui-card';
+// Below xl the page scrolls as one column; from xl up each card is a fixed pane that scrolls inside itself,
+// so the page itself never scrolls and nothing falls below the fold.
+const paneClass = `${cardClass} flex min-h-0 flex-col p-5 xl:flex-1 xl:basis-0`;
+const paneBody = 'min-h-0 max-h-80 flex-1 overflow-auto xl:max-h-none';
 
 const EVENT_LABEL: Record<string, string> = {
     JOIN: 'joined',
@@ -49,6 +68,8 @@ export default function ContestMonitor() {
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
     const [pinned, setPinned] = useState<string[]>([]);
+    const [watchPage, setWatchPage] = useState(0);
+    const [wallOpen, setWallOpen] = useState(false);
     const [openSubmission, setOpenSubmission] = useState<SubmissionDetail | null>(null);
     const dialog = useDialog();
     const toast = useToast();
@@ -84,7 +105,7 @@ export default function ContestMonitor() {
     };
 
     const togglePin = (userId: string) => setPinned(list => (
-        list.includes(userId) ? list.filter(u => u !== userId) : [...list, userId].slice(-MAX_PREVIEWS)
+        list.includes(userId) ? list.filter(u => u !== userId) : [...list, userId].slice(-MAX_WATCH)
     ));
 
     const showSubmission = (submissionId: string) =>
@@ -104,13 +125,17 @@ export default function ContestMonitor() {
     const accepted = submissions.filter(s => s.verdict === 'AC').length;
     const blocked = participants.filter(p => p.status === 'BLOCKED').length;
 
+    const lastWatchPage = Math.max(0, Math.ceil(pinned.length / WATCH_PAGE) - 1);
+    const currentWatchPage = Math.min(watchPage, lastWatchPage);
+    const watching = pinned.slice(currentWatchPage * WATCH_PAGE, (currentWatchPage + 1) * WATCH_PAGE);
+
     return (
-        <div className="h-[100dvh] w-full bg-canvas text-fg overflow-y-auto">
-            <div className="max-w-[110rem] mx-auto px-5 md:px-8 py-6">
+        <div className="h-[100dvh] w-full overflow-y-auto bg-canvas text-fg xl:overflow-hidden">
+            <div className="mx-auto max-w-[110rem] px-5 py-5 md:px-8 xl:flex xl:h-full xl:flex-col">
                 {/* Header */}
-                <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-4 min-w-0">
-                        <button onClick={() => navigate('/contests')} className="p-2.5 rounded-lg bg-tint-2 hover:bg-tint-3"><ArrowLeft size={18} /></button>
+                        <button onClick={() => navigate('/contests')} className="p-2.5 rounded-lg bg-tint-2 hover:bg-tint-3" aria-label="All contests"><ArrowLeft size={18} /></button>
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent-text"><Activity size={20} /></div>
                         <div className="min-w-0">
                             <h1 className="text-2xl font-semibold truncate">{contest.title} <span className="text-fg-3 font-semibold text-lg">· Live monitor</span></h1>
@@ -125,8 +150,9 @@ export default function ContestMonitor() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <ThemeToggle />
+                        <button onClick={() => setWallOpen(true)} className={`${buttonClass} bg-tint-2 hover:bg-tint-3`} title="Watch several participants' code side by side"><Maximize2 size={15} /> Code wall</button>
                         <button onClick={() => navigate(`/contests/${contest.id}/manage`)} className={`${buttonClass} bg-tint-2 hover:bg-tint-3`}><Settings2 size={16} /> Manage</button>
-                        <button onClick={() => act(load)} disabled={busy} className={`${buttonClass} bg-tint-2 hover:bg-tint-3`} title="Refresh now"><RefreshCw size={16} /></button>
+                        <button onClick={() => act(load)} disabled={busy} className={`${buttonClass} bg-tint-2 hover:bg-tint-3`} title="Refresh now" aria-label="Refresh now"><RefreshCw size={16} /></button>
                         {(contest.phase === 'DRAFT' || contest.phase === 'SCHEDULED') && (
                             <button
                                 disabled={busy}
@@ -163,50 +189,75 @@ export default function ContestMonitor() {
                     </div>
                 </div>
 
-                {error && <div className="mb-4 rounded-lg  bg-danger/10 px-4 py-3 text-danger-text flex justify-between">{error}<button onClick={() => setError('')}><X size={16} /></button></div>}
+                {error && <div role="alert" className="mb-4 flex shrink-0 justify-between rounded-lg bg-danger/10 px-4 py-3 text-danger-text">{error}<button onClick={() => setError('')} aria-label="Dismiss"><X size={16} /></button></div>}
 
                 {/* Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="mb-4 grid shrink-0 grid-cols-2 gap-4 md:grid-cols-4">
                     {[
                         { label: 'Participants', value: participants.length, icon: <Users size={18} />, color: 'text-accent-text' },
                         { label: 'Submissions', value: submissions.length >= 100 ? '100+' : submissions.length, icon: <Send size={18} />, color: 'text-accent-text' },
                         { label: 'Accepted', value: accepted, icon: <CheckCircle size={18} />, color: 'text-success-text' },
                         { label: 'Blocked', value: blocked, icon: <Ban size={18} />, color: 'text-danger-text' },
                     ].map(stat => (
-                        <div key={stat.label} className={`${cardClass} px-5 py-4 flex items-center gap-4`}>
+                        <div key={stat.label} className={`${cardClass} flex items-center gap-4 px-5 py-3`}>
                             <div className={stat.color}>{stat.icon}</div>
                             <div>
-                                <div className="text-2xl font-semibold tabular-nums">{stat.value}</div>
-                                <div className="text-xs text-fg-3 ">{stat.label}</div>
+                                <div className="text-xl font-semibold leading-tight tabular-nums">{stat.value}</div>
+                                <div className="text-xs text-fg-3">{stat.label}</div>
                             </div>
                         </div>
                     ))}
                 </div>
 
-                <div className="grid grid-cols-1 2xl:grid-cols-[1fr_520px] gap-6">
-                    <div className="space-y-6 min-w-0">
-                        <div className={`${cardClass} p-5`}>
-                            <div className="flex items-center justify-between mb-3">
-                                <h2 className="text-lg font-semibold flex items-center gap-2"><Trophy size={18} className="text-accent-text" /> Leaderboard</h2>
+                <div className="grid grid-cols-1 gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_460px]">
+                    {/* Left: leaderboard, the code being watched, participants */}
+                    <div className="flex min-h-0 min-w-0 flex-col gap-4">
+                        <div className={paneClass}>
+                            <div className="mb-3 flex shrink-0 items-center justify-between">
+                                <h2 className="flex items-center gap-2 text-base font-semibold"><Trophy size={17} className="text-fg-3" /> Leaderboard</h2>
                                 <span className="text-xs text-fg-3">Click a row to watch that participant's code live</span>
                             </div>
-                            <Leaderboard rows={leaderboard} problems={problems} startsAt={contest.startsAt} onSelect={row => togglePin(row.userId)} selectedUserIds={pinned} />
+                            <div className={paneBody}>
+                                <Leaderboard rows={leaderboard} problems={problems} startsAt={contest.startsAt} onSelect={row => togglePin(row.userId)} selectedUserIds={pinned} />
+                            </div>
                         </div>
 
                         {pinned.length > 0 && (
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                {pinned.map(userId => (
-                                    <PreviewCard key={userId} contestId={contest.id} userId={userId} username={usernameOf(userId)} onClose={() => togglePin(userId)} />
-                                ))}
+                            <div className={`${cardClass} flex min-h-0 flex-col p-4 xl:flex-[1.7] xl:basis-0`}>
+                                <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
+                                    <h2 className="flex items-center gap-2 text-base font-semibold">
+                                        <Eye size={17} className="text-fg-3" /> Watching
+                                        <span className="inline-flex h-5 items-center rounded-full bg-tint-2 px-2 text-[11px] font-medium text-fg-2">{pinned.length}</span>
+                                    </h2>
+                                    <div className="flex items-center gap-1">
+                                        <Pager page={currentWatchPage} pageSize={WATCH_PAGE} total={pinned.length} onChange={setWatchPage} />
+                                        <button onClick={() => setWallOpen(true)} className={`${buttonClass} !h-7 bg-tint-2 hover:bg-tint-3`}><Maximize2 size={13} /> Code wall</button>
+                                        <button onClick={() => setPinned([])} className={`${buttonClass} !h-7 text-fg-2 hover:bg-tint-2 hover:text-fg`}>Clear</button>
+                                    </div>
+                                </div>
+                                {/* Inline previews step aside while the wall is open, so no code is streamed twice */}
+                                {!wallOpen && (
+                                    <motion.div
+                                        key={currentWatchPage}
+                                        initial={{ opacity: 0, x: 10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ duration: 0.25, ease: [0.25, 0.8, 0.25, 1] }}
+                                        className="grid min-h-0 flex-1 auto-rows-fr grid-cols-1 gap-3 lg:grid-cols-2"
+                                    >
+                                        {watching.map(userId => (
+                                            <PreviewCard key={userId} contestId={contest.id} userId={userId} username={usernameOf(userId)} onClose={() => togglePin(userId)} className="h-[300px] xl:h-auto" />
+                                        ))}
+                                    </motion.div>
+                                )}
                             </div>
                         )}
 
-                        <div className={`${cardClass} p-5`}>
-                            <h2 className="text-lg font-semibold mb-3">Participants</h2>
+                        <div className={paneClass}>
+                            <h2 className="mb-3 shrink-0 text-base font-semibold">Participants</h2>
                             {participants.length === 0 ? <div className="text-fg-3 text-sm py-6 text-center">Nobody has joined yet. Share the code <span className="font-mono text-accent-text">{contest.code}</span>.</div> : (
-                                <div className="overflow-x-auto">
+                                <div className={paneBody}>
                                     <table className="w-full text-sm">
-                                        <thead>
+                                        <thead className="sticky top-0 z-[1] bg-surface">
                                             <tr className="text-fg-3 text-xs border-b border-line">
                                                 <th className="text-left py-2 px-2">Name</th>
                                                 <th className="text-left py-2 px-2">Status</th>
@@ -229,7 +280,12 @@ export default function ContestMonitor() {
                                                     <td className="py-2 px-2 text-fg-3">{new Date(p.joinedAt).toLocaleTimeString()}</td>
                                                     <td className="py-2 px-2">
                                                         <div className="flex gap-1.5 justify-end">
-                                                            <button onClick={() => togglePin(p.userId)} className="p-1.5 rounded hover:bg-tint-3 text-fg-2" title="Watch code"><Eye size={15} /></button>
+                                                            <button
+                                                                onClick={() => togglePin(p.userId)}
+                                                                className={`p-1.5 rounded transition-colors ${pinned.includes(p.userId) ? 'bg-accent/15 text-accent-text' : 'text-fg-2 hover:bg-tint-3'}`}
+                                                                title={pinned.includes(p.userId) ? 'Stop watching' : 'Watch code'}
+                                                                aria-label={pinned.includes(p.userId) ? `Stop watching ${p.username}` : `Watch ${p.username}'s code`}
+                                                            ><Eye size={15} /></button>
                                                             {p.status === 'ACTIVE' && (
                                                                 <button disabled={busy} onClick={() => act(() => contestApi.participantAction(contest.id, p.userId, 'block'), 'Participant blocked', p.username)} className="px-2 py-1 rounded bg-danger/15 text-danger-text text-xs font-semibold hover:bg-danger/25 flex items-center gap-1"><Ban size={12} /> Block</button>
                                                             )}
@@ -265,11 +321,12 @@ export default function ContestMonitor() {
                         </div>
                     </div>
 
-                    <div className="space-y-6 min-w-0">
-                        <div className={`${cardClass} p-5`}>
-                            <h2 className="text-lg font-semibold mb-3">Submissions</h2>
+                    {/* Right: submissions and activity, each scrolling inside its own pane */}
+                    <div className="flex min-h-0 min-w-0 flex-col gap-4">
+                        <div className={paneClass}>
+                            <h2 className="mb-3 shrink-0 text-base font-semibold">Submissions</h2>
                             {submissions.length === 0 ? <div className="text-fg-3 text-sm py-6 text-center">No submissions yet.</div> : (
-                                <div className="max-h-[420px] overflow-y-auto -mx-1">
+                                <div className={`${paneBody} -mx-1`}>
                                     {submissions.slice(0, 60).map(s => (
                                         <button key={s.id} onClick={() => showSubmission(s.id)} className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-tint-1 text-left text-sm">
                                             <span className="text-fg-3 tabular-nums w-20 shrink-0">{new Date(s.createdAt).toLocaleTimeString()}</span>
@@ -283,10 +340,10 @@ export default function ContestMonitor() {
                             )}
                         </div>
 
-                        <div className={`${cardClass} p-5`}>
-                            <h2 className="text-lg font-semibold mb-3">Activity</h2>
+                        <div className={paneClass}>
+                            <h2 className="mb-3 shrink-0 text-base font-semibold">Activity</h2>
                             {events.length === 0 ? <div className="text-fg-3 text-sm py-6 text-center">Nothing yet.</div> : (
-                                <div className="max-h-[360px] overflow-y-auto space-y-1.5 text-sm">
+                                <div className={`${paneBody} space-y-1.5 text-sm`}>
                                     {events.map(e => (
                                         <div key={e.id} className="flex gap-3">
                                             <span className="text-fg-3 tabular-nums w-20 shrink-0">{new Date(e.createdAt).toLocaleTimeString()}</span>
@@ -303,6 +360,22 @@ export default function ContestMonitor() {
                     </div>
                 </div>
             </div>
+
+            {/* A full page over the monitor: several codespaces together */}
+            <AnimatePresence>
+                {wallOpen && (
+                    <CodeWall
+                        contestId={contest.id}
+                        title={contest.title}
+                        participants={participants}
+                        pinned={pinned}
+                        onToggle={togglePin}
+                        onWatchAll={() => setPinned(participants.filter(p => p.status !== 'REMOVED').map(p => p.userId).slice(0, MAX_WATCH))}
+                        onClear={() => setPinned([])}
+                        onClose={() => setWallOpen(false)}
+                    />
+                )}
+            </AnimatePresence>
 
             {openSubmission && (
                 <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setOpenSubmission(null)}>
@@ -326,7 +399,7 @@ export default function ContestMonitor() {
                                         <RefreshCw size={15} /> Rejudge
                                     </button>
                                 )}
-                                <button onClick={() => setOpenSubmission(null)} className="p-2 rounded-lg hover:bg-tint-3"><X size={18} /></button>
+                                <button onClick={() => setOpenSubmission(null)} className="p-2 rounded-lg hover:bg-tint-3" aria-label="Close"><X size={18} /></button>
                             </div>
                         </div>
                         <div className="flex flex-wrap gap-1.5 mb-4">
@@ -345,20 +418,137 @@ export default function ContestMonitor() {
     );
 }
 
-function PreviewCard({ contestId, userId, username, onClose }: { contestId: string; userId: string; username: string; onClose: () => void }) {
+// ─── Code wall ────────────────────────────────────────────────────────────────
+
+function CodeWall({ contestId, title, participants, pinned, onToggle, onWatchAll, onClear, onClose }: {
+    contestId: string;
+    title: string;
+    participants: MonitorData['participants'];
+    pinned: string[];
+    onToggle: (userId: string) => void;
+    onWatchAll: () => void;
+    onClear: () => void;
+    onClose: () => void;
+}) {
+    const [perPage, setPerPage] = useState<WallLayout>(4);
+    const [page, setPage] = useState(0);
+    const usernameOf = (userId: string) => participants.find(p => p.userId === userId)?.username ?? 'participant';
+
+    const lastPage = Math.max(0, Math.ceil(pinned.length / perPage) - 1);
+    const current = Math.min(page, lastPage);
+    const visible = pinned.slice(current * perPage, (current + 1) * perPage);
+    const candidates = participants.filter(p => p.status !== 'REMOVED');
+
+    // Esc closes the wall; the arrow keys turn its pages (unless a field has the keys)
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onClose();
+            if ((e.target as HTMLElement | null)?.closest('.monaco-editor, input, textarea, select')) return;
+            if (e.key === 'ArrowRight') setPage(p => Math.min(lastPage, p + 1));
+            if (e.key === 'ArrowLeft') setPage(p => Math.max(0, p - 1));
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose, lastPage]);
+
+    return (
+        <motion.div
+            role="dialog"
+            aria-label="Code wall"
+            className="fixed inset-0 z-40 flex flex-col bg-canvas"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 24 }}
+            transition={{ duration: 0.32, ease: [0.25, 0.8, 0.25, 1] }}
+        >
+            <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-line px-4 py-3 sm:px-6">
+                <button onClick={onClose} className="rounded-lg bg-tint-2 p-2 text-fg-2 transition-colors hover:bg-tint-3 hover:text-fg" aria-label="Back to the monitor" title="Back to the monitor (Esc)"><ArrowLeft size={17} /></button>
+                <div className="min-w-0">
+                    <h2 className="truncate text-base font-semibold leading-tight">Code wall</h2>
+                    <div className="truncate text-xs text-fg-3">{title} · {pinned.length} watched</div>
+                </div>
+                <div className="flex-1" />
+                <div className="flex items-center gap-2 text-xs text-fg-3">
+                    Per page
+                    <div className="inline-flex rounded-lg bg-tint-2 p-0.5" role="group" aria-label="Windows per page">
+                        {WALL_LAYOUTS.map(n => (
+                            <button
+                                key={n}
+                                onClick={() => { setPerPage(n); setPage(0); }}
+                                aria-pressed={perPage === n}
+                                className={`h-7 min-w-8 rounded-md px-2 text-xs font-medium tabular-nums transition-colors ${perPage === n ? 'bg-surface text-fg shadow-card' : 'text-fg-2 hover:text-fg'}`}
+                            >{n}</button>
+                        ))}
+                    </div>
+                </div>
+                <Pager page={current} pageSize={perPage} total={pinned.length} onChange={setPage} />
+                <ThemeToggle />
+            </header>
+
+            {/* Who is on the wall: one chip each, click to add or remove */}
+            <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-line px-4 py-2.5 sm:px-6">
+                {candidates.map(p => {
+                    const on = pinned.includes(p.userId);
+                    return (
+                        <button
+                            key={p.userId}
+                            onClick={() => onToggle(p.userId)}
+                            aria-pressed={on}
+                            className={`inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors ${on ? 'bg-accent/15 text-accent-text' : 'bg-tint-1 text-fg-2 hover:bg-tint-2 hover:text-fg'}`}
+                        >
+                            <span className={`h-1.5 w-1.5 rounded-full ${p.status === 'BLOCKED' ? 'bg-danger' : p.status === 'ACTIVE' ? 'bg-success' : 'bg-tint-5'}`} />
+                            {p.username}
+                        </button>
+                    );
+                })}
+                <div className="ml-auto flex shrink-0 items-center gap-1 pl-3">
+                    <button onClick={onWatchAll} className="h-7 rounded-md px-2 text-xs font-medium text-fg-2 transition-colors hover:bg-tint-2 hover:text-fg">Watch all</button>
+                    <button onClick={onClear} disabled={pinned.length === 0} className="h-7 rounded-md px-2 text-xs font-medium text-fg-2 transition-colors hover:bg-tint-2 hover:text-fg disabled:opacity-40">Clear</button>
+                </div>
+            </div>
+
+            <div className="min-h-0 flex-1 p-4 sm:p-5">
+                {pinned.length === 0 ? (
+                    <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+                        <IconTile size={48}><Eye size={22} /></IconTile>
+                        <div>
+                            <h3 className="mb-1 text-base font-semibold">Nobody on the wall yet</h3>
+                            <p className="text-sm text-fg-2">Pick participants above to watch their code side by side.</p>
+                        </div>
+                        {candidates.length > 0 && <Button variant="primary" onClick={onWatchAll}>Watch everyone ({Math.min(candidates.length, MAX_WATCH)})</Button>}
+                    </div>
+                ) : (
+                    <motion.div
+                        key={`${current}:${perPage}`}
+                        initial={{ opacity: 0, x: 12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.25, ease: [0.25, 0.8, 0.25, 1] }}
+                        className={`grid h-full gap-3 overflow-y-auto ${WALL_GRID[perPage]}`}
+                    >
+                        {visible.map(userId => (
+                            <PreviewCard key={userId} contestId={contestId} userId={userId} username={usernameOf(userId)} onClose={() => onToggle(userId)} className="min-h-[240px]" />
+                        ))}
+                    </motion.div>
+                )}
+            </div>
+        </motion.div>
+    );
+}
+
+function PreviewCard({ contestId, userId, username, onClose, className = '' }: { contestId: string; userId: string; username: string; onClose: () => void; className?: string }) {
     const [connected, setConnected] = useState(false);
     const [file, setFile] = useState<string | null>(null);
     return (
-        <div className={`${cardClass} overflow-hidden flex flex-col h-[320px] ${connected ? '' : ''}`}>
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-line">
+        <div className={`${cardClass} flex min-h-0 flex-col overflow-hidden ${className}`}>
+            <div className="flex shrink-0 items-center justify-between border-b border-line px-4 py-2.5">
                 <div className="flex items-center gap-2 min-w-0">
-                    <span className={`w-2 h-2 rounded-full ${connected ? 'bg-success' : 'bg-tint-5'}`} />
+                    <span className={`w-2 h-2 shrink-0 rounded-full ${connected ? 'bg-success' : 'bg-tint-5'}`} />
                     <span className="font-semibold truncate">{username}</span>
                     <span className="text-xs text-fg-3 font-mono truncate">{file ?? 'no file open'}</span>
                 </div>
-                <button onClick={onClose} className="p-1 rounded hover:bg-tint-3 text-fg-3"><X size={15} /></button>
+                <button onClick={onClose} className="p-1 rounded hover:bg-tint-3 text-fg-3" aria-label={`Stop watching ${username}`}><X size={15} /></button>
             </div>
-            <div className="flex-1 bg-canvas">
+            <div className="relative min-h-0 flex-1 bg-canvas">
                 <LiveCodePreview
                     roomName={`contest-monitor-${userId}`}
                     params={{ mode: 'contest-monitor', contestId, participantId: userId }}

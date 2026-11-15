@@ -18,9 +18,9 @@ export default function Leaderboard({ rows, problems, startsAt, highlightUserId,
     }
     const start = startsAt ? new Date(startsAt).getTime() : null;
     return (
-        <div className="overflow-x-auto">
+        <div className="min-w-0">
             <table className="w-full text-sm">
-                <thead>
+                <thead className="sticky top-0 z-[1] bg-surface">
                     <tr className="text-fg-3 text-xs border-b border-line">
                         <th className="text-left font-semibold py-2.5 px-3 w-14">#</th>
                         <th className="text-left font-semibold py-2.5 px-3">Participant</th>

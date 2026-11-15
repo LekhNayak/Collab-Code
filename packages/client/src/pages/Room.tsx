@@ -7,6 +7,7 @@ import PageShell from '../components/ui/PageShell';
 import Button from '../components/ui/Button';
 import Field from '../components/ui/Field';
 import Badge from '../components/ui/Badge';
+import Pager from '../components/ui/Pager';
 import { useToast } from '../contexts/toast';
 
 const staggerContainer = {
@@ -21,6 +22,8 @@ const staggerItem = {
     hidden: { opacity: 0, y: 10 },
     show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] as const } }
 };
+
+const SESSIONS_PER_PAGE = 5;
 
 function generateRoomId(): string {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -46,6 +49,7 @@ export default function RoomPage() {
     const [sessions, setSessions] = useState<SessionInfo[]>([]);
     const [sessionName, setSessionName] = useState('');
     const [showSessions, setShowSessions] = useState(true);
+    const [sessionPage, setSessionPage] = useState(0);
 
     useEffect(() => {
         getSessions().then(setSessions).catch(console.error);
@@ -129,6 +133,11 @@ export default function RoomPage() {
             toast.error('Could not delete the session', err.message);
         }
     };
+
+    const newestFirst = [...sessions].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    const lastSessionPage = Math.max(0, Math.ceil(newestFirst.length / SESSIONS_PER_PAGE) - 1);
+    const currentSessionPage = Math.min(sessionPage, lastSessionPage);
+    const pagedSessions = newestFirst.slice(currentSessionPage * SESSIONS_PER_PAGE, (currentSessionPage + 1) * SESSIONS_PER_PAGE);
 
     const formatDate = (iso: string) => {
         const d = new Date(iso);
@@ -288,7 +297,7 @@ export default function RoomPage() {
                                             transition={{ duration: 0.2 }}
                                             className="flex flex-col gap-2 overflow-hidden"
                                         >
-                                            {sessions.map((session, index) => (
+                                            {pagedSessions.map((session, index) => (
                                                 <motion.div
                                                     key={session.id}
                                                     initial={{ opacity: 0, y: 6 }}
@@ -318,6 +327,9 @@ export default function RoomPage() {
                                                     </div>
                                                 </motion.div>
                                             ))}
+                                            <div className="flex justify-end pt-1">
+                                                <Pager page={currentSessionPage} pageSize={SESSIONS_PER_PAGE} total={newestFirst.length} onChange={setSessionPage} />
+                                            </div>
                                         </motion.div>
                                     )}
                                 </AnimatePresence>

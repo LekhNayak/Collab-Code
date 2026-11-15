@@ -19,7 +19,7 @@ interface PageShellProps {
     children: React.ReactNode;
 }
 
-const WIDTH = { sm: 'max-w-md', md: 'max-w-2xl', lg: 'max-w-4xl', xl: 'max-w-6xl' };
+const WIDTH = { sm: 'max-w-md', md: 'max-w-2xl', lg: 'max-w-4xl', xl: 'max-w-[84rem]' };
 
 // The frame every secondary page shares: a quiet top bar with the way back, then a heading and the content.
 export default function PageShell({ title, subtitle, backTo, backLabel = 'Back', actions, width = 'md', centered = false, children }: PageShellProps) {
@@ -27,7 +27,7 @@ export default function PageShell({ title, subtitle, backTo, backLabel = 'Back',
     return (
         <div className="relative flex h-[100dvh] w-full flex-col overflow-y-auto overflow-x-hidden bg-canvas font-sans text-fg">
             <div aria-hidden className="ground-dots pointer-events-none absolute inset-x-0 top-0 h-[360px]" />
-            <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b border-line bg-canvas/90 px-4 backdrop-blur-md sm:px-6">
+            <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between border-b border-line bg-canvas/90 px-4 backdrop-blur-md sm:px-6">
                 {backTo ? (
                     <Button variant="ghost" size="sm" onClick={() => (typeof backTo === 'number' ? navigate(backTo) : navigate(backTo))} icon={<ArrowLeft size={15} />}>
                         {backLabel}

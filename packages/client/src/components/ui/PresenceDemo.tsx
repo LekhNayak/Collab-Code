@@ -1,10 +1,11 @@
 import Badge from './Badge';
 
-// The product in one frame: two people in the same file. Ada types a new line, Linus arrives and selects, the run
-// lands and holds, then what the loop added leaves together. Each person is one color everywhere (their cursor,
+// The product in one frame: three people in the same file. Lekh types a new line, Chiranjan arrives and selects, Linus
+// reads along at the function name, the run lands and holds, then what the loop added leaves together. Each person is one color everywhere (their cursor,
 // their name tag, their dot). All motion is CSS (index.css, .pd-*); with reduced motion it rests on the result.
-const ADA = '#4ec9b0';
-const LINUS = '#ff7a5c';
+const LEKH = '#4ec9b0';
+const CHIRANJAN = '#ff7a5c';
+const LINUS = '#5aa9ff';
 
 function Person({ name, color }: { name: string; color: string }) {
     return (
@@ -21,12 +22,13 @@ export default function PresenceDemo({ className = '' }: { className?: string })
             className={`pd ui-card overflow-hidden ${className}`}
             style={{ boxShadow: 'var(--shadow-float)' }}
             role="img"
-            aria-label="Two people editing the same Python file at once: one types a new line while the other selects a range, then the program runs and prints 55."
+            aria-label="Three people editing the same Python file at once: Lekh types a new line, Chiranjan selects a range and Linus follows along, then the program runs and prints 55."
         >
             <div className="flex h-9 items-center justify-between border-b border-line bg-chrome px-3">
                 <span className="font-mono text-xs text-fg">fib.py</span>
-                <div className="flex items-center gap-3">
-                    <Person name="Ada" color={ADA} />
+                <div className="flex items-center gap-2.5 sm:gap-3">
+                    <Person name="Lekh" color={LEKH} />
+                    <Person name="Chiranjan" color={CHIRANJAN} />
                     <Person name="Linus" color={LINUS} />
                 </div>
             </div>
@@ -41,12 +43,15 @@ export default function PresenceDemo({ className = '' }: { className?: string })
                 <div>
                     <span className="pd-typed"><span className="pd-fn">print</span>(<span className="pd-fn">fib</span>(<span className="pd-num">10</span>))</span>
                     <span className="pd-caret">
-                        <span className="pd-tag" style={{ background: ADA }}>Ada</span>
+                        <span className="pd-tag" style={{ background: LEKH }}>Lekh</span>
                     </span>
                 </div>
 
                 <span className="pd-select" aria-hidden />
-                <span className="pd-linus" aria-hidden>
+                <span className="pd-cursor pd-chiranjan" aria-hidden>
+                    <span className="pd-tag" style={{ background: CHIRANJAN }}>Chiranjan</span>
+                </span>
+                <span className="pd-cursor pd-linus" aria-hidden>
                     <span className="pd-tag" style={{ background: LINUS }}>Linus</span>
                 </span>
             </div>

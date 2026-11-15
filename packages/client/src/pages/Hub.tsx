@@ -9,6 +9,7 @@ import GitHubOnboarding from '../components/GitHubOnboarding';
 import Button from '../components/ui/Button';
 import Wordmark from '../components/ui/Wordmark';
 import PresenceDemo from '../components/ui/PresenceDemo';
+import Pager from '../components/ui/Pager';
 import ThemeToggle from '../components/ThemeToggle';
 import { getRecent, removeRecent, timeAgo, type RecentItem } from '../recent';
 
@@ -97,7 +98,7 @@ function PillarCard({ pillar, onAction }: { pillar: Pillar; onAction: (action: P
                         </li>
                     ))}
                 </ul>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-wrap gap-2 [&>button]:min-w-[7.5rem] [&>button]:flex-1">
                     <Button variant="primary" onClick={() => onAction(pillar.primary)}>
                         <PrimaryIcon size={15} /> {pillar.primary.label}
                     </Button>
@@ -110,26 +111,34 @@ function PillarCard({ pillar, onAction }: { pillar: Pillar; onAction: (action: P
     );
 }
 
-// "Jump back in": recently opened rooms and contests (this browser only)
+const RECENT_PAGE = 5;
+
+// "Jump back in": the last five rooms and contests opened in this browser, the rest on pages
 function RecentStrip({ items, now, onOpen, onRemove }: {
     items: RecentItem[];
     now: number;
     onOpen: (item: RecentItem) => void;
     onRemove: (item: RecentItem) => void;
 }) {
+    const [page, setPage] = useState(0);
     if (items.length === 0) return null;
+    const lastPage = Math.max(0, Math.ceil(items.length / RECENT_PAGE) - 1);
+    const current = Math.min(page, lastPage);
     return (
         <motion.div
-            className="mx-auto mb-8 w-full max-w-6xl"
+            className="mb-8 w-full"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15, duration: 0.3 }}
         >
-            <div className="mb-3 flex items-center gap-2 text-xs font-medium text-fg-3">
-                <Clock size={13} /> Jump back in
+            <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs font-medium text-fg-3">
+                    <Clock size={13} /> Jump back in
+                </div>
+                <Pager page={current} pageSize={RECENT_PAGE} total={items.length} onChange={setPage} />
             </div>
-            <div className="flex flex-wrap gap-2">
-                {items.slice(0, 6).map(item => {
+            <div key={current} className="animate-arrive flex flex-wrap gap-2">
+                {items.slice(current * RECENT_PAGE, (current + 1) * RECENT_PAGE).map(item => {
                     const isRoom = item.kind === 'room';
                     const Icon = isRoom ? Users : Trophy;
                     const label = item.title && item.title !== item.id ? item.title : isRoom ? 'Collab room' : 'Contest';
@@ -185,9 +194,10 @@ export default function Hub() {
         <>
         <div className="relative flex h-[100dvh] w-full flex-col overflow-y-auto overflow-x-hidden bg-canvas font-sans text-fg">
             <div aria-hidden className="ground-dots pointer-events-none absolute inset-x-0 top-0 h-[460px]" />
-            <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b border-line bg-canvas/90 px-5 backdrop-blur-md sm:px-8">
+            <header className="sticky top-0 z-20 shrink-0 border-b border-line bg-canvas/90 backdrop-blur-md">
+              <div className="mx-auto flex h-16 w-full max-w-[92rem] items-center justify-between px-5 sm:px-8">
                 <Wordmark />
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                 <ThemeToggle />
                 <Button
                     variant="ghost"
@@ -200,20 +210,21 @@ export default function Hub() {
                     Log out
                 </Button>
                 </div>
+              </div>
             </header>
 
-            <main className="relative mx-auto flex w-full max-w-7xl flex-1 flex-col px-5 pb-16 pt-14 sm:px-8 md:pt-20">
-                <div className="mx-auto mb-16 grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,500px)]">
+            <main className="relative mx-auto flex w-full max-w-[92rem] flex-1 flex-col px-5 pb-16 pt-10 sm:px-8 md:pt-14">
+                <div className="mb-14 grid w-full items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.02fr)] lg:gap-14">
                     <motion.div
                         className="flex flex-col items-center text-center lg:items-start lg:text-left"
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.5, ease: [0.25, 0.8, 0.25, 1] }}
                     >
-                        <h1 className="mb-5 text-4xl font-semibold leading-[1.1] tracking-tight text-fg md:text-5xl">
+                        <h1 className="mb-5 text-[clamp(2rem,2.2rem+1.1vw,3.5rem)] font-semibold leading-[1.08] tracking-tight text-fg">
                             The coding environment, <span className="text-accent-text">made fluid</span> at your fingertips.
                         </h1>
-                        <p className="max-w-xl text-base leading-relaxed text-fg-2">
+                        <p className="max-w-xl text-[15px] leading-relaxed text-fg-2 xl:text-base">
                             Choose your destination. Hop into a collaborative pair programming session, securely take an exam, monitor a live test, or host a coding contest.
                         </p>
                     </motion.div>
@@ -221,7 +232,7 @@ export default function Hub() {
                         initial={{ opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.12, ease: [0.25, 0.8, 0.25, 1] }}
-                        className="mx-auto w-full max-w-[500px]"
+                        className="mx-auto w-full max-w-[680px] lg:mr-0"
                     >
                         <PresenceDemo />
                     </motion.div>
@@ -230,7 +241,7 @@ export default function Hub() {
                 <RecentStrip items={recent} now={now} onOpen={openRecent} onRemove={item => setRecent(removeRecent(item.kind, item.id))} />
 
                 <motion.div
-                    className="mx-auto w-full max-w-6xl"
+                    className="w-full"
                     variants={staggerContainer}
                     initial="hidden"
                     animate="show"
@@ -260,8 +271,8 @@ export default function Hub() {
                 </motion.div>
             </main>
 
-            <footer className="mt-auto shrink-0 border-t border-line px-5 py-8 sm:px-8">
-                <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 md:flex-row">
+            <footer className="relative mt-auto shrink-0 border-t border-line px-5 py-8 sm:px-8">
+                <div className="mx-auto flex max-w-[92rem] flex-col items-center justify-between gap-6 md:flex-row">
                     <div className="flex flex-col items-center gap-0.5 md:items-start">
                         <h3 className="text-sm font-semibold text-fg">Lekh Sanatan Nayak</h3>
                         <p className="text-[13px] text-fg-3">Creator & lead developer</p>

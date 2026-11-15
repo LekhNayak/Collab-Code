@@ -16,7 +16,7 @@ export default function ThemeToggle({ className = '', variant = 'ghost' }: { cla
     };
 
     const base = variant === 'ghost'
-        ? 'h-8 w-8 rounded-lg text-fg-2 hover:bg-tint-2 hover:text-fg active:scale-90'
+        ? 'h-9 w-9 rounded-lg text-fg-2 hover:bg-tint-2 hover:text-fg active:scale-90'
         : '';
 
     return (
