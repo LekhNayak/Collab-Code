@@ -75,7 +75,7 @@ monaco.editor.defineTheme(MONACO_LIGHT, {
         'editor.foreground': '#2a2a2d',
         'editorLineNumber.foreground': '#b0b0b6',
         'editorLineNumber.activeForeground': '#55555b',
-        'editor.lineHighlightBackground': '#f6f5f4',
+        'editor.lineHighlightBackground': '#f1f0ee',
         'editor.lineHighlightBorder': '#00000000',
         'editor.selectionBackground': '#bfd4fa',
         'editor.inactiveSelectionBackground': '#dbe7fd',

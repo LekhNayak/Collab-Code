@@ -18,17 +18,17 @@ export default {
         fg: { DEFAULT: rgb('fg'), 2: rgb('fg-2'), 3: rgb('fg-3') },
         // Translucent fills for hover, selected and quiet placeholder shapes
         tint: {
-          1: 'rgb(var(--ink) / 0.05)',
-          2: 'rgb(var(--ink) / 0.07)',
-          3: 'rgb(var(--ink) / 0.10)',
-          4: 'rgb(var(--ink) / 0.13)',
-          5: 'rgb(var(--ink) / 0.20)',
+          1: 'rgb(var(--ink) / var(--tint-1))',
+          2: 'rgb(var(--ink) / var(--tint-2))',
+          3: 'rgb(var(--ink) / var(--tint-3))',
+          4: 'rgb(var(--ink) / var(--tint-4))',
+          5: 'rgb(var(--ink) / var(--tint-5))',
         },
         // Hairlines
         line: {
-          DEFAULT: 'rgb(var(--ink) / 0.08)',
-          faint: 'rgb(var(--ink) / 0.05)',
-          strong: 'rgb(var(--ink) / 0.16)',
+          DEFAULT: 'rgb(var(--ink) / var(--line-a))',
+          faint: 'rgb(var(--ink) / var(--line-faint-a))',
+          strong: 'rgb(var(--ink) / var(--line-strong-a))',
         },
         // One accent. `solid` carries white text (a filled button); the base is for rings and fills.
         accent: {

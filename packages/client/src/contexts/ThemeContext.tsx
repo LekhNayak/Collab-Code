@@ -21,7 +21,7 @@ function initialTheme(): Theme {
 function paint(theme: Theme) {
     const root = document.documentElement;
     root.setAttribute('data-theme', theme);
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#111113' : '#f6f5f4');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#111113' : '#f1f0ee');
     try {
         localStorage.setItem(STORAGE_KEY, theme);
     } catch {

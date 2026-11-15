@@ -8,7 +8,7 @@ const VARIANTS: Record<Variant, string> = {
     primary: 'bg-accent-solid text-white shadow-[var(--button-light),0_1px_2px_rgb(0_0_0_/_0.25)] hover:bg-accent',
     danger: 'bg-danger-solid text-white shadow-[var(--button-light),0_1px_2px_rgb(0_0_0_/_0.25)] hover:bg-danger',
     success: 'bg-success-solid text-white shadow-[var(--button-light),0_1px_2px_rgb(0_0_0_/_0.25)] hover:bg-success',
-    secondary: 'bg-tint-2 text-fg shadow-[inset_0_0_0_1px_rgb(var(--ink)_/_0.10)] hover:bg-tint-3',
+    secondary: 'bg-tint-2 text-fg shadow-[inset_0_0_0_1px_rgb(var(--ink)_/_var(--field-a))] hover:bg-tint-3',
     ghost: 'text-fg-2 hover:bg-tint-2 hover:text-fg',
 };
 

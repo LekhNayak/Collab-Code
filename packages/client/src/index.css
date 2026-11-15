@@ -34,6 +34,19 @@
 
   --ink: 255 255 255;
 
+  /* How strongly the ink shows: hairlines, field outlines and translucent fills. Light needs more of
+     each, because a faint dark line on a near-white page all but disappears. */
+  --line-a: 0.08;
+  --line-faint-a: 0.05;
+  --line-strong-a: 0.16;
+  --field-a: 0.12;
+  --field-hover-a: 0.2;
+  --tint-1: 0.05;
+  --tint-2: 0.07;
+  --tint-3: 0.10;
+  --tint-4: 0.13;
+  --tint-5: 0.20;
+
   /* One accent. accent-solid is the filled-button color, dark enough for white text. */
   --accent: 59 130 246;
   --accent-solid: 37 99 235;
@@ -117,8 +130,8 @@
 :root[data-theme='light'] {
   color-scheme: light;
 
-  --well: 238 237 235;
-  --canvas: 246 245 244;
+  --well: 232 231 228;
+  --canvas: 241 240 238;
   --surface: 255 255 255;
   --chrome: 251 251 250;
   --raised: 255 255 255;
@@ -129,6 +142,17 @@
 
   --ink: 0 0 0;
 
+  --line-a: 0.16;
+  --line-faint-a: 0.10;
+  --line-strong-a: 0.28;
+  --field-a: 0.30;
+  --field-hover-a: 0.45;
+  --tint-1: 0.045;
+  --tint-2: 0.075;
+  --tint-3: 0.11;
+  --tint-4: 0.15;
+  --tint-5: 0.24;
+
   --accent: 59 130 246;
   --accent-solid: 37 99 235;
   --accent-text: 29 78 216;
@@ -137,22 +161,22 @@
   --danger-text: 185 28 28;
   --warning-text: 180 83 9;
 
-  --shadow-card: 0 1px 2px rgb(20 20 40 / 0.05);
-  --shadow-float: 0 0 0 1px rgb(var(--ink) / 0.08), 0 4px 16px rgb(20 20 40 / 0.10), 0 12px 32px rgb(20 20 40 / 0.08);
-  --shadow-lift: 0 0 0 1px rgb(var(--ink) / 0.06), 0 14px 30px -8px rgb(50 50 93 / 0.22), 0 4px 10px -4px rgb(0 0 0 / 0.08);
+  --shadow-card: 0 1px 2px rgb(20 20 40 / 0.08), 0 1px 1px rgb(20 20 40 / 0.04);
+  --shadow-float: 0 0 0 1px rgb(var(--ink) / 0.18), 0 4px 16px rgb(20 20 40 / 0.12), 0 12px 32px rgb(20 20 40 / 0.10);
+  --shadow-lift: 0 0 0 1px rgb(var(--ink) / 0.22), 0 14px 30px -8px rgb(50 50 93 / 0.22), 0 4px 10px -4px rgb(0 0 0 / 0.08);
   --edge-light: inset 0 1px 0 rgb(255 255 255 / 0.9);
   --button-light: inset 0 1px 0 rgb(255 255 255 / 0.22);
 
   --bg-primary: #ffffff;
-  --bg-secondary: #f6f5f4;
-  --bg-tertiary: #efeeec;
+  --bg-secondary: #f1f0ee;
+  --bg-tertiary: #e9e8e5;
   --bg-elevated: #ffffff;
-  --bg-hover: #ecebe9;
-  --bg-active: #e2e1de;
+  --bg-hover: #e6e5e2;
+  --bg-active: #d9d8d4;
   --bg-selection: #dbe7fd;
 
-  --border-color: #e2e1de;
-  --border-subtle: #ebeae7;
+  --border-color: #c9c7c2;
+  --border-subtle: #d9d7d3;
   --border-active: #2563eb;
 
   --text-primary: #2a2a2d;
@@ -302,12 +326,12 @@ html.theme-switching *::after {
 
   .ui-field {
     @apply min-h-9 w-full rounded-lg bg-canvas px-3 py-2 text-[13px] text-fg outline-none placeholder:text-fg-3;
-    box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.12), 0 0 0 0 rgb(var(--accent) / 0);
+    box-shadow: inset 0 0 0 1px rgb(var(--ink) / var(--field-a)), 0 0 0 0 rgb(var(--accent) / 0);
     transition: box-shadow 180ms var(--ease-arrive), background-color 180ms var(--ease-arrive);
   }
 
   .ui-field:hover:not(:disabled):not(:focus) {
-    box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.2), 0 0 0 0 rgb(var(--accent) / 0);
+    box-shadow: inset 0 0 0 1px rgb(var(--ink) / var(--field-hover-a)), 0 0 0 0 rgb(var(--accent) / 0);
   }
 
   .ui-field:focus {
