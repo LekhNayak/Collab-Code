@@ -1,22 +1,25 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Plus, LogIn, Copy, Users, Code2, Clock, Puzzle, Trash2, ArrowRight, ArrowLeft, CheckCheck } from 'lucide-react';
+import { Plus, LogIn, Copy, Users, Code2, Clock, Puzzle, Trash2, ArrowRight, CheckCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getSessions, createSession, deleteSession, type SessionInfo } from '../api';
-import LiquidEther from '../components/ui/LiquidEther';
+import PageShell from '../components/ui/PageShell';
+import Button from '../components/ui/Button';
+import Field from '../components/ui/Field';
+import Badge from '../components/ui/Badge';
 import { useToast } from '../contexts/toast';
 
 const staggerContainer = {
     hidden: { opacity: 0 },
     show: {
         opacity: 1,
-        transition: { staggerChildren: 0.1, delayChildren: 0.15 }
+        transition: { staggerChildren: 0.06, delayChildren: 0.05 }
     }
 };
 
 const staggerItem = {
-    hidden: { opacity: 0, y: 16 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.34, 1.56, 0.64, 1] as const } }
+    hidden: { opacity: 0, y: 10 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] as const } }
 };
 
 function generateRoomId(): string {
@@ -138,252 +141,191 @@ export default function RoomPage() {
     };
 
     return (
-        <div className="h-[100dvh] w-full bg-black text-white font-sans relative overflow-hidden">
-            <LiquidEther className="absolute inset-0 z-0 opacity-100" />
-
-            {/* Back button */}
-            <div className="absolute top-6 left-6 z-20">
-                <button
-                    onClick={() => navigate('/')}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 text-white hover:bg-white/10 hover:border-white/20 transition-all font-semibold shadow-sm group"
-                >
-                    <ArrowLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
-                    Back to Hub
-                </button>
-            </div>
-
-            <div className="absolute inset-0 z-10 overflow-x-hidden overflow-y-auto flex flex-col items-center p-4 md:p-6">
-            <div className="max-w-3xl w-full relative flex flex-col gap-6 my-auto pt-14 md:pt-6">
-                {/* Header */}
-                <motion.div
-                    className="text-center"
-                    initial={{ opacity: 0, y: -16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.55, ease: [0.34, 1.56, 0.64, 1] }}
-                >
+        <PageShell
+            title="Collaboration hub"
+            subtitle="Real-time collaborative coding workspace"
+            backTo="/"
+            backLabel="Hub"
+            width="md"
+        >
+            <AnimatePresence mode="wait" initial={false}>
+                {createdRoomId ? (
                     <motion.div
-                        className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-[0_0_40px_rgba(99,102,241,0.35)] mx-auto mb-4"
-                        initial={{ scale: 0.5, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.1, duration: 0.5, type: 'spring', stiffness: 200 }}
+                        key="created"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.2 }}
+                        className="ui-card p-6 text-center sm:p-8"
                     >
-                        <Code2 size={32} className="text-white" />
+                        <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-success/15 text-success-text">
+                            <Users size={20} />
+                        </div>
+                        <h2 className="mb-1 text-lg font-semibold text-fg">Room created</h2>
+                        <p className="mb-6 text-sm text-fg-2">Share this code or link with your collaborators.</p>
+
+                        <div className="mb-5 flex items-center justify-between gap-4 rounded-lg bg-canvas p-3 pl-4">
+                            <code className="font-mono text-lg font-semibold text-accent-text">{createdRoomId}</code>
+                            <Button onClick={handleCopyLink} icon={copied ? <CheckCheck size={15} className="text-success-text" /> : <Copy size={15} />}>
+                                {copied ? 'Copied' : 'Copy link'}
+                            </Button>
+                        </div>
+
+                        <Button variant="primary" size="lg" className="w-full" onClick={handleEnterRoom} icon={<LogIn size={16} />}>
+                            Enter room
+                        </Button>
                     </motion.div>
-                    <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white mb-2">
-                        Collaboration Hub
-                    </h1>
-                    <p className="font-medium text-white/50 text-base">
-                        Real-time collaborative coding workspace
-                    </p>
-                </motion.div>
-
-                <AnimatePresence mode="wait">
-                    {createdRoomId ? (
-                        /* ── Room Created Card ── */
-                        <motion.div
-                            key="created"
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: -20 }}
-                            transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
-                            className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[32px] p-8 shadow-2xl text-center"
-                        >
-                            <div className="w-14 h-14 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-[0_0_30px_rgba(16,185,129,0.5)]">
-                                <Users size={28} className="text-white" />
-                            </div>
-                            <h2 className="text-2xl font-bold mb-2 text-white">Room Created!</h2>
-                            <p className="text-white/60 mb-6 text-sm font-medium">Share this code or link with your collaborators</p>
-
-                            <div className="bg-black/30 border border-white/5 rounded-2xl p-4 mb-6 flex items-center justify-between gap-4">
-                                <code className="text-xl font-bold font-mono text-indigo-300 tracking-widest">{createdRoomId}</code>
-                                <button
-                                    onClick={handleCopyLink}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-white font-semibold transition-all shadow-sm"
-                                >
-                                    {copied ? <CheckCheck size={16} className="text-emerald-400" /> : <Copy size={16} />}
-                                    {copied ? 'Copied!' : 'Copy Link'}
-                                </button>
-                            </div>
-
-                            <button
-                                onClick={handleEnterRoom}
-                                className="w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold text-lg tracking-wide shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-3 transition-all"
-                            >
-                                <LogIn size={22} /> Enter Room
-                            </button>
+                ) : (
+                    <motion.div
+                        key="actions"
+                        variants={staggerContainer}
+                        initial="hidden"
+                        animate="show"
+                        exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                        className="flex flex-col gap-4"
+                    >
+                        <motion.div variants={staggerItem} className="ui-card p-5">
+                            <Field
+                                label="Display name"
+                                type="text"
+                                value={username}
+                                onChange={e => { setUsername(e.target.value); setError(''); }}
+                                placeholder="Enter your name"
+                            />
                         </motion.div>
-                    ) : (
-                        <motion.div
-                            key="actions"
-                            variants={staggerContainer}
-                            initial="hidden"
-                            animate="show"
-                            exit={{ opacity: 0, y: -16, transition: { duration: 0.2 } }}
-                            className="flex flex-col gap-6"
-                        >
-                            {/* Username field */}
-                            <motion.div variants={staggerItem} className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-2xl">
-                                <label className="block text-xs font-bold text-white uppercase tracking-widest mb-3 pl-2">Display Name</label>
-                                <input
-                                    type="text"
-                                    value={username}
-                                    onChange={e => { setUsername(e.target.value); setError(''); }}
-                                    placeholder="Enter your name..."
-                                    className="w-full bg-black/20 border border-white/5 text-white px-5 py-4 rounded-xl outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-base placeholder:text-white/30 shadow-inner"
-                                />
-                            </motion.div>
 
-                            {/* Error */}
-                            <AnimatePresence>
-                                {error && (
-                                    <motion.div
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: 'auto' }}
-                                        exit={{ opacity: 0, height: 0 }}
-                                        className="bg-red-500/20 border border-red-500/30 text-red-200 rounded-xl px-5 py-4 text-sm font-bold text-center shadow-lg"
-                                    >
-                                        {error}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-
-                            {/* Create / Join grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                {/* Create Session */}
-                                <motion.div variants={staggerItem} className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col gap-5">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-md">
-                                            <Plus size={24} className="text-white" />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-bold text-white text-xl leading-tight">Create Session</h3>
-                                            <p className="text-white/50 text-sm font-medium">Start a new room</p>
-                                        </div>
-                                    </div>
-                                    <input
-                                        type="text"
-                                        placeholder="Session name (optional)..."
-                                        autoFocus={intent === 'create'}
-                                        value={sessionName}
-                                        onChange={e => setSessionName(e.target.value)}
-                                        className="w-full bg-black/20 border border-white/5 text-white px-5 py-3.5 rounded-xl outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all text-sm font-medium placeholder:text-white/30 shadow-inner"
-                                    />
-                                    <button
-                                        onClick={handleCreateRoom}
-                                        className="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold tracking-wide shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 transition-all mt-1"
-                                    >
-                                        <Plus size={18} strokeWidth={2.5}/> Create Session
-                                    </button>
-                                </motion.div>
-
-                                {/* Join Room */}
-                                <motion.div variants={staggerItem} className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col gap-5">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-md">
-                                            <LogIn size={22} className="text-white" />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-bold text-white text-xl leading-tight">Join Room</h3>
-                                            <p className="text-white/50 text-sm font-medium">Enter a friend's room ID</p>
-                                        </div>
-                                    </div>
-                                    <input
-                                        type="text"
-                                        placeholder="Enter room ID (CR-...)..."
-                                        autoFocus={intent === 'join'}
-                                        value={joinRoomId}
-                                        onChange={e => { setJoinRoomId(e.target.value); setError(''); }}
-                                        onKeyDown={e => e.key === 'Enter' && handleJoinRoom()}
-                                        className="w-full bg-black/20 border border-white/5 text-white px-5 py-3.5 rounded-xl outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 transition-all text-sm font-medium font-mono uppercase placeholder:text-white/30 placeholder:normal-case shadow-inner"
-                                    />
-                                    <button
-                                        onClick={handleJoinRoom}
-                                        disabled={!joinRoomId.trim()}
-                                        className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold tracking-wide shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-1"
-                                    >
-                                        <LogIn size={18} strokeWidth={2.5}/> Join Room
-                                    </button>
-                                </motion.div>
-                            </div>
-
-                            {/* Previous Sessions */}
-                            {sessions.length > 0 && (
-                                // Mounts after sessions load, when the parent stagger has already run, so it animates itself
+                        <AnimatePresence initial={false}>
+                            {error && (
                                 <motion.div
-                                    initial={{ opacity: 0, y: 16 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
-                                    className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-2xl"
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="overflow-hidden"
                                 >
-                                    <button
-                                        className={`w-full flex items-center justify-between group ${showSessions ? 'mb-4' : ''}`}
-                                        onClick={() => setShowSessions(!showSessions)}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <Clock size={20} className="text-indigo-300" />
-                                            <h3 className="font-bold text-white text-lg">Previous Sessions</h3>
-                                        </div>
-                                        <span className="text-sm font-bold text-white/80 bg-white/10 px-4 py-1.5 rounded-full shadow-sm border border-white/5">
-                                            {sessions.length}
-                                        </span>
-                                    </button>
-
-                                    <AnimatePresence>
-                                        {showSessions && (
-                                            <motion.div
-                                                initial={{ opacity: 0, height: 0 }}
-                                                animate={{ opacity: 1, height: 'auto' }}
-                                                exit={{ opacity: 0, height: 0 }}
-                                                transition={{ duration: 0.3 }}
-                                                className="overflow-hidden flex flex-col gap-3"
-                                            >
-                                                {sessions.map((session, index) => (
-                                                    <motion.div
-                                                        key={session.id}
-                                                        initial={{ opacity: 0, x: -10 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: index * 0.05, duration: 0.3 }}
-                                                        className="bg-black/30 border border-white/5 rounded-[20px] p-4 flex justify-between items-center cursor-pointer hover:bg-white/10 transition-all group shadow-sm"
-                                                        onClick={() => handleResumeSession(session)}
-                                                    >
-                                                        <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                                                            <div className="font-bold text-white truncate text-[15px]">{session.name}</div>
-                                                            <div className="flex items-center gap-4 text-[11px] font-semibold text-white/50 uppercase tracking-wide">
-                                                                <span className="flex items-center gap-1.5">
-                                                                    <Clock size={12} strokeWidth={2.5} /> {formatDate(session.updatedAt)}
-                                                                </span>
-                                                                <span className="flex items-center gap-1.5">
-                                                                    <Puzzle size={12} strokeWidth={2.5} /> {session.extensions.length} ext
-                                                                </span>
-                                                                <span className="flex items-center gap-1.5">
-                                                                    <Code2 size={12} strokeWidth={2.5} /> {session.openTabs.length} files
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-center gap-2 ml-3">
-                                                            <button
-                                                                onClick={e => handleDeleteSession(session.id, e)}
-                                                                className="p-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 hover:border-red-500/30 border border-white/5 text-white/50 hover:text-red-400 font-bold transition-all shadow-sm"
-                                                                title="Delete session"
-                                                            >
-                                                                <Trash2 size={16} />
-                                                            </button>
-                                                            <div className="p-2.5 rounded-xl bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 group-hover:bg-indigo-500/30 transition-all shadow-md">
-                                                                <ArrowRight size={16} strokeWidth={2.5} />
-                                                            </div>
-                                                        </div>
-                                                    </motion.div>
-                                                ))}
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
+                                    <div role="alert" className="rounded-lg bg-danger/15 px-4 py-3 text-[13px] text-danger-text">
+                                        {error}
+                                    </div>
                                 </motion.div>
                             )}
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-            </div>
-        </div>
+                        </AnimatePresence>
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <motion.div variants={staggerItem} className="ui-card flex flex-col gap-4 p-5">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent-text">
+                                        <Plus size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-[15px] font-semibold leading-tight text-fg">Create session</h3>
+                                        <p className="text-[13px] text-fg-3">Start a new room</p>
+                                    </div>
+                                </div>
+                                <Field
+                                    type="text"
+                                    placeholder="Session name (optional)"
+                                    autoFocus={intent === 'create'}
+                                    value={sessionName}
+                                    onChange={e => setSessionName(e.target.value)}
+                                    aria-label="Session name"
+                                />
+                                <Button variant="primary" onClick={handleCreateRoom} icon={<Plus size={15} />} className="w-full">
+                                    Create session
+                                </Button>
+                            </motion.div>
+
+                            <motion.div variants={staggerItem} className="ui-card flex flex-col gap-4 p-5">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-tint-2 text-fg">
+                                        <LogIn size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-[15px] font-semibold leading-tight text-fg">Join room</h3>
+                                        <p className="text-[13px] text-fg-3">Enter a room ID</p>
+                                    </div>
+                                </div>
+                                <Field
+                                    type="text"
+                                    placeholder="CR-xxxxxxxx"
+                                    autoFocus={intent === 'join'}
+                                    value={joinRoomId}
+                                    onChange={e => { setJoinRoomId(e.target.value); setError(''); }}
+                                    onKeyDown={e => e.key === 'Enter' && handleJoinRoom()}
+                                    className="font-mono"
+                                    aria-label="Room ID"
+                                />
+                                <Button onClick={handleJoinRoom} disabled={!joinRoomId.trim()} icon={<LogIn size={15} />} className="w-full">
+                                    Join room
+                                </Button>
+                            </motion.div>
+                        </div>
+
+                        {sessions.length > 0 && (
+                            // Mounts after sessions load, when the parent stagger has already run, so it animates itself
+                            <motion.div
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                                className="ui-card p-5"
+                            >
+                                <button
+                                    className={`flex w-full items-center justify-between ${showSessions ? 'mb-4' : ''}`}
+                                    onClick={() => setShowSessions(!showSessions)}
+                                    aria-expanded={showSessions}
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <Clock size={16} className="text-fg-3" />
+                                        <h3 className="text-[15px] font-semibold text-fg">Previous sessions</h3>
+                                    </div>
+                                    <Badge>{sessions.length}</Badge>
+                                </button>
+
+                                <AnimatePresence initial={false}>
+                                    {showSessions && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="flex flex-col gap-2 overflow-hidden"
+                                        >
+                                            {sessions.map((session, index) => (
+                                                <motion.div
+                                                    key={session.id}
+                                                    initial={{ opacity: 0, y: 6 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ delay: index * 0.03, duration: 0.2 }}
+                                                    className="group flex cursor-pointer items-center justify-between rounded-lg bg-canvas px-4 py-3 transition-colors hover:bg-tint-2"
+                                                    onClick={() => handleResumeSession(session)}
+                                                >
+                                                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                                                        <div className="truncate text-sm font-medium text-fg">{session.name}</div>
+                                                        <div className="flex items-center gap-4 text-xs text-fg-3">
+                                                            <span className="flex items-center gap-1.5"><Clock size={12} /> {formatDate(session.updatedAt)}</span>
+                                                            <span className="flex items-center gap-1.5"><Puzzle size={12} /> {session.extensions.length} ext</span>
+                                                            <span className="flex items-center gap-1.5"><Code2 size={12} /> {session.openTabs.length} files</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="ml-3 flex items-center gap-1">
+                                                        <button
+                                                            onClick={e => handleDeleteSession(session.id, e)}
+                                                            className="rounded-md p-2 text-fg-3 transition-colors hover:bg-danger/15 hover:text-danger-text"
+                                                            title="Delete session"
+                                                            aria-label={`Delete ${session.name}`}
+                                                        >
+                                                            <Trash2 size={15} />
+                                                        </button>
+                                                        <ArrowRight size={15} className="mx-2 text-fg-3 transition-colors group-hover:text-fg" />
+                                                    </div>
+                                                </motion.div>
+                                            ))}
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </motion.div>
+                        )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </PageShell>
     );
 }

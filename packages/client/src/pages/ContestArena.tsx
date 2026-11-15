@@ -22,7 +22,7 @@ import {
     type SqlTable, type SubmissionDetail, type SubmissionSummary,
 } from '../contestApi';
 
-const panelButton = 'px-3.5 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-40';
+const panelButton = 'h-8 px-3 rounded-lg text-[13px] font-medium flex items-center gap-1.5 transition-colors disabled:opacity-40';
 
 export default function ContestArena() {
     const { code = '' } = useParams<{ code: string }>();
@@ -86,10 +86,10 @@ export default function ContestArena() {
             <Screen>
                 {error ? (
                     <div className="text-center">
-                        <div className="text-red-300 text-lg mb-6">{error}</div>
-                        <button onClick={() => navigate('/contests')} className={`${panelButton} mx-auto bg-white/10 border border-white/15`}><ArrowLeft size={16} /> Contests</button>
+                        <div className="text-danger-text text-lg mb-6">{error}</div>
+                        <button onClick={() => navigate('/contests')} className={`${panelButton} mx-auto bg-tint-2 hover:bg-tint-3`}><ArrowLeft size={16} /> Contests</button>
                     </div>
-                ) : <Loader2 className="animate-spin text-white/40" size={32} />}
+                ) : <Loader2 className="animate-spin text-fg-3" size={32} />}
             </Screen>
         );
     }
@@ -100,7 +100,7 @@ export default function ContestArena() {
     if (isGuest) {
         return (
             <Lobby info={info} offsetMs={clockOffset} onBack={() => navigate('/contests')}>
-                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-amber-100 text-sm">
+                <div className="rounded-lg  bg-accent/10 px-4 py-3 text-accent-text text-sm">
                     Contests need an account so your submissions and score can be saved. Log out and register or sign in, then open this contest again.
                 </div>
             </Lobby>
@@ -110,11 +110,11 @@ export default function ContestArena() {
     if (status === 'BLOCKED' || status === 'REMOVED') {
         return (
             <Screen>
-                <div className="max-w-md w-full bg-white/5 border border-red-500/30 rounded-2xl p-10 text-center">
-                    <Ban size={44} className="mx-auto text-red-400 mb-5" />
-                    <h1 className="text-2xl font-black text-red-400 mb-3">{status === 'BLOCKED' ? 'You have been blocked' : 'You have been removed'}</h1>
-                    <p className="text-white/60 mb-8">{participant?.blockedReason || 'Contact the organizer if you think this is a mistake.'}</p>
-                    <button onClick={() => navigate('/contests')} className={`${panelButton} mx-auto bg-white/10 border border-white/15`}><ArrowLeft size={16} /> Contests</button>
+                <div className="ui-card max-w-md w-full p-10 text-center">
+                    <Ban size={44} className="mx-auto text-danger-text mb-5" />
+                    <h1 className="text-xl font-semibold text-danger-text mb-2">{status === 'BLOCKED' ? 'You have been blocked' : 'You have been removed'}</h1>
+                    <p className="text-fg-2 mb-8">{participant?.blockedReason || 'Contact the organizer if you think this is a mistake.'}</p>
+                    <button onClick={() => navigate('/contests')} className={`${panelButton} mx-auto bg-tint-2 hover:bg-tint-3`}><ArrowLeft size={16} /> Contests</button>
                 </div>
             </Screen>
         );
@@ -124,15 +124,15 @@ export default function ContestArena() {
     if (!isOwner && (!participant || !started)) {
         return (
             <Lobby info={info} offsetMs={clockOffset} onBack={() => navigate('/contests')}>
-                {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-200 text-sm">{error}</div>}
+                {error && <div className="rounded-lg  bg-danger/10 px-4 py-3 text-danger-text text-sm">{error}</div>}
                 {participant ? (
-                    <div className="flex items-center justify-center gap-2 text-emerald-300 font-semibold">
+                    <div className="flex items-center justify-center gap-2 text-success-text font-semibold">
                         <CheckCircle2 size={20} /> You're registered. {contest.phase === 'DRAFT' ? 'Waiting for the organizer to start the contest.' : 'Problems unlock when the countdown ends.'}
                     </div>
                 ) : contest.phase === 'ENDED' ? (
-                    <div className="text-center text-white/50">This contest has ended.</div>
+                    <div className="text-center text-fg-3">This contest has ended.</div>
                 ) : (
-                    <button onClick={join} disabled={joining} className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold flex items-center justify-center gap-2 disabled:opacity-50">
+                    <button onClick={join} disabled={joining} className="h-11 w-full rounded-lg bg-accent-solid hover:bg-accent text-white text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50">
                         <LogIn size={18} /> {joining ? 'Joining…' : 'Join contest'}
                     </button>
                 )}
@@ -144,36 +144,36 @@ export default function ContestArena() {
 }
 
 function Screen({ children }: { children: React.ReactNode }) {
-    return <div className="h-[100dvh] w-full bg-[#0a0a0c] text-white flex items-center justify-center p-6">{children}</div>;
+    return <div className="h-[100dvh] w-full bg-canvas text-fg flex items-center justify-center p-6">{children}</div>;
 }
 
 function Lobby({ info, offsetMs, onBack, children }: { info: ResolveResponse; offsetMs: number; onBack: () => void; children: React.ReactNode }) {
     const { contest } = info;
     return (
-        <div className="h-[100dvh] w-full bg-[#0a0a0c] text-white overflow-y-auto">
+        <div className="h-[100dvh] w-full bg-canvas text-fg overflow-y-auto">
             <div className="max-w-2xl mx-auto px-6 py-10">
-                <button onClick={onBack} className="mb-8 flex items-center gap-2 text-white/50 hover:text-white text-sm"><ArrowLeft size={16} /> Contests</button>
-                <div className="bg-white/[0.04] border border-white/10 rounded-3xl p-8 shadow-2xl">
+                <button onClick={onBack} className="mb-8 flex items-center gap-2 text-fg-3 hover:text-fg text-sm"><ArrowLeft size={16} /> Contests</button>
+                <div className="ui-card p-8">
                     <div className="flex items-center gap-4 mb-6">
-                        <div className="w-14 h-14 bg-[#f59e0b]/90 rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.35)]"><Trophy size={28} /></div>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent-text"><Trophy size={24} /></div>
                         <div>
-                            <h1 className="text-3xl font-extrabold leading-tight">{contest.title}</h1>
-                            <div className="text-white/50 text-sm">by {contest.organizer} · <span className="font-mono">{contest.code}</span></div>
+                            <h1 className="text-2xl font-semibold leading-tight tracking-tight">{contest.title}</h1>
+                            <div className="text-fg-3 text-sm">by {contest.organizer} · <span className="font-mono">{contest.code}</span></div>
                         </div>
                     </div>
 
-                    <div className="rounded-2xl bg-black/30 border border-white/10 p-6 text-center mb-6">
-                        <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-md border mb-3 ${PHASE_STYLE[contest.phase]}`}>{PHASE_LABEL[contest.phase]}</span>
+                    <div className="rounded-xl bg-canvas border border-line p-6 text-center mb-6">
+                        <span className={`inline-flex h-5 items-center rounded-full px-2 text-[11px] font-medium mb-3 ${PHASE_STYLE[contest.phase]}`}>{PHASE_LABEL[contest.phase]}</span>
                         {contest.phase === 'SCHEDULED' && (
                             <>
-                                <div className="text-white/50 text-sm mb-1">Starts in</div>
-                                <Countdown target={contest.startsAt} offsetMs={offsetMs} className="text-5xl font-black text-amber-200" />
-                                <div className="text-white/40 text-sm mt-2">{new Date(contest.startsAt!).toLocaleString()}</div>
+                                <div className="text-fg-3 text-sm mb-1">Starts in</div>
+                                <Countdown target={contest.startsAt} offsetMs={offsetMs} className="text-5xl font-semibold text-accent-text" />
+                                <div className="text-fg-3 text-sm mt-2">{new Date(contest.startsAt!).toLocaleString()}</div>
                             </>
                         )}
-                        {contest.phase === 'DRAFT' && <div className="text-white/60">Not scheduled yet</div>}
+                        {contest.phase === 'DRAFT' && <div className="text-fg-2">Not scheduled yet</div>}
                         {contest.phase === 'LIVE' && (
-                            <><div className="text-white/50 text-sm mb-1">Running · ends in</div><Countdown target={contest.endsAt} offsetMs={offsetMs} className="text-4xl font-black text-emerald-300" /></>
+                            <><div className="text-fg-3 text-sm mb-1">Running · ends in</div><Countdown target={contest.endsAt} offsetMs={offsetMs} className="text-4xl font-semibold text-success-text" /></>
                         )}
                     </div>
 
@@ -186,8 +186,8 @@ function Lobby({ info, offsetMs, onBack, children }: { info: ResolveResponse; of
                     </div>
 
                     {contest.proctoring && (
-                        <div className="rounded-xl border border-red-500/25 bg-red-500/[0.06] px-4 py-3 text-sm text-red-100/90 mb-6 flex gap-2.5">
-                            <Lock size={16} className="shrink-0 mt-0.5 text-red-300" />
+                        <div className="rounded-lg  bg-danger/10 px-4 py-3 text-sm text-danger-text/90 mb-6 flex gap-2.5">
+                            <Lock size={16} className="shrink-0 mt-0.5 text-danger-text" />
                             Proctored: the contest runs in fullscreen, and tab switches are recorded. You'll be blocked after {contest.maxTabSwitches} tab switches.
                         </div>
                     )}
@@ -196,7 +196,7 @@ function Lobby({ info, offsetMs, onBack, children }: { info: ResolveResponse; of
 
                     <div className="space-y-3">{children}</div>
                 </div>
-                <p className="text-center text-white/30 text-xs mt-6">
+                <p className="text-center text-fg-3 text-xs mt-6">
                     Each problem's points are split evenly across its test cases. Your best submission per problem counts; ties go to whoever reached their score first.
                 </p>
             </div>
@@ -206,8 +206,8 @@ function Lobby({ info, offsetMs, onBack, children }: { info: ResolveResponse; of
 
 function Fact({ label, value }: { label: string; value: string }) {
     return (
-        <div className="rounded-xl bg-black/20 border border-white/5 px-3.5 py-2.5">
-            <div className="text-white/40 text-xs uppercase tracking-wider">{label}</div>
+        <div className="rounded-lg bg-canvas border border-line-faint px-3.5 py-2.5">
+            <div className="text-fg-3 text-xs ">{label}</div>
             <div className="font-semibold mt-0.5">{value}</div>
         </div>
     );
@@ -425,29 +425,29 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
     const problemSubmissions = mySubmissions.filter(s => s.problemId === problem?.id);
 
     return (
-        <div className="h-[100dvh] w-full bg-[#0a0a0c] text-white flex flex-col overflow-hidden">
+        <div className="h-[100dvh] w-full bg-canvas text-fg flex flex-col overflow-hidden">
             {/* Header */}
-            <header className="h-14 shrink-0 border-b border-white/10 flex items-center gap-4 px-4">
-                <button onClick={() => navigate('/contests')} className="p-2 rounded-lg hover:bg-white/10 text-white/60" title="Leave"><ArrowLeft size={18} /></button>
-                <Trophy size={18} className="text-amber-400 shrink-0" />
-                <div className="font-bold truncate">{contest.title}</div>
-                {isOwner && <span className="text-xs font-semibold px-2 py-0.5 rounded-md border border-sky-500/30 bg-sky-500/10 text-sky-200 flex items-center gap-1 shrink-0"><FlaskConical size={12} /> Organizer test mode: not ranked</span>}
+            <header className="h-14 shrink-0 border-b border-line flex items-center gap-4 px-4">
+                <button onClick={() => navigate('/contests')} className="p-2 rounded-lg hover:bg-tint-3 text-fg-2" title="Leave"><ArrowLeft size={18} /></button>
+                <Trophy size={18} className="text-accent-text shrink-0" />
+                <div className="font-semibold truncate">{contest.title}</div>
+                {isOwner && <span className="inline-flex h-5 items-center rounded-full px-2 text-[11px] font-medium  bg-accent/10 text-accent-text flex items-center gap-1 shrink-0"><FlaskConical size={12} /> Organizer test mode: not ranked</span>}
                 <div className="flex-1" />
                 <div className="flex items-center gap-2 text-sm">
-                    <Clock size={16} className="text-white/40" />
-                    {contest.phase === 'LIVE' ? <Countdown target={contest.endsAt} offsetMs={offsetMs} className="font-bold text-emerald-300" /> : <span className="text-white/50">{PHASE_LABEL[contest.phase]}</span>}
+                    <Clock size={16} className="text-fg-3" />
+                    {contest.phase === 'LIVE' ? <Countdown target={contest.endsAt} offsetMs={offsetMs} className="font-semibold text-success-text" /> : <span className="text-fg-3">{PHASE_LABEL[contest.phase]}</span>}
                 </div>
-                <div className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 tabular-nums">
-                    {formatScore(totalScore)} <span className="text-white/40">/ {maxScore}</span>
+                <div className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-tint-2 tabular-nums">
+                    {formatScore(totalScore)} <span className="text-fg-3">/ {maxScore}</span>
                 </div>
-                <button onClick={() => setShowBoard(true)} className={`${panelButton} bg-amber-500/15 border border-amber-500/30 text-amber-200 hover:bg-amber-500/25`}>
+                <button onClick={() => setShowBoard(true)} className={`${panelButton} bg-accent/15  text-accent-text hover:bg-accent/25`}>
                     <ListChecks size={16} /> Leaderboard
                 </button>
             </header>
 
             <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
                 {/* Problem */}
-                <section className="lg:w-[42%] min-h-0 flex flex-col border-b lg:border-b-0 lg:border-r border-white/10">
+                <section className="lg:w-[42%] min-h-0 flex flex-col border-b lg:border-b-0 lg:border-r border-line">
                     <div className="flex gap-1 px-3 pt-3 overflow-x-auto shrink-0">
                         {problems.map(p => {
                             const score = best[p.id];
@@ -456,27 +456,27 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                                 <button
                                     key={p.id}
                                     onClick={() => setProblemId(p.id)}
-                                    className={`px-3.5 py-2 rounded-t-lg text-sm font-bold border-b-2 transition-colors ${p.id === problemId ? 'bg-white/[0.06] border-amber-400 text-white' : 'border-transparent text-white/50 hover:text-white'}`}
+                                    className={`px-3.5 py-2 rounded-t-lg text-sm font-semibold border-b-2 transition-colors ${p.id === problemId ? 'bg-tint-2 border-accent text-fg' : 'border-transparent text-fg-3 hover:text-fg'}`}
                                 >
                                     {p.index}
-                                    {score !== undefined && <span className={`ml-1.5 text-xs ${solved ? 'text-emerald-300' : 'text-amber-300'}`}>{formatScore(score)}</span>}
+                                    {score !== undefined && <span className={`ml-1.5 text-xs ${solved ? 'text-success-text' : 'text-accent-text'}`}>{formatScore(score)}</span>}
                                 </button>
                             );
                         })}
                     </div>
-                    <div className="flex-1 min-h-0 overflow-y-auto p-5 bg-white/[0.02]">
+                    <div className="flex-1 min-h-0 overflow-y-auto p-5 bg-tint-1">
                         {!problem ? (
-                            <div className="text-white/40">{panelError || 'Loading problems…'}</div>
+                            <div className="text-fg-3">{panelError || 'Loading problems…'}</div>
                         ) : (
                             <>
-                                <h1 className="text-2xl font-extrabold mb-2">{problem.index}. {problem.title}</h1>
+                                <h1 className="text-2xl font-semibold mb-2">{problem.index}. {problem.title}</h1>
                                 <div className="flex flex-wrap gap-2 text-xs mb-5">
-                                    <span className="px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/25 text-amber-200 font-semibold">{problem.points} points</span>
-                                    <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60">Time limit {problem.timeLimitMs / 1000}s</span>
-                                    {problem.memoryLimitMb && !isSql && <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60">Memory {problem.memoryLimitMb} MB</span>}
-                                    {isSql && <span className="px-2 py-1 rounded-md bg-sky-500/10 border border-sky-500/25 text-sky-200 font-semibold flex items-center gap-1"><Database size={12} /> SQL · SQLite + MySQL functions</span>}
-                                    {isSql && <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60">{problem.orderMatters ? 'Row order matters' : 'Rows in any order'}</span>}
-                                    <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60">{problem.testCount} test cases</span>
+                                    <span className="px-2 py-1 rounded-md bg-accent/10  text-accent-text font-semibold">{problem.points} points</span>
+                                    <span className="px-2 py-1 rounded-md bg-tint-2 text-fg-2">Time limit {problem.timeLimitMs / 1000}s</span>
+                                    {problem.memoryLimitMb && !isSql && <span className="px-2 py-1 rounded-md bg-tint-2 text-fg-2">Memory {problem.memoryLimitMb} MB</span>}
+                                    {isSql && <span className="px-2 py-1 rounded-md bg-accent/10  text-accent-text font-semibold flex items-center gap-1"><Database size={12} /> SQL · SQLite + MySQL functions</span>}
+                                    {isSql && <span className="px-2 py-1 rounded-md bg-tint-2 text-fg-2">{problem.orderMatters ? 'Row order matters' : 'Rows in any order'}</span>}
+                                    <span className="px-2 py-1 rounded-md bg-tint-2 text-fg-2">{problem.testCount} test cases</span>
                                 </div>
                                 <Markdown>{problem.statement || '_No statement._'}</Markdown>
                                 {isSql ? (
@@ -498,10 +498,10 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
 
                 {/* Editor + results */}
                 <section className="flex-1 min-h-0 flex flex-col">
-                    <div className="h-12 shrink-0 border-b border-white/10 flex items-center gap-2 px-3">
+                    <div className="h-12 shrink-0 border-b border-line flex items-center gap-2 px-3">
                         {isSql ? (
                             <span
-                                className="px-2.5 py-1.5 rounded-lg border border-sky-500/25 bg-sky-500/10 text-sky-200 text-sm font-semibold flex items-center gap-1.5"
+                                className="px-2.5 py-1.5 rounded-lg  bg-accent/10 text-accent-text text-sm font-semibold flex items-center gap-1.5"
                                 title="SQLite, with common MySQL functions added (see SQL dialect notes under the schema)"
                             >
                                 <Database size={14} /> SQL · SQLite
@@ -511,21 +511,21 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                                 value={language?.id ?? ''}
                                 onChange={e => chooseLanguage(e.target.value)}
                                 disabled={readOnly}
-                                className="bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-amber-500/50"
+                                className="bg-canvas border border-line rounded-lg px-2.5 py-1.5 text-sm outline-none "
                             >
                                 {contest.languages.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
                             </select>
                         )}
-                        <span className="text-xs text-white/30 font-mono">{path}</span>
+                        <span className="text-xs text-fg-3 font-mono">{path}</span>
                         <div className="flex-1" />
                         {readOnly ? (
-                            <span className="text-sm text-white/50 flex items-center gap-1.5"><Lock size={14} /> Contest ended: read-only</span>
+                            <span className="text-sm text-fg-3 flex items-center gap-1.5"><Lock size={14} /> Contest ended: read-only</span>
                         ) : (
                             <>
-                                <button onClick={runSamples} disabled={!ytext || running || submitting} className={`${panelButton} bg-white/10 border border-white/15 hover:bg-white/20`}>
+                                <button onClick={runSamples} disabled={!ytext || running || submitting} className={`${panelButton} bg-tint-2 hover:bg-tint-3`}>
                                     {running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />} Run samples
                                 </button>
-                                <button onClick={submit} disabled={!ytext || submitting || !!judging} className={`${panelButton} bg-emerald-500 text-black hover:bg-emerald-400`}>
+                                <button onClick={submit} disabled={!ytext || submitting || !!judging} className={`${panelButton} bg-success-solid text-white hover:bg-success`}>
                                     {submitting || judging ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} Submit
                                 </button>
                             </>
@@ -544,33 +544,33 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                             />
                         )}
                         {!ytext && (
-                            <div className={`absolute inset-0 z-[5] flex items-center justify-center p-6 text-center bg-[#0a0a0c] font-mono text-[13px] ${openError ? 'text-red-300' : 'text-white/40'}`}>
+                            <div className={`absolute inset-0 z-[5] flex items-center justify-center p-6 text-center bg-canvas font-mono text-[13px] ${openError ? 'text-danger-text' : 'text-fg-3'}`}>
                                 {openError ?? 'Opening your code…'}
                             </div>
                         )}
                     </div>
 
                     {/* Results panel */}
-                    <div className="h-[38%] min-h-[180px] shrink-0 border-t border-white/10 flex flex-col">
-                        <div className="flex items-center gap-1 px-3 border-b border-white/10 shrink-0">
+                    <div className="h-[38%] min-h-[180px] shrink-0 border-t border-line flex flex-col">
+                        <div className="flex items-center gap-1 px-3 border-b border-line shrink-0">
                             {(['result', 'custom', 'submissions'] as Panel[]).map(p => (
                                 <button
                                     key={p}
                                     onClick={() => setPanel(p)}
-                                    className={`px-3 py-2.5 text-sm font-semibold border-b-2 ${panel === p ? 'border-amber-400 text-white' : 'border-transparent text-white/50 hover:text-white'}`}
+                                    className={`px-3 py-2.5 text-sm font-semibold border-b-2 ${panel === p ? 'border-accent text-fg' : 'border-transparent text-fg-3 hover:text-fg'}`}
                                 >
                                     {p === 'result' ? 'Result' : p === 'custom' ? (isSql ? 'Custom data' : 'Custom input') : `Submissions (${problemSubmissions.length})`}
                                 </button>
                             ))}
                         </div>
                         <div className="flex-1 min-h-0 overflow-y-auto p-4 text-sm">
-                            {panelError && <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-red-200 flex justify-between gap-3">{panelError}<button onClick={() => setPanelError('')}><X size={14} /></button></div>}
+                            {panelError && <div className="mb-3 rounded-lg  bg-danger/10 px-3 py-2 text-danger-text flex justify-between gap-3">{panelError}<button onClick={() => setPanelError('')}><X size={14} /></button></div>}
                             {panel === 'result' && (
                                 activeSubmission ? <SubmissionView submission={activeSubmission} points={problem?.points ?? 0} />
-                                    : activeSubmissionId ? <div className="text-white/50 flex items-center gap-2"><Loader2 size={16} className="animate-spin" /> Submitting…</div>
+                                    : activeSubmissionId ? <div className="text-fg-3 flex items-center gap-2"><Loader2 size={16} className="animate-spin" /> Submitting…</div>
                                     : runResult?.mode === 'samples' ? <SampleRunView result={runResult} />
                                     : runResult?.mode === 'custom' ? <CustomRunView result={runResult} />
-                                    : <div className="text-white/40">{isSql
+                                    : <div className="text-fg-3">{isSql
                                         ? 'Run the samples to check your query, then submit it to be judged on every dataset.'
                                         : 'Run the samples to check your code, then submit it to be judged on all test cases.'}</div>
                             )}
@@ -581,31 +581,31 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                                             value={customInput}
                                             onChange={e => setCustomInput(e.target.value)}
                                             placeholder={isSql ? 'INSERT statements to run after the schema (the sample data is not included)' : 'Input (stdin)'}
-                                            className="flex-1 min-h-[90px] bg-black/40 border border-white/10 rounded-lg p-2.5 font-mono text-xs outline-none focus:border-amber-500/50"
+                                            className="flex-1 min-h-[90px] bg-canvas border border-line rounded-lg p-2.5 font-mono text-xs outline-none "
                                         />
-                                        <button onClick={runCustom} disabled={!ytext || running || readOnly} className={`${panelButton} self-start bg-white/10 border border-white/15 hover:bg-white/20`}>
+                                        <button onClick={runCustom} disabled={!ytext || running || readOnly} className={`${panelButton} self-start bg-tint-2 hover:bg-tint-3`}>
                                             {running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />} {isSql ? 'Run on this data' : 'Run with this input'}
                                         </button>
                                     </div>
                                     <div className="min-h-0 overflow-auto">
-                                        {runResult?.mode === 'custom' ? <CustomRunView result={runResult} /> : <div className="text-white/40 text-xs">{isSql ? 'Your query\'s result appears here.' : 'Output appears here.'}</div>}
+                                        {runResult?.mode === 'custom' ? <CustomRunView result={runResult} /> : <div className="text-fg-3 text-xs">{isSql ? 'Your query\'s result appears here.' : 'Output appears here.'}</div>}
                                     </div>
                                 </div>
                             )}
                             {panel === 'submissions' && (
-                                problemSubmissions.length === 0 ? <div className="text-white/40">No submissions for this problem yet.</div> : (
+                                problemSubmissions.length === 0 ? <div className="text-fg-3">No submissions for this problem yet.</div> : (
                                     <table className="w-full text-sm">
                                         <tbody>
                                             {problemSubmissions.map(s => (
                                                 <tr
                                                     key={s.id}
                                                     onClick={() => { setActiveSubmissionId(s.id); setPanel('result'); }}
-                                                    className="border-b border-white/5 cursor-pointer hover:bg-white/5"
+                                                    className="border-b border-line-faint cursor-pointer hover:bg-tint-1"
                                                 >
-                                                    <td className="py-2 pr-3 text-white/50 tabular-nums">{new Date(s.createdAt).toLocaleTimeString()}</td>
-                                                    <td className="py-2 pr-3 text-white/60">{languageLabel(contest.languages, s.language)}</td>
-                                                    <td className="py-2 pr-3">{s.verdict ? <VerdictBadge verdict={s.verdict} short /> : <span className="text-white/40">{s.status.toLowerCase()}</span>}</td>
-                                                    <td className="py-2 pr-3 text-white/60 tabular-nums">{s.passed}/{s.total} tests</td>
+                                                    <td className="py-2 pr-3 text-fg-3 tabular-nums">{new Date(s.createdAt).toLocaleTimeString()}</td>
+                                                    <td className="py-2 pr-3 text-fg-2">{languageLabel(contest.languages, s.language)}</td>
+                                                    <td className="py-2 pr-3">{s.verdict ? <VerdictBadge verdict={s.verdict} short /> : <span className="text-fg-3">{s.status.toLowerCase()}</span>}</td>
+                                                    <td className="py-2 pr-3 text-fg-2 tabular-nums">{s.passed}/{s.total} tests</td>
                                                     <td className="py-2 text-right font-semibold tabular-nums">{formatScore(s.score)}</td>
                                                 </tr>
                                             ))}
@@ -620,14 +620,14 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
 
             {/* Leaderboard drawer */}
             {showBoard && (
-                <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={() => setShowBoard(false)}>
-                    <div className="w-full max-w-3xl h-full bg-[#111114] border-l border-white/10 p-5 overflow-y-auto" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm" onClick={() => setShowBoard(false)}>
+                    <div className="w-full max-w-3xl h-full bg-surface border-l border-line p-5 overflow-y-auto" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold flex items-center gap-2"><Trophy size={20} className="text-amber-400" /> Leaderboard</h2>
-                            <button onClick={() => setShowBoard(false)} className="p-2 rounded-lg hover:bg-white/10"><X size={18} /></button>
+                            <h2 className="text-xl font-semibold flex items-center gap-2"><Trophy size={20} className="text-accent-text" /> Leaderboard</h2>
+                            <button onClick={() => setShowBoard(false)} className="p-2 rounded-lg hover:bg-tint-3"><X size={18} /></button>
                         </div>
-                        {!board ? <Loader2 className="animate-spin text-white/40" /> : board.hidden ? (
-                            <div className="text-white/50 py-10 text-center">The organizer hides the leaderboard until the contest ends.</div>
+                        {!board ? <Loader2 className="animate-spin text-fg-3" /> : board.hidden ? (
+                            <div className="text-fg-3 py-10 text-center">The organizer hides the leaderboard until the contest ends.</div>
                         ) : (
                             <Leaderboard rows={board.rows} problems={board.problems} startsAt={contest.startsAt} highlightUserId={user?.id} />
                         )}
@@ -643,14 +643,14 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
 function SampleBlock({ title, text }: { title: string; text: string }) {
     const [copied, setCopied] = useState(false);
     return (
-        <div className="rounded-xl border border-white/10 bg-black/30 overflow-hidden">
-            <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/10 text-xs text-white/50">
+        <div className="rounded-lg border border-line bg-canvas overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-1.5 border-b border-line text-xs text-fg-3">
                 {title}
-                <button onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1200); }} className="flex items-center gap-1 hover:text-white">
+                <button onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1200); }} className="flex items-center gap-1 hover:text-fg">
                     <Copy size={12} /> {copied ? 'Copied' : 'Copy'}
                 </button>
             </div>
-            <pre className="p-3 font-mono text-xs text-white/85 whitespace-pre-wrap break-all max-h-56 overflow-auto">{text}</pre>
+            <pre className="p-3 font-mono text-xs text-fg whitespace-pre-wrap break-all max-h-56 overflow-auto">{text}</pre>
         </div>
     );
 }
@@ -658,13 +658,13 @@ function SampleBlock({ title, text }: { title: string; text: string }) {
 // SQL problems: a sample dataset's tables and the result the query should return
 function SqlSample({ index, sample }: { index: number; sample: ParticipantProblem['samples'][number] }) {
     return (
-        <div className="mt-5 rounded-xl border border-white/10 bg-black/20 p-3 space-y-3">
-            <div className="text-xs font-semibold uppercase tracking-wider text-white/50">Sample {index + 1}</div>
-            {sample.tablesError && <div className="text-xs text-red-300">{sample.tablesError}</div>}
+        <div className="mt-5 rounded-lg border border-line bg-canvas p-3 space-y-3">
+            <div className="text-xs font-semibold text-fg-3">Sample {index + 1}</div>
+            {sample.tablesError && <div className="text-xs text-danger-text">{sample.tablesError}</div>}
             {(sample.tables ?? []).map(table => <ResultTable key={table.name} table={table} title={table.name} maxHeight={200} />)}
             {sample.expected && <ResultTable table={sample.expected} title="Expected result" maxHeight={200} tone="good" />}
-            <details className="text-xs text-white/50">
-                <summary className="cursor-pointer hover:text-white">Dataset as SQL</summary>
+            <details className="text-xs text-fg-3">
+                <summary className="cursor-pointer hover:text-fg">Dataset as SQL</summary>
                 <div className="mt-2"><SampleBlock title="INSERT statements" text={sample.input} /></div>
             </details>
         </div>
@@ -673,33 +673,33 @@ function SqlSample({ index, sample }: { index: number; sample: ParticipantProble
 
 // What participants can write: SQLite plus the MySQL functions the server adds (server/.../mysqlCompat.ts)
 function SqlDialectNotes() {
-    const code = 'font-mono text-sky-200/90';
+    const code = 'font-mono text-accent-text/90';
     return (
-        <details className="mt-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/60">
-            <summary className="cursor-pointer text-white/70 hover:text-white font-semibold">SQL dialect notes</summary>
+        <details className="mt-3 rounded-lg border border-line bg-canvas px-3 py-2 text-xs text-fg-2">
+            <summary className="cursor-pointer text-fg-2 hover:text-fg font-semibold">SQL dialect notes</summary>
             <div className="mt-2 space-y-2 leading-relaxed">
-                <p>Queries run on <b className="text-white/80">SQLite</b>, with common <b className="text-white/80">MySQL</b> functions added, so most MySQL queries work as written.</p>
+                <p>Queries run on <b className="text-fg">SQLite</b>, with common <b className="text-fg">MySQL</b> functions added, so most MySQL queries work as written.</p>
                 <ul className="list-disc pl-4 space-y-1">
                     <li>
-                        <b className="text-white/75">Works:</b> joins, <span className={code}>GROUP BY</span> / <span className={code}>HAVING</span>, subqueries,{' '}
+                        <b className="text-fg">Works:</b> joins, <span className={code}>GROUP BY</span> / <span className={code}>HAVING</span>, subqueries,{' '}
                         <span className={code}>WITH</span>, window functions (<span className={code}>RANK</span>, <span className={code}>LAG</span>, …),{' '}
                         <span className={code}>LIMIT a, b</span>, <span className={code}>IF</span>, <span className={code}>IFNULL</span>, <span className={code}>CASE</span>,{' '}
                         <span className={code}>GROUP_CONCAT(x ORDER BY y)</span>, backtick names.
                     </li>
                     <li>
-                        <b className="text-white/75">MySQL functions:</b>{' '}
+                        <b className="text-fg">MySQL functions:</b>{' '}
                         <span className={code}>CONCAT LEFT RIGHT LPAD RPAD LOCATE SUBSTRING_INDEX CHAR_LENGTH UCASE LCASE REPEAT REVERSE</span>,{' '}
                         <span className={code}>MOD TRUNCATE CEILING POW GREATEST LEAST</span>,{' '}
                         <span className={code}>NOW CURDATE YEAR MONTH DAY HOUR DAYNAME MONTHNAME QUARTER WEEKDAY DAYOFWEEK LAST_DAY DATEDIFF DATE_FORMAT ADDDATE SUBDATE</span>,{' '}
                         <span className={code}>REGEXP</span>, <span className={code}>REGEXP_LIKE</span>, <span className={code}>REGEXP_REPLACE</span>, <span className={code}>FROM DUAL</span>.
                     </li>
                     <li>
-                        <b className="text-white/75">Different from MySQL:</b> <span className={code}>5 / 2</span> is <span className={code}>2</span> (whole-number division; write{' '}
+                        <b className="text-fg">Different from MySQL:</b> <span className={code}>5 / 2</span> is <span className={code}>2</span> (whole-number division; write{' '}
                         <span className={code}>5 * 1.0 / 2</span>). Text <span className={code}>=</span> is case-sensitive (<span className={code}>LIKE</span> and{' '}
                         <span className={code}>REGEXP</span> are not).
                     </li>
                     <li>
-                        <b className="text-white/75">Not supported:</b> <span className={code}>INTERVAL</span> (use <span className={code}>ADDDATE(d, 7)</span> or{' '}
+                        <b className="text-fg">Not supported:</b> <span className={code}>INTERVAL</span> (use <span className={code}>ADDDATE(d, 7)</span> or{' '}
                         <span className={code}>date(d, '+7 day')</span>), <span className={code}>GROUP_CONCAT(x SEPARATOR ';')</span> (use{' '}
                         <span className={code}>GROUP_CONCAT(x, ';')</span>), <span className={code}>DIV</span>, <span className={code}>&lt;=&gt;</span> (use{' '}
                         <span className={code}>IS</span>), <span className={code}>@variables</span>.
@@ -715,8 +715,8 @@ function SqlResult({ table, title }: { table: SqlTable | null | undefined; title
     if (!table) {
         return (
             <div>
-                <div className="text-xs text-white/40 mb-1">{title}</div>
-                <div className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white/40 italic">No result</div>
+                <div className="text-xs text-fg-3 mb-1">{title}</div>
+                <div className="rounded-lg border border-line bg-canvas px-3 py-2 text-xs text-fg-3 italic">No result</div>
             </div>
         );
     }
@@ -727,8 +727,8 @@ function OutputBlock({ title, text, tone = 'normal' }: { title: string; text: st
     if (!text) return null;
     return (
         <div>
-            <div className="text-xs text-white/40 mb-1">{title}</div>
-            <pre className={`rounded-lg border p-2.5 font-mono text-xs whitespace-pre-wrap break-all max-h-48 overflow-auto ${tone === 'error' ? 'border-red-500/20 bg-red-500/[0.06] text-red-200' : 'border-white/10 bg-black/40 text-white/85'}`}>{text}</pre>
+            <div className="text-xs text-fg-3 mb-1">{title}</div>
+            <pre className={`rounded-lg border p-2.5 font-mono text-xs whitespace-pre-wrap break-all max-h-48 overflow-auto ${tone === 'error' ? ' bg-danger/10 text-danger-text' : 'border-line bg-canvas text-fg'}`}>{text}</pre>
         </div>
     );
 }
@@ -741,23 +741,23 @@ function SubmissionView({ submission, points }: { submission: SubmissionDetail; 
     return (
         <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-3">
-                {submission.status === 'QUEUED' && <span className="flex items-center gap-2 text-white/60"><Loader2 size={16} className="animate-spin" /> In queue{submission.queuePosition ? ` (#${submission.queuePosition})` : ''}…</span>}
-                {submission.status === 'RUNNING' && <span className="flex items-center gap-2 text-sky-300"><Loader2 size={16} className="animate-spin" /> Judging test {Math.min(submission.results.length + 1, submission.total)} of {submission.total}…</span>}
+                {submission.status === 'QUEUED' && <span className="flex items-center gap-2 text-fg-2"><Loader2 size={16} className="animate-spin" /> In queue{submission.queuePosition ? ` (#${submission.queuePosition})` : ''}…</span>}
+                {submission.status === 'RUNNING' && <span className="flex items-center gap-2 text-accent-text"><Loader2 size={16} className="animate-spin" /> Judging test {Math.min(submission.results.length + 1, submission.total)} of {submission.total}…</span>}
                 {submission.verdict && !pending && <VerdictBadge verdict={submission.verdict} className="text-sm px-3 py-1" />}
                 {!pending && submission.status === 'DONE' && (
                     <span className="font-semibold tabular-nums">{formatScore(submission.score)} / {points} points · {submission.passed}/{submission.total} tests passed</span>
                 )}
-                {submission.status === 'ERROR' && <span className="text-white/60">The judge couldn't run your code. This doesn't count against you; try submitting again.</span>}
+                {submission.status === 'ERROR' && <span className="text-fg-2">The judge couldn't run your code. This doesn't count against you; try submitting again.</span>}
             </div>
             <div className="flex flex-wrap gap-1.5">
                 {chips.map((r, i) => (
                     <div
                         key={i}
-                        className={`min-w-[64px] px-2 py-1.5 rounded-lg border text-center ${r ? VERDICT_STYLE[r.verdict] : 'border-white/10 bg-white/[0.03] text-white/30'}`}
+                        className={`min-w-[64px] px-2 py-1.5 rounded-lg text-center ${r ? VERDICT_STYLE[r.verdict] : 'bg-tint-1 text-fg-3'}`}
                         title={r ? `Test ${i + 1}${r.sample ? ' (sample)' : ''}: ${r.verdict} ${timeLabel(r.timeMs, r.timeExact)}` : `Test ${i + 1}: waiting`}
                     >
                         <div className="text-[10px] opacity-70">#{i + 1}{r?.sample ? ' S' : ''}</div>
-                        <div className="text-xs font-bold">{r ? r.verdict : '…'}</div>
+                        <div className="text-xs font-semibold">{r ? r.verdict : '…'}</div>
                         {r?.timeMs != null && <div className="text-[10px] opacity-70 tabular-nums">{timeLabel(r.timeMs, r.timeExact)}</div>}
                     </div>
                 ))}
@@ -771,7 +771,7 @@ function SubmissionView({ submission, points }: { submission: SubmissionDetail; 
                     <OutputBlock title="Errors" text={r.stderr || ''} tone="error" />
                 </div>
             ))}
-            <p className="text-xs text-white/30">Hidden test cases only show their verdict. "S" marks sample tests.</p>
+            <p className="text-xs text-fg-3">Hidden test cases only show their verdict. "S" marks sample tests.</p>
         </div>
     );
 }
@@ -781,11 +781,11 @@ function SampleRunView({ result }: { result: Extract<RunResponse, { mode: 'sampl
         <div className="space-y-4">
             {result.compileOutput && <OutputBlock title="Compiler output" text={result.compileOutput} tone="error" />}
             {result.results.map((r, i) => (
-                <div key={i} className="rounded-xl border border-white/10 p-3 space-y-2">
+                <div key={i} className="rounded-lg border border-line p-3 space-y-2">
                     <div className="flex items-center gap-3">
                         <span className="font-semibold">Sample {i + 1}</span>
                         <VerdictBadge verdict={r.verdict} short />
-                        <span className="text-white/40 text-xs tabular-nums">{timeLabel(r.timeMs, r.timeExact)}</span>
+                        <span className="text-fg-3 text-xs tabular-nums">{timeLabel(r.timeMs, r.timeExact)}</span>
                     </div>
                     {r.expectedTable !== undefined ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -802,7 +802,7 @@ function SampleRunView({ result }: { result: Extract<RunResponse, { mode: 'sampl
                     <OutputBlock title="Errors" text={r.stderr || r.message || ''} tone="error" />
                 </div>
             ))}
-            {result.results.length < result.totalSamples && <p className="text-xs text-white/40">Stopped after the first failing sample.</p>}
+            {result.results.length < result.totalSamples && <p className="text-xs text-fg-3">Stopped after the first failing sample.</p>}
         </div>
     );
 }
@@ -814,8 +814,8 @@ function CustomRunView({ result }: { result: Extract<RunResponse, { mode: 'custo
     return (
         <div className="space-y-3">
             <div className="flex items-center gap-3 text-xs">
-                <span className={failed ? 'text-red-300 font-semibold' : 'text-emerald-300 font-semibold'}>{failed ? label[result.kind] ?? result.kind : 'Finished'}</span>
-                <span className="text-white/40 tabular-nums">{timeLabel(result.timeMs, result.timeExact)}</span>
+                <span className={failed ? 'text-danger-text font-semibold' : 'text-success-text font-semibold'}>{failed ? label[result.kind] ?? result.kind : 'Finished'}</span>
+                <span className="text-fg-3 tabular-nums">{timeLabel(result.timeMs, result.timeExact)}</span>
             </div>
             <OutputBlock title="Compiler output" text={result.compileOutput} tone="error" />
             {isSql

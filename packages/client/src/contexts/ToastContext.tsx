@@ -15,9 +15,9 @@ interface Toast {
 const MAX_TOASTS = 4;
 const DEFAULT_DURATION_MS: Record<ToastTone, number> = { success: 4000, info: 4000, error: 6000 };
 const TONE = {
-    success: { Icon: CheckCircle2, tile: 'bg-emerald-500/15 text-emerald-400', bar: 'bg-emerald-400' },
-    error: { Icon: AlertCircle, tile: 'bg-red-500/15 text-red-400', bar: 'bg-red-400' },
-    info: { Icon: Info, tile: 'bg-sky-500/15 text-sky-400', bar: 'bg-sky-400' },
+    success: { Icon: CheckCircle2, tile: 'bg-success/15 text-success-text', bar: 'bg-success' },
+    error: { Icon: AlertCircle, tile: 'bg-danger/15 text-danger-text', bar: 'bg-danger' },
+    info: { Icon: Info, tile: 'bg-accent/15 text-accent-text', bar: 'bg-accent' },
 };
 
 let nextId = 0;
@@ -80,25 +80,25 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
         <motion.div
             layout
             role={toast.tone === 'error' ? 'alert' : 'status'}
-            initial={{ opacity: 0, x: 48, scale: 0.96 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 48, scale: 0.96, transition: { duration: 0.18 } }}
-            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6, transition: { duration: 0.15 } }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
             onMouseEnter={() => setPaused(true)}
             onMouseLeave={() => setPaused(false)}
-            className="pointer-events-auto relative overflow-hidden flex items-start gap-3 rounded-xl border border-white/10 bg-[#111114]/90 backdrop-blur-xl shadow-2xl p-3.5 pr-10 text-white"
+            className="pointer-events-auto relative flex items-start gap-3 overflow-hidden rounded-xl bg-raised p-3 pr-10 text-fg shadow-float"
         >
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${tile}`}>
-                <Icon size={18} />
+            <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${tile}`}>
+                <Icon size={16} />
             </div>
             <div className="min-w-0 pt-0.5">
-                <div className="text-sm font-semibold leading-snug">{toast.title}</div>
-                {toast.message && <div className="text-xs text-white/55 mt-0.5 leading-relaxed break-words">{toast.message}</div>}
+                <div className="text-[13px] font-medium leading-snug">{toast.title}</div>
+                {toast.message && <div className="text-xs text-fg-2 mt-0.5 leading-relaxed break-words">{toast.message}</div>}
             </div>
             <button
                 onClick={() => onDismiss(toast.id)}
                 aria-label="Dismiss notification"
-                className="absolute top-2.5 right-2.5 p-1 rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                className="absolute top-2.5 right-2.5 p-1 rounded-md text-fg-3 hover:text-fg hover:bg-tint-3 transition-colors"
             >
                 <X size={14} />
             </button>

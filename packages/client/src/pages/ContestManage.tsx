@@ -17,10 +17,10 @@ import { useToast } from '../contexts/toast';
 type AdminData = Awaited<ReturnType<typeof contestApi.admin>>;
 type JudgeInfo = Awaited<ReturnType<typeof contestApi.judgeInfo>>;
 
-const inputClass = 'w-full bg-black/30 border border-white/10 px-3 py-2 rounded-lg outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/15 text-sm';
-const labelClass = 'block text-xs font-semibold text-white/50 uppercase tracking-wider mb-1.5';
-const buttonClass = 'px-3.5 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-40';
-const cardClass = 'bg-white/[0.04] border border-white/10 rounded-2xl';
+const inputClass = 'ui-field';
+const labelClass = 'block text-xs font-medium text-fg mb-1.5';
+const buttonClass = 'h-8 px-3 rounded-lg text-[13px] font-medium flex items-center gap-1.5 transition-colors disabled:opacity-40';
+const cardClass = 'ui-card';
 
 // datetime-local value for a date, in local time
 const toLocalInput = (date: Date) => {
@@ -97,8 +97,8 @@ export default function ContestManage() {
 
     if (!data) {
         return (
-            <div className="h-[100dvh] bg-black text-white flex items-center justify-center">
-                {error ? <div className="text-red-300">{error}</div> : <div className="text-white/50">Loading contest…</div>}
+            <div className="h-[100dvh] bg-canvas text-fg flex items-center justify-center">
+                {error ? <div className="text-danger-text">{error}</div> : <div className="text-fg-3">Loading contest…</div>}
             </div>
         );
     }
@@ -120,35 +120,35 @@ export default function ContestManage() {
 
     return (
         // Below xl the page scrolls as one column; from xl up it's a fixed bento where each column scrolls on its own
-        <div className="h-[100dvh] w-full bg-[#0a0a0c] text-white overflow-y-auto xl:overflow-hidden">
+        <div className="h-[100dvh] w-full bg-canvas text-fg overflow-y-auto xl:overflow-hidden">
             <div className="max-w-[1920px] mx-auto px-5 md:px-8 py-6 xl:h-full xl:flex xl:flex-col">
                 {/* Header */}
                 <div className="flex flex-wrap items-center gap-4 justify-between mb-6 shrink-0">
                     <div className="flex items-center gap-4 min-w-0">
-                        <button onClick={() => navigate('/contests')} className="p-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10" title="All contests">
+                        <button onClick={() => navigate('/contests')} className="p-2.5 rounded-lg bg-tint-2 hover:bg-tint-3" title="All contests">
                             <ArrowLeft size={18} />
                         </button>
-                        <div className="w-11 h-11 bg-[#f59e0b]/90 rounded-xl flex items-center justify-center shrink-0"><Trophy size={22} /></div>
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent-text"><Trophy size={20} /></div>
                         <div className="min-w-0">
-                            <h1 className="text-2xl font-extrabold truncate">{contest.title}</h1>
-                            <div className="flex items-center gap-2 text-sm text-white/50 mt-0.5">
-                                <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${PHASE_STYLE[phase]}`}>{PHASE_LABEL[phase]}</span>
+                            <h1 className="text-2xl font-semibold truncate">{contest.title}</h1>
+                            <div className="flex items-center gap-2 text-sm text-fg-3 mt-0.5">
+                                <span className={`inline-flex h-5 items-center rounded-full px-2 text-[11px] font-medium ${PHASE_STYLE[phase]}`}>{PHASE_LABEL[phase]}</span>
                                 <button
                                     onClick={() => { navigator.clipboard.writeText(contest.code); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-                                    className="font-mono text-amber-200 hover:text-amber-100 flex items-center gap-1"
+                                    className="font-mono text-accent-text hover:text-accent-text flex items-center gap-1"
                                     title="Copy the code participants use to join"
                                 >
-                                    {contest.code} <Copy size={13} /> {copied && <span className="text-xs text-white/50">copied</span>}
+                                    {contest.code} <Copy size={13} /> {copied && <span className="text-xs text-fg-3">copied</span>}
                                 </button>
                                 <span>· {data.participantCount} joined · {data.submissionCount} submissions</span>
                             </div>
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <button onClick={() => navigate(`/c/${contest.code}`)} className={`${buttonClass} bg-white/5 border border-white/10 hover:bg-white/10`} title="Open the contest as a participant would see it (your submissions don't count)">
+                        <button onClick={() => navigate(`/c/${contest.code}`)} className={`${buttonClass} bg-tint-2 hover:bg-tint-3`} title="Open the contest as a participant would see it (your submissions don't count)">
                             <Eye size={16} /> Try it
                         </button>
-                        <button onClick={() => navigate(`/contests/${contest.id}/monitor`)} className={`${buttonClass} bg-amber-500/15 border border-amber-500/30 text-amber-200 hover:bg-amber-500/25`}>
+                        <button onClick={() => navigate(`/contests/${contest.id}/monitor`)} className={`${buttonClass} bg-accent/15  text-accent-text hover:bg-accent/25`}>
                             <Activity size={16} /> Monitor
                         </button>
                         <button
@@ -170,21 +170,21 @@ export default function ContestManage() {
                                         .catch(err => setError(errorMessage(err)));
                                 }
                             }}
-                            className={`${buttonClass} bg-red-500/10 border border-red-500/25 text-red-300 hover:bg-red-500/20`}
+                            className={`${buttonClass} bg-danger/10  text-danger-text hover:bg-danger/20`}
                         >
                             <Trash2 size={16} /> Delete
                         </button>
                     </div>
                 </div>
 
-                {error && <div className="mb-4 shrink-0 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-200 flex justify-between">{error}<button onClick={() => setError('')}><X size={16} /></button></div>}
+                {error && <div className="mb-4 shrink-0 rounded-lg  bg-danger/10 px-4 py-3 text-danger-text flex justify-between">{error}<button onClick={() => setError('')}><X size={16} /></button></div>}
 
                 {judge?.backend === 'wandbox' && problems.some(p => p.kind !== 'SQL') && (
-                    <div className="mb-5 shrink-0 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] px-4 py-3 text-amber-100/90 text-sm flex gap-3">
-                        <AlertTriangle size={18} className="shrink-0 mt-0.5 text-amber-300" />
+                    <div className="mb-5 shrink-0 rounded-lg bg-warning/10 px-4 py-3 text-warning-text text-sm flex gap-3">
+                        <AlertTriangle size={18} className="shrink-0 mt-0.5 text-warning-text" />
                         <div>
                             Judging runs on the free Wandbox API: about 9 test runs per minute for the whole server, and time limits are approximate
-                            (compile and network time included). Fine for trying things out; for a real contest, run Piston and set <code className="text-amber-200">PISTON_URL</code> on the server.
+                            (compile and network time included). Fine for trying things out; for a real contest, run Piston and set <code className="font-mono text-warning-text">PISTON_URL</code> on the server.
                             Keep tests few and order them small to large{judge.stopAfterTle ? ' (after a time-out the remaining tests are skipped)' : ''}.
                         </div>
                     </div>
@@ -197,21 +197,21 @@ export default function ContestManage() {
                 <div className={`${cardClass} p-5 shrink-0`}>
                     <div className="flex flex-wrap items-center gap-x-8 gap-y-4 justify-between">
                         <div className="flex items-center gap-3">
-                            <Clock size={20} className="text-white/40" />
-                            {phase === 'DRAFT' && <div><div className="font-semibold">Not scheduled</div><div className="text-sm text-white/50">Runs for {contest.durationMinutes} minutes once started.</div></div>}
-                            {phase === 'SCHEDULED' && <div><div className="font-semibold">Starts in {formatDuration(msUntil(contest.startsAt, now))}</div><div className="text-sm text-white/50">{new Date(contest.startsAt!).toLocaleString()} · {contest.durationMinutes} min</div></div>}
-                            {phase === 'LIVE' && <div><div className="font-semibold text-emerald-300">Live · {formatDuration(msUntil(contest.endsAt, now))} left</div><div className="text-sm text-white/50">Ends {new Date(contest.endsAt!).toLocaleString()}</div></div>}
-                            {phase === 'ENDED' && <div><div className="font-semibold">Ended</div><div className="text-sm text-white/50">{new Date(contest.endsAt!).toLocaleString()}</div></div>}
+                            <Clock size={20} className="text-fg-3" />
+                            {phase === 'DRAFT' && <div><div className="font-semibold">Not scheduled</div><div className="text-sm text-fg-3">Runs for {contest.durationMinutes} minutes once started.</div></div>}
+                            {phase === 'SCHEDULED' && <div><div className="font-semibold">Starts in {formatDuration(msUntil(contest.startsAt, now))}</div><div className="text-sm text-fg-3">{new Date(contest.startsAt!).toLocaleString()} · {contest.durationMinutes} min</div></div>}
+                            {phase === 'LIVE' && <div><div className="font-semibold text-success-text">Live · {formatDuration(msUntil(contest.endsAt, now))} left</div><div className="text-sm text-fg-3">Ends {new Date(contest.endsAt!).toLocaleString()}</div></div>}
+                            {phase === 'ENDED' && <div><div className="font-semibold">Ended</div><div className="text-sm text-fg-3">{new Date(contest.endsAt!).toLocaleString()}</div></div>}
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             {(phase === 'DRAFT' || phase === 'SCHEDULED') && (
                                 <>
                                     <input type="datetime-local" value={scheduleAt} onChange={e => setScheduleAt(e.target.value)} className={`${inputClass} w-auto`} />
-                                    <button disabled={busy} onClick={() => act(() => contestApi.start(contest.id, new Date(scheduleAt).toISOString()), 'Contest scheduled')} className={`${buttonClass} bg-sky-500/15 border border-sky-500/30 text-sky-200 hover:bg-sky-500/25`}>
+                                    <button disabled={busy} onClick={() => act(() => contestApi.start(contest.id, new Date(scheduleAt).toISOString()), 'Contest scheduled')} className={`${buttonClass} bg-accent/15  text-accent-text hover:bg-accent/25`}>
                                         <CalendarClock size={16} /> {phase === 'SCHEDULED' ? 'Reschedule' : 'Schedule'}
                                     </button>
                                     {phase === 'SCHEDULED' && (
-                                        <button disabled={busy} onClick={() => act(() => contestApi.unschedule(contest.id), 'Back to draft')} className={`${buttonClass} bg-white/5 border border-white/10 hover:bg-white/10`}>
+                                        <button disabled={busy} onClick={() => act(() => contestApi.unschedule(contest.id), 'Back to draft')} className={`${buttonClass} bg-tint-2 hover:bg-tint-3`}>
                                             Unschedule
                                         </button>
                                     )}
@@ -227,7 +227,7 @@ export default function ContestManage() {
                                             });
                                             if (ok) act(() => contestApi.start(contest.id), 'Contest started');
                                         }}
-                                        className={`${buttonClass} bg-emerald-500 text-black hover:bg-emerald-400`}
+                                        className={`${buttonClass} bg-success-solid text-white hover:bg-success`}
                                     >
                                         <Play size={16} /> Start now
                                     </button>
@@ -235,7 +235,7 @@ export default function ContestManage() {
                             )}
                             {phase === 'LIVE' && (
                                 <>
-                                    <button disabled={busy} onClick={() => act(() => contestApi.update(contest.id, { durationMinutes: contest.durationMinutes + 15 }), 'Extended by 15 minutes')} className={`${buttonClass} bg-white/5 border border-white/10 hover:bg-white/10`}>
+                                    <button disabled={busy} onClick={() => act(() => contestApi.update(contest.id, { durationMinutes: contest.durationMinutes + 15 }), 'Extended by 15 minutes')} className={`${buttonClass} bg-tint-2 hover:bg-tint-3`}>
                                         <Plus size={16} /> 15 min
                                     </button>
                                     <button
@@ -250,7 +250,7 @@ export default function ContestManage() {
                                             });
                                             if (ok) act(() => contestApi.end(contest.id), 'Contest ended');
                                         }}
-                                        className={`${buttonClass} bg-red-500/80 hover:bg-red-500`}
+                                        className={`${buttonClass} bg-danger-solid text-white hover:bg-danger`}
                                     >
                                         <Square size={16} /> End now
                                     </button>
@@ -266,35 +266,35 @@ export default function ContestManage() {
                     {/* Right column: problems + tests, header fixed and the editor scrolling under it */}
                     <div className={`${cardClass} flex flex-col xl:min-h-0`}>
                         <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5 pb-4 shrink-0">
-                            <h2 className="text-lg font-bold">Problems</h2>
+                            <h2 className="text-lg font-semibold">Problems</h2>
                             <div className="flex flex-wrap gap-2">
                                 <button
                                     disabled={busy}
                                     onClick={() => addProblem('SQL')}
-                                    className={`${buttonClass} bg-sky-500/15 border border-sky-500/30 text-sky-200 hover:bg-sky-500/25`}
+                                    className={`${buttonClass} bg-accent/15  text-accent-text hover:bg-accent/25`}
                                     title="Participants answer with one SQLite query, judged on a dataset per test"
                                 >
                                     <Database size={16} /> Add SQL problem
                                 </button>
-                                <button disabled={busy} onClick={() => addProblem('CODE')} className={`${buttonClass} bg-amber-500 text-black hover:bg-amber-400`}>
+                                <button disabled={busy} onClick={() => addProblem('CODE')} className={`${buttonClass} bg-accent-solid text-white hover:bg-accent`}>
                                     <Plus size={16} /> Add problem
                                 </button>
                             </div>
                         </div>
                         {problems.length === 0 ? (
-                            <div className="text-white/40 text-sm py-10 text-center px-5">No problems yet. Add one to start writing its statement and test cases.</div>
+                            <div className="text-fg-3 text-sm py-10 text-center px-5">No problems yet. Add one to start writing its statement and test cases.</div>
                         ) : (
                             <>
-                                <div className="flex flex-wrap gap-2 px-5 pb-4 border-b border-white/10 shrink-0">
+                                <div className="flex flex-wrap gap-2 px-5 pb-4 border-b border-line shrink-0">
                                     {problems.map(p => (
                                         <button
                                             key={p.id}
                                             onClick={() => setSelectedId(p.id)}
-                                            className={`px-3 py-2 rounded-lg border text-sm font-semibold transition-colors ${p.id === selectedId ? 'bg-amber-500/20 border-amber-500/40 text-amber-100' : 'bg-white/5 border-white/10 hover:bg-white/10 text-white/80'}`}
+                                            className={`px-3 py-2 rounded-lg border text-sm font-semibold transition-colors ${p.id === selectedId ? 'bg-accent/20  text-accent-text' : 'bg-tint-1 border-line hover:bg-tint-3 text-fg'}`}
                                         >
-                                            <span className="font-bold mr-1.5">{p.index}</span>{p.title}
-                                            {p.kind === 'SQL' && <span className="ml-2 px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-200 text-[10px] font-bold">SQL</span>}
-                                            <span className={`ml-2 text-xs ${p.tests.length === 0 ? 'text-red-300' : 'text-white/40'}`}>{p.tests.length} tests</span>
+                                            <span className="font-semibold mr-1.5">{p.index}</span>{p.title}
+                                            {p.kind === 'SQL' && <span className="ml-2 px-1.5 py-0.5 rounded bg-accent/15 text-accent-text text-[10px] font-semibold">SQL</span>}
+                                            <span className={`ml-2 text-xs ${p.tests.length === 0 ? 'text-danger-text' : 'text-fg-3'}`}>{p.tests.length} tests</span>
                                         </button>
                                     ))}
                                 </div>
@@ -341,7 +341,7 @@ function SettingsCard({ contest, judge, busy, onSave }: {
 
     return (
         <div className={`${cardClass} p-5 h-fit`}>
-            <h2 className="text-lg font-bold mb-4">Settings</h2>
+            <h2 className="text-lg font-semibold mb-4">Settings</h2>
             <div className="space-y-4">
                 <div>
                     <label className={labelClass}>Title</label>
@@ -356,14 +356,14 @@ function SettingsCard({ contest, judge, busy, onSave }: {
                     <input type="number" min={5} value={duration} onChange={e => setDuration(e.target.value)} disabled={contest.phase === 'ENDED'} className={inputClass} />
                 </div>
                 <div>
-                    <label className={labelClass}>Languages {languages.length === 0 && <span className="normal-case text-white/40">(all allowed)</span>}</label>
+                    <label className={labelClass}>Languages {languages.length === 0 && <span className="normal-case text-fg-3">(all allowed)</span>}</label>
                     <div className="flex flex-wrap gap-1.5">
                         {(judge?.languages ?? contest.languages).map(l => (
                             <button
                                 key={l.id}
                                 type="button"
                                 onClick={() => toggleLanguage(l.id)}
-                                className={`px-2.5 py-1 rounded-md border text-xs font-semibold ${languages.includes(l.id) ? 'bg-amber-500/20 border-amber-500/40 text-amber-100' : 'bg-white/5 border-white/10 text-white/60'}`}
+                                className={`px-2.5 py-1 rounded-md border text-xs font-semibold ${languages.includes(l.id) ? 'bg-accent/20  text-accent-text' : 'bg-tint-1 border-line text-fg-2'}`}
                             >
                                 {l.label}
                             </button>
@@ -377,12 +377,12 @@ function SettingsCard({ contest, judge, busy, onSave }: {
                         <option value="AFTER_END">Hidden until the contest ends</option>
                     </select>
                 </div>
-                <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <div className="rounded-lg border border-line bg-canvas p-3">
                     <label className="flex items-center gap-2.5 text-sm font-semibold cursor-pointer">
-                        <input type="checkbox" checked={proctoring} onChange={e => setProctoring(e.target.checked)} className="accent-amber-500 w-4 h-4" />
+                        <input type="checkbox" checked={proctoring} onChange={e => setProctoring(e.target.checked)} className="accent-accent w-4 h-4" />
                         Proctoring
                     </label>
-                    <p className="text-xs text-white/45 mt-1.5">Requires fullscreen and records tab switches, fullscreen exits and large pastes. Participants are blocked after too many tab switches.</p>
+                    <p className="text-xs text-fg-3 mt-1.5">Requires fullscreen and records tab switches, fullscreen exits and large pastes. Participants are blocked after too many tab switches.</p>
                     {proctoring && (
                         <div className="mt-3 flex items-center gap-2 text-sm">
                             Block after
@@ -402,7 +402,7 @@ function SettingsCard({ contest, judge, busy, onSave }: {
                         proctoring,
                         maxTabSwitches: Number(maxTabSwitches),
                     })}
-                    className={`${buttonClass} w-full justify-center bg-white/10 border border-white/15 hover:bg-white/20`}
+                    className={`${buttonClass} w-full justify-center bg-tint-3 border border-line-strong hover:bg-tint-5`}
                 >
                     <Save size={16} /> Save settings
                 </button>
@@ -455,7 +455,7 @@ function ProblemEditor({ contest, problem, judge, busy, act, onError, refresh }:
         <div className="space-y-6">
             <div className="flex flex-wrap items-center gap-3">
                 <span className={`${labelClass} mb-0`}>Type</span>
-                <div className="inline-flex rounded-lg border border-white/10 bg-black/30 p-0.5" title={kindLocked ? 'Delete the tests to change the type' : undefined}>
+                <div className="inline-flex rounded-lg border border-line bg-canvas p-0.5" title={kindLocked ? 'Delete the tests to change the type' : undefined}>
                     {([['CODE', 'Code', Code2], ['SQL', 'SQL query', Database]] as const).map(([kind, label, Icon]) => (
                         <button
                             key={kind}
@@ -463,14 +463,14 @@ function ProblemEditor({ contest, problem, judge, busy, act, onError, refresh }:
                             onClick={() => changeKind(kind)}
                             aria-pressed={problem.kind === kind}
                             className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-40 ${problem.kind === kind
-                                ? kind === 'SQL' ? 'bg-sky-500/20 text-sky-100' : 'bg-amber-500/20 text-amber-100'
-                                : 'text-white/50 hover:text-white'}`}
+ ? kind === 'SQL' ? 'bg-accent/20 text-accent-text' : 'bg-accent/20 text-accent-text'
+                                : 'text-fg-3 hover:text-fg'}`}
                         >
                             <Icon size={14} /> {label}
                         </button>
                     ))}
                 </div>
-                <span className="text-xs text-white/40">
+                <span className="text-xs text-fg-3">
                     {isSql ? 'Participants write one SQL query (SQLite with common MySQL functions); each test is a dataset.' : 'Participants write a program that reads stdin and prints the answer.'}
                 </span>
             </div>
@@ -491,7 +491,7 @@ function ProblemEditor({ contest, problem, judge, busy, act, onError, refresh }:
                 {isSql ? (
                     <div>
                         <label className={labelClass}>Memory</label>
-                        <div className="px-3 py-2 rounded-lg border border-white/10 bg-black/20 text-sm text-white/50" title="Every query runs on a fresh in-memory SQLite database">
+                        <div className="px-3 py-2 rounded-lg border border-line bg-canvas text-sm text-fg-3" title="Every query runs on a fresh in-memory SQLite database">
                             {judge?.sql.memoryLimitMb ?? 32} MB
                         </div>
                     </div>
@@ -506,12 +506,12 @@ function ProblemEditor({ contest, problem, judge, busy, act, onError, refresh }:
             <div>
                 <div className="flex items-center justify-between mb-1.5">
                     <label className={`${labelClass} mb-0`}>Statement (markdown)</label>
-                    <button onClick={() => setPreview(p => !p)} className="text-xs text-amber-200/80 hover:text-amber-100 flex items-center gap-1">
+                    <button onClick={() => setPreview(p => !p)} className="text-xs text-accent-text/80 hover:text-accent-text flex items-center gap-1">
                         {preview ? <><Pencil size={12} /> Edit</> : <><Eye size={12} /> Preview</>}
                     </button>
                 </div>
                 {preview ? (
-                    <div className="min-h-[220px] rounded-lg border border-white/10 bg-black/30 p-4"><Markdown>{statement || '_Nothing written yet._'}</Markdown></div>
+                    <div className="min-h-[220px] rounded-lg border border-line bg-canvas p-4"><Markdown>{statement || '_Nothing written yet._'}</Markdown></div>
                 ) : (
                     <textarea
                         value={statement}
@@ -551,20 +551,20 @@ function ProblemEditor({ contest, problem, judge, busy, act, onError, refresh }:
                             />
                         </div>
                     </div>
-                    <p className="text-xs text-white/40">
+                    <p className="text-xs text-fg-3">
                         The schema can be written in SQLite or MySQL syntax: <code>AUTO_INCREMENT</code>, <code>ENUM(...)</code>, <code>ENGINE=…</code>,{' '}
                         <code>KEY idx (...)</code> and <code>SET NAMES</code> lines are converted. Queries run on SQLite with common MySQL functions
                         (<code>DATE_FORMAT</code>, <code>DATEDIFF</code>, <code>LEFT</code>, <code>IF</code>, <code>REGEXP</code>, …).
                     </p>
                     <label className="flex items-center gap-2 text-sm cursor-pointer w-fit">
-                        <input type="checkbox" checked={orderMatters} onChange={e => setOrderMatters(e.target.checked)} className="accent-sky-500 w-4 h-4" />
-                        Row order matters <span className="text-white/40 text-xs">(when the statement asks for an ORDER BY)</span>
+                        <input type="checkbox" checked={orderMatters} onChange={e => setOrderMatters(e.target.checked)} className="accent-accent w-4 h-4" />
+                        Row order matters <span className="text-fg-3 text-xs">(when the statement asks for an ORDER BY)</span>
                     </label>
                 </div>
             )}
 
             <div className="flex flex-wrap gap-2">
-                <button disabled={busy} onClick={save} className={`${buttonClass} bg-amber-500 text-black hover:bg-amber-400`}><Save size={16} /> Save problem</button>
+                <button disabled={busy} onClick={save} className={`${buttonClass} bg-accent-solid text-white hover:bg-accent`}><Save size={16} /> Save problem</button>
                 {started && (
                     <button
                         disabled={busy}
@@ -577,7 +577,7 @@ function ProblemEditor({ contest, problem, judge, busy, act, onError, refresh }:
                             });
                             if (ok) act(() => contestApi.rejudgeProblem(contest.id, problem.id), 'Submissions queued for rejudging');
                         }}
-                        className={`${buttonClass} bg-white/5 border border-white/10 hover:bg-white/10`}
+                        className={`${buttonClass} bg-tint-2 hover:bg-tint-3`}
                     >
                         <RefreshCw size={16} /> Rejudge
                     </button>
@@ -595,7 +595,7 @@ function ProblemEditor({ contest, problem, judge, busy, act, onError, refresh }:
                             });
                             if (ok) act(() => contestApi.deleteProblem(contest.id, problem.id), 'Problem deleted');
                         }}
-                        className={`${buttonClass} bg-red-500/10 border border-red-500/25 text-red-300 hover:bg-red-500/20`}
+                        className={`${buttonClass} bg-danger/10  text-danger-text hover:bg-danger/20`}
                     >
                         <Trash2 size={16} /> Delete problem
                     </button>
@@ -669,30 +669,30 @@ function TestsPanel({ contest, problem, judge, onError, refresh }: {
     const samples = problem.tests.filter(t => t.isSample).length;
 
     return (
-        <div className="border-t border-white/10 pt-5">
+        <div className="border-t border-line pt-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-                <h3 className="font-bold">
-                    Test cases <span className="text-white/40 font-normal text-sm">· {problem.tests.length} total, {samples} sample{samples === 1 ? '' : 's'} visible to participants</span>
+                <h3 className="font-semibold">
+                    Test cases <span className="text-fg-3 font-normal text-sm">· {problem.tests.length} total, {samples} sample{samples === 1 ? '' : 's'} visible to participants</span>
                 </h3>
-                <button onClick={() => setEditing({ id: null, input: '', expectedOutput: '', isSample: problem.tests.length === 0 })} className={`${buttonClass} bg-white/10 border border-white/15 hover:bg-white/20`}>
+                <button onClick={() => setEditing({ id: null, input: '', expectedOutput: '', isSample: problem.tests.length === 0 })} className={`${buttonClass} bg-tint-3 border border-line-strong hover:bg-tint-5`}>
                     <Plus size={16} /> Add test
                 </button>
             </div>
             {isSql ? (
-                <p className="text-xs text-white/45 mb-4">
+                <p className="text-xs text-fg-3 mb-4">
                     Each test is a dataset: INSERT statements that run after the schema, on a fresh database. Its expected result comes from your reference query.
                     Each test is worth an equal share of the points. Results are compared by value, {problem.sqlOrderMatters ? 'row by row in order' : 'in any row order'};
                     column names don't matter, numbers match within 0.0001%.
                 </p>
             ) : (
-                <p className="text-xs text-white/45 mb-4">
+                <p className="text-xs text-fg-3 mb-4">
                     Each test is worth an equal share of the problem's points. Output is compared line by line, ignoring trailing spaces and trailing blank lines.
-                    {judge?.backend === 'wandbox' && problem.tests.length > 20 && <span className="text-amber-300"> Many tests make judging slow on Wandbox.</span>}
+                    {judge?.backend === 'wandbox' && problem.tests.length > 20 && <span className="text-accent-text"> Many tests make judging slow on Wandbox.</span>}
                 </p>
             )}
 
             {editing && isSql && (
-                <div className="mb-4 rounded-xl border border-sky-500/30 bg-sky-500/[0.04] p-4 space-y-3">
+                <div className="mb-4 rounded-lg  bg-accent/4 p-4 space-y-3">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                         <div>
                             <label className={labelClass}>Dataset (INSERT statements)</label>
@@ -710,7 +710,7 @@ function TestsPanel({ contest, problem, judge, onError, refresh }: {
                             {expectedTable && !expectedStale ? (
                                 <ResultTable table={expectedTable} maxHeight={232} />
                             ) : (
-                                <div className="h-[232px] rounded-lg border border-dashed border-white/15 bg-black/20 flex items-center justify-center text-center text-xs text-white/40 px-6">
+                                <div className="h-[232px] rounded-lg border border-dashed border-line-strong bg-canvas flex items-center justify-center text-center text-xs text-fg-3 px-6">
                                     {expectedTable ? 'The dataset changed. Save to compute the expected result again.' : 'Save the test to run the reference query on this dataset.'}
                                 </div>
                             )}
@@ -718,19 +718,19 @@ function TestsPanel({ contest, problem, judge, onError, refresh }: {
                     </div>
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <label className="flex items-center gap-2 text-sm cursor-pointer">
-                            <input type="checkbox" checked={editing.isSample} onChange={e => setEditing({ ...editing, isSample: e.target.checked })} className="accent-sky-500 w-4 h-4" />
+                            <input type="checkbox" checked={editing.isSample} onChange={e => setEditing({ ...editing, isSample: e.target.checked })} className="accent-accent w-4 h-4" />
                             Sample (participants see its tables and expected result)
                         </label>
                         <div className="flex gap-2">
-                            <button onClick={() => setEditing(null)} className={`${buttonClass} bg-white/5 border border-white/10 hover:bg-white/10`}>{editing.id && !expectedStale ? 'Done' : 'Cancel'}</button>
-                            <button disabled={working} onClick={saveTest} className={`${buttonClass} bg-sky-500 text-black hover:bg-sky-400`}><Save size={16} /> {editing.id ? 'Save test' : 'Add test'}</button>
+                            <button onClick={() => setEditing(null)} className={`${buttonClass} bg-tint-2 hover:bg-tint-3`}>{editing.id && !expectedStale ? 'Done' : 'Cancel'}</button>
+                            <button disabled={working} onClick={saveTest} className={`${buttonClass} bg-accent-solid text-white hover:bg-accent`}><Save size={16} /> {editing.id ? 'Save test' : 'Add test'}</button>
                         </div>
                     </div>
                 </div>
             )}
 
             {editing && !isSql && (
-                <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/[0.04] p-4 space-y-3">
+                <div className="mb-4 rounded-lg  bg-accent/4 p-4 space-y-3">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                             <label className={labelClass}>Input (stdin)</label>
@@ -743,21 +743,21 @@ function TestsPanel({ contest, problem, judge, onError, refresh }: {
                     </div>
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <label className="flex items-center gap-2 text-sm cursor-pointer">
-                            <input type="checkbox" checked={editing.isSample} onChange={e => setEditing({ ...editing, isSample: e.target.checked })} className="accent-amber-500 w-4 h-4" />
+                            <input type="checkbox" checked={editing.isSample} onChange={e => setEditing({ ...editing, isSample: e.target.checked })} className="accent-accent w-4 h-4" />
                             Sample (shown to participants with the statement)
                         </label>
                         <div className="flex gap-2">
-                            <button onClick={() => setEditing(null)} className={`${buttonClass} bg-white/5 border border-white/10 hover:bg-white/10`}>Cancel</button>
-                            <button disabled={working} onClick={saveTest} className={`${buttonClass} bg-amber-500 text-black hover:bg-amber-400`}><Save size={16} /> {editing.id ? 'Save test' : 'Add test'}</button>
+                            <button onClick={() => setEditing(null)} className={`${buttonClass} bg-tint-2 hover:bg-tint-3`}>Cancel</button>
+                            <button disabled={working} onClick={saveTest} className={`${buttonClass} bg-accent-solid text-white hover:bg-accent`}><Save size={16} /> {editing.id ? 'Save test' : 'Add test'}</button>
                         </div>
                     </div>
                 </div>
             )}
 
             {problem.tests.length > 0 && (
-                <div className="rounded-xl border border-white/10 overflow-hidden mb-5">
+                <div className="rounded-lg border border-line overflow-hidden mb-5">
                     <table className="w-full text-sm">
-                        <thead className="bg-white/[0.04] text-white/40 text-xs uppercase tracking-wider">
+                        <thead className="bg-tint-1 text-fg-3 text-xs ">
                             <tr>
                                 <th className="text-left py-2 px-3 w-10">#</th>
                                 <th className="text-left py-2 px-3">{isSql ? 'Dataset' : 'Input'}</th>
@@ -768,13 +768,13 @@ function TestsPanel({ contest, problem, judge, onError, refresh }: {
                         </thead>
                         <tbody>
                             {problem.tests.map((t, i) => (
-                                <tr key={t.id} className="border-t border-white/5 align-top">
-                                    <td className="py-2 px-3 text-white/40">{i + 1}</td>
-                                    <td className="py-2 px-3"><pre className="font-mono text-xs text-white/70 whitespace-pre-wrap break-all max-h-16 overflow-hidden">{t.inputPreview}</pre><span className="text-[11px] text-white/30">{formatBytes(t.inputSize)}</span></td>
+                                <tr key={t.id} className="border-t border-line-faint align-top">
+                                    <td className="py-2 px-3 text-fg-3">{i + 1}</td>
+                                    <td className="py-2 px-3"><pre className="font-mono text-xs text-fg-2 whitespace-pre-wrap break-all max-h-16 overflow-hidden">{t.inputPreview}</pre><span className="text-[11px] text-fg-3">{formatBytes(t.inputSize)}</span></td>
                                     {isSql ? (
-                                        <td className="py-2 px-3 text-xs text-white/60">{t.expectedRows === null ? '—' : `${t.expectedRows} row${t.expectedRows === 1 ? '' : 's'}`}</td>
+                                        <td className="py-2 px-3 text-xs text-fg-2">{t.expectedRows === null ? '—' : `${t.expectedRows} row${t.expectedRows === 1 ? '' : 's'}`}</td>
                                     ) : (
-                                        <td className="py-2 px-3"><pre className="font-mono text-xs text-white/70 whitespace-pre-wrap break-all max-h-16 overflow-hidden">{t.outputPreview}</pre><span className="text-[11px] text-white/30">{formatBytes(t.outputSize)}</span></td>
+                                        <td className="py-2 px-3"><pre className="font-mono text-xs text-fg-2 whitespace-pre-wrap break-all max-h-16 overflow-hidden">{t.outputPreview}</pre><span className="text-[11px] text-fg-3">{formatBytes(t.outputSize)}</span></td>
                                     )}
                                     <td className="py-2 px-3 text-center">
                                         <input
@@ -782,12 +782,12 @@ function TestsPanel({ contest, problem, judge, onError, refresh }: {
                                             checked={t.isSample}
                                             disabled={working}
                                             onChange={e => run(() => contestApi.updateTest(contest.id, problem.id, t.id, { isSample: e.target.checked }))}
-                                            className="accent-amber-500 w-4 h-4"
+                                            className="accent-accent w-4 h-4"
                                         />
                                     </td>
                                     <td className="py-2 px-3">
                                         <div className="flex gap-1 justify-end">
-                                            <button onClick={() => openTest(t)} className="p-1.5 rounded hover:bg-white/10 text-white/60" title="Edit"><Pencil size={14} /></button>
+                                            <button onClick={() => openTest(t)} className="p-1.5 rounded hover:bg-tint-3 text-fg-2" title="Edit"><Pencil size={14} /></button>
                                             <button
                                                 onClick={async () => {
                                                     const ok = await dialog.confirm({
@@ -804,7 +804,7 @@ function TestsPanel({ contest, problem, judge, onError, refresh }: {
                                                         });
                                                     }
                                                 }}
-                                                className="p-1.5 rounded hover:bg-red-500/15 text-red-300/70"
+                                                className="p-1.5 rounded hover:bg-danger/15 text-danger-text/70"
                                                 title="Delete"
                                             >
                                                 <Trash2 size={14} />
@@ -818,15 +818,15 @@ function TestsPanel({ contest, problem, judge, onError, refresh }: {
                 </div>
             )}
 
-            <div className="rounded-xl border border-dashed border-white/15 bg-black/20 p-4">
-                <div className="font-semibold text-sm mb-1 flex items-center gap-2"><FileUp size={16} className="text-amber-300" /> Bulk upload</div>
+            <div className="rounded-lg border border-dashed border-line-strong bg-canvas p-4">
+                <div className="font-semibold text-sm mb-1 flex items-center gap-2"><FileUp size={16} className="text-accent-text" /> Bulk upload</div>
                 {isSql ? (
-                    <p className="text-xs text-white/45 mb-3">
+                    <p className="text-xs text-fg-3 mb-3">
                         One <code>.sql</code> file of INSERT statements per test (or a .zip of them). Expected results are computed with your reference query.
                         Files named <code>sample…</code> become samples. Max 100 tests, 1 MB per file.
                     </p>
                 ) : (
-                    <p className="text-xs text-white/45 mb-3">
+                    <p className="text-xs text-fg-3 mb-3">
                         A .zip or a set of files paired by name: <code>1.in</code> + <code>1.out</code> (or <code>.ans</code>), <code>input/1.txt</code> + <code>output/1.txt</code>,
                         or <code>input01.txt</code> + <code>output01.txt</code>. Files named <code>sample…</code> become samples. Max 100 tests, 1 MB per file.
                     </p>
@@ -839,10 +839,10 @@ function TestsPanel({ contest, problem, judge, onError, refresh }: {
                     <input type="number" min={0} value={sampleCount} onChange={e => setSampleCount(e.target.value)} placeholder="Samples: auto" className={`${inputClass} w-36`} title="Mark the first N uploaded tests as samples (leave empty to use file names)" />
                     <input ref={filesRef} type="file" multiple accept={isSql ? '.zip,.sql' : '.zip,.in,.out,.ans,.txt,.input,.output,.answer'} className="hidden" onChange={e => upload(e.target.files)} />
                     <input ref={folderRef} type="file" multiple className="hidden" onChange={e => upload(e.target.files)} {...({ webkitdirectory: '' } as Record<string, string>)} />
-                    <button disabled={working} onClick={() => filesRef.current?.click()} className={`${buttonClass} bg-white/10 border border-white/15 hover:bg-white/20`}><FileUp size={16} /> Files or .zip</button>
-                    <button disabled={working} onClick={() => folderRef.current?.click()} className={`${buttonClass} bg-white/10 border border-white/15 hover:bg-white/20`}><FolderUp size={16} /> Folder</button>
+                    <button disabled={working} onClick={() => filesRef.current?.click()} className={`${buttonClass} bg-tint-3 border border-line-strong hover:bg-tint-5`}><FileUp size={16} /> Files or .zip</button>
+                    <button disabled={working} onClick={() => folderRef.current?.click()} className={`${buttonClass} bg-tint-3 border border-line-strong hover:bg-tint-5`}><FolderUp size={16} /> Folder</button>
                 </div>
-                {uploadNote && <div className="text-xs text-emerald-300/90 mt-3">{uploadNote}</div>}
+                {uploadNote && <div className="text-xs text-success-text/90 mt-3">{uploadNote}</div>}
             </div>
         </div>
     );

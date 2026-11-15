@@ -8,6 +8,7 @@ import {
     ShieldAlert, Terminal, ArrowLeft, Filter, UserPlus, MonitorOff,
     AppWindow, Ban, CheckCircle, UserX, Users, RefreshCw, ChevronDown
 } from 'lucide-react';
+import { buttonClass } from '../components/ui/buttonStyles';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // ─────────────────────────────────────────────────────
@@ -31,32 +32,22 @@ const StudentPreview = ({
 
     return (
         <motion.div
-            className={`bg-white/10 backdrop-blur-md border rounded-2xl shadow-2xl flex flex-col h-[360px] overflow-hidden transition-all ${
-                isRemoved ? 'border-gray-500/40 opacity-60' :
-                session?.isBlocked ? 'border-red-500/40' :
-                connected ? 'border-emerald-500/30' :
-                'border-white/20 hover:border-white/30'
-            }`}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+            className={`ui-card flex h-[360px] flex-col overflow-hidden ${isRemoved ? 'opacity-60' : session?.isBlocked ? 'ring-1 ring-danger/50' : ''}`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
         >
             {/* Card Header */}
-            <div className={`px-4 py-3 border-b flex justify-between items-center ${
-                isRemoved ? 'bg-gray-500/10 border-gray-500/20' :
-                session?.isBlocked ? 'bg-red-500/15 border-red-500/20' :
-                connected ? 'bg-emerald-500/10 border-emerald-500/20' :
-                'bg-white/5 border-white/10'
-            }`}>
+            <div className={`flex items-center justify-between border-b border-line px-4 py-3 ${isRemoved ? 'bg-tint-1' : session?.isBlocked ? 'bg-danger/10' : connected ? 'bg-success/10' : 'bg-chrome'}`}>
                 <div className="flex flex-col gap-0.5">
-                    <span className="font-semibold text-white text-base flex items-center gap-2">
+                    <span className="text-[15px] font-semibold text-fg flex items-center gap-2">
                         {studentName}
-                        {isRemoved && <span className="text-xs uppercase bg-gray-500/50 text-white/70 px-2 py-0.5 rounded-full font-bold">Removed</span>}
-                        {session?.isBlocked && !isRemoved && <span className="text-xs uppercase bg-red-500/80 text-white px-2 py-0.5 rounded-full font-bold shadow">Blocked</span>}
-                        {connected && !session?.isBlocked && !isRemoved && <span className="text-xs uppercase bg-emerald-500/80 text-white px-2 py-0.5 rounded-full font-bold shadow">Live</span>}
+                        {isRemoved && <span className="inline-flex h-5 items-center rounded-full bg-tint-2 px-2 text-[11px] font-medium text-fg-2">Removed</span>}
+                        {session?.isBlocked && !isRemoved && <span className="inline-flex h-5 items-center rounded-full bg-danger/15 px-2 text-[11px] font-medium text-danger-text">Blocked</span>}
+                        {connected && !session?.isBlocked && !isRemoved && <span className="inline-flex h-5 items-center rounded-full bg-success/15 px-2 text-[11px] font-medium text-success-text">Live</span>}
                     </span>
-                    <span className="text-xs text-white/60">
-                        Tab switches: <span className={session?.tabSwitchCount >= 3 ? 'text-red-400 font-bold' : 'text-white/80'}>{session?.tabSwitchCount || 0}</span>/3
+                    <span className="text-xs text-fg-2">
+                        Tab switches: <span className={session?.tabSwitchCount >= 3 ? 'text-danger-text font-semibold' : 'text-fg'}>{session?.tabSwitchCount || 0}</span>/3
                     </span>
                 </div>
                 <div className="flex gap-2 items-center">
@@ -64,14 +55,14 @@ const StudentPreview = ({
                         session?.isBlocked ? (
                             <button
                                 onClick={() => onUnblock(studentId)}
-                                className="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow flex items-center gap-1"
+                                className={buttonClass('success', 'sm')}
                             >
                                 <CheckCircle size={14} /> Unblock
                             </button>
                         ) : (
                             <button
                                 onClick={() => onBlock(studentId)}
-                                className="bg-red-500/80 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow flex items-center gap-1"
+                                className={buttonClass('danger', 'sm')}
                             >
                                 <Ban size={14} /> Block
                             </button>
@@ -80,14 +71,14 @@ const StudentPreview = ({
                     {!isRemoved && (
                         <button
                             onClick={() => onRemove(studentId)}
-                            className="bg-white/10 hover:bg-orange-500/20 border border-white/10 hover:border-orange-500/30 text-white/60 hover:text-orange-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1"
+                            className={buttonClass('secondary', 'sm')}
                             title="Remove student from exam"
                         >
                             <UserX size={14} /> Remove
                         </button>
                     )}
                     <motion.span
-                        className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${connected && !isRemoved ? 'bg-emerald-400' : 'bg-white/20'}`}
+                        className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${connected && !isRemoved ? 'bg-success' : 'bg-tint-5'}`}
                         animate={!connected ? { opacity: [1, 0.3, 1] } : {}}
                         transition={{ duration: 1.5, repeat: Infinity }}
                     />
@@ -95,10 +86,10 @@ const StudentPreview = ({
             </div>
 
             {/* Monaco Editor (read-only live preview of the student's open file) */}
-            <div className="px-4 py-1 text-xs text-white/50 font-mono truncate border-b border-white/5">
+            <div className="px-4 py-1 text-xs text-fg-3 font-mono truncate border-b border-line-faint">
                 {viewingFile ?? 'No file open'}
             </div>
-            <div className="flex-1 bg-black/40">
+            <div className="flex-1 bg-canvas">
                 <LiveCodePreview
                     roomName={`admin-monitor-${studentId}`}
                     params={{ examId, studentId, mode: 'admin-monitor' }}
@@ -115,12 +106,12 @@ const StudentPreview = ({
 // Event type badge helper
 // ─────────────────────────────────────────────────────
 const EVENT_META: Record<string, { label: string; color: string; bg: string; border: string; icon: React.ReactNode }> = {
-    COPY_PASTE_ALERT: { label: 'Paste Alert', color: 'text-red-300', bg: 'bg-red-500/15', border: 'border-red-500/25', icon: <ShieldAlert size={15} /> },
-    TAB_SWITCH:       { label: 'Tab Switch',  color: 'text-orange-300', bg: 'bg-orange-500/15', border: 'border-orange-500/25', icon: <AppWindow size={15} /> },
-    FULLSCREEN_EXIT:  { label: 'FS Exit',     color: 'text-orange-300', bg: 'bg-orange-500/15', border: 'border-orange-500/25', icon: <MonitorOff size={15} /> },
-    JOIN:             { label: 'Join',         color: 'text-emerald-300', bg: 'bg-emerald-500/15', border: 'border-emerald-500/25', icon: <UserPlus size={15} /> },
-    EXECUTE:          { label: 'Execute',      color: 'text-indigo-300', bg: 'bg-indigo-500/10', border: 'border-indigo-500/20', icon: <Terminal size={15} /> },
-    SUSPICIOUS_BEHAVIOR: { label: 'Removed',  color: 'text-red-400', bg: 'bg-red-500/15', border: 'border-red-500/25', icon: <UserX size={15} /> },
+    COPY_PASTE_ALERT: { label: 'Paste alert', color: 'text-danger-text', bg: 'bg-danger/15', border: '', icon: <ShieldAlert size={15} /> },
+    TAB_SWITCH:       { label: 'Tab switch',  color: 'text-warning-text', bg: 'bg-warning/15', border: '', icon: <AppWindow size={15} /> },
+    FULLSCREEN_EXIT:  { label: 'FS Exit',     color: 'text-warning-text', bg: 'bg-warning/15', border: '', icon: <MonitorOff size={15} /> },
+    JOIN:             { label: 'Join',         color: 'text-success-text', bg: 'bg-success/15', border: '', icon: <UserPlus size={15} /> },
+    EXECUTE:          { label: 'Execute',      color: 'text-accent-text', bg: 'bg-accent/10', border: '', icon: <Terminal size={15} /> },
+    SUSPICIOUS_BEHAVIOR: { label: 'Removed',  color: 'text-danger-text', bg: 'bg-danger/15', border: '', icon: <UserX size={15} /> },
 };
 
 // ─────────────────────────────────────────────────────
@@ -218,38 +209,35 @@ export default function AdminMonitor() {
     const alertCount = logs.filter(l => l.eventType === 'COPY_PASTE_ALERT').length;
 
     return (
-        <div className="flex h-screen bg-gradient-to-br from-[#090d1f] via-[#0f172a] to-[#090d1f] text-white overflow-hidden font-sans relative">
-            {/* BG glow */}
-            <div className="absolute top-[-15%] left-[-10%] w-[45%] h-[45%] bg-indigo-500/15 blur-[140px] rounded-full pointer-events-none" />
-            <div className="absolute bottom-[-15%] right-[-10%] w-[45%] h-[45%] bg-violet-500/15 blur-[140px] rounded-full pointer-events-none" />
+        <div className="relative flex h-screen overflow-hidden bg-canvas font-sans text-fg">
 
             {/* ── Left Panel: Student Code Previews ── */}
-            <div className="flex-1 overflow-y-auto p-6 relative z-10 flex flex-col gap-6">
+            <div className="relative z-10 flex flex-1 flex-col gap-6 overflow-y-auto p-6">
                 {/* Header */}
                 <motion.div
-                    className="flex items-center gap-4 bg-white/10 backdrop-blur-xl p-4 border border-white/15 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
-                    initial={{ opacity: 0, y: -20 }}
+                    className="ui-card flex items-center gap-4 p-4"
+                    initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
+                    transition={{ duration: 0.25 }}
                 >
                     <button
                         onClick={() => navigate('/admin')}
-                        className="p-2.5 bg-white/5 hover:bg-white/15 rounded-xl transition-all border border-white/10 group flex-shrink-0"
+                        className="shrink-0 rounded-lg bg-tint-2 p-2 text-fg-2 transition-colors hover:bg-tint-3 hover:text-fg"
                     >
-                        <ArrowLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" />
+                        <ArrowLeft size={17} />
                     </button>
                     <div className="flex-1 min-w-0">
-                        <h1 className="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-200 to-violet-200">
-                            Live Exam Monitor
+                        <h1 className="text-xl font-semibold tracking-tight text-fg">
+                            Live exam monitor
                         </h1>
-                        <p className="text-white/50 text-sm mt-0.5">Anti-cheat surveillance & real-time code inspection</p>
+                        <p className="text-fg-3 text-sm mt-0.5">Anti-cheat monitoring and real-time code inspection</p>
                     </div>
                     <button
                         onClick={() => fetchData(true)}
-                        className={`p-2.5 bg-white/5 hover:bg-white/15 rounded-xl border border-white/10 transition-all ${refreshing ? 'animate-spin text-indigo-300' : 'text-white/60 hover:text-white'}`}
+                        className={`rounded-lg bg-tint-2 p-2 text-fg-2 transition-colors hover:bg-tint-3 hover:text-fg ${refreshing ? 'animate-spin' : ''}`}
                         title="Refresh"
                     >
-                        <RefreshCw size={18} />
+                        <RefreshCw size={16} />
                     </button>
                 </motion.div>
 
@@ -261,16 +249,16 @@ export default function AdminMonitor() {
                     transition={{ delay: 0.1, duration: 0.4 }}
                 >
                     {[
-                        { label: 'Students', value: totalStudents, color: 'text-indigo-300', icon: <Users size={18} /> },
-                        { label: 'Blocked', value: blockedCount, color: 'text-red-300', icon: <Ban size={18} /> },
-                        { label: 'Tab Switches', value: totalSwitches, color: 'text-orange-300', icon: <AppWindow size={18} /> },
-                        { label: 'Paste Alerts', value: alertCount, color: 'text-red-400', icon: <ShieldAlert size={18} /> },
+                        { label: 'Students', value: totalStudents, color: 'text-accent-text', icon: <Users size={18} /> },
+                        { label: 'Blocked', value: blockedCount, color: 'text-danger-text', icon: <Ban size={18} /> },
+                        { label: 'Tab switches', value: totalSwitches, color: 'text-warning-text', icon: <AppWindow size={18} /> },
+                        { label: 'Paste alerts', value: alertCount, color: 'text-danger-text', icon: <ShieldAlert size={18} /> },
                     ].map(stat => (
-                        <div key={stat.label} className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-4 flex items-center gap-3">
-                            <div className={`${stat.color} opacity-80`}>{stat.icon}</div>
+                        <div key={stat.label} className="ui-card flex items-center gap-3 p-4">
+                            <div className={stat.color}>{stat.icon}</div>
                             <div>
-                                <div className={`text-xl font-black ${stat.color}`}>{stat.value}</div>
-                                <div className="text-xs text-white/50 font-medium">{stat.label}</div>
+                                <div className={`text-xl font-semibold ${stat.color}`}>{stat.value}</div>
+                                <div className="text-xs text-fg-3 font-medium">{stat.label}</div>
                             </div>
                         </div>
                     ))}
@@ -295,14 +283,14 @@ export default function AdminMonitor() {
                     })}
                     {students.size === 0 && (
                         <motion.div
-                            className="col-span-full h-56 flex items-center justify-center bg-white/5 backdrop-blur-md rounded-2xl border border-dashed border-white/15 text-white/40"
+                            className="ui-card col-span-full flex h-56 items-center justify-center text-fg-3"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ delay: 0.3, duration: 0.4 }}
                         >
                             <div className="text-center">
-                                <MonitorOff size={44} className="mx-auto mb-3 opacity-40" />
-                                <p className="font-medium">Waiting for students to join...</p>
+                                <MonitorOff size={32} className="mx-auto mb-3 opacity-60" />
+                                <p className="font-medium">Waiting for students to join…</p>
                             </div>
                         </motion.div>
                     )}
@@ -310,13 +298,13 @@ export default function AdminMonitor() {
             </div>
 
             {/* ── Right Panel: Event Log Console ── */}
-            <div className="w-[420px] bg-white/5 backdrop-blur-xl flex flex-col border-l border-white/10 relative z-10">
+            <div className="relative z-10 flex w-[420px] flex-col border-l border-line bg-surface">
                 {/* Console Header */}
-                <div className="p-5 border-b border-white/10 flex flex-col gap-4 bg-gradient-to-b from-white/8 to-transparent">
-                    <h2 className="font-bold text-xl tracking-tight flex items-center gap-2.5">
-                        <Terminal size={20} className="text-indigo-300" />
-                        Event Console
-                        <span className="ml-auto text-sm font-normal text-white/40 bg-white/10 px-2 py-0.5 rounded-full border border-white/10">
+                <div className="flex flex-col gap-4 border-b border-line p-5">
+                    <h2 className="flex items-center gap-2.5 text-base font-semibold tracking-tight">
+                        <Terminal size={18} className="text-fg-3" />
+                        Event console
+                        <span className="ml-auto inline-flex h-5 items-center rounded-full bg-tint-2 px-2 text-[11px] font-medium text-fg-2">
                             {filteredLogs.length} events
                         </span>
                     </h2>
@@ -324,39 +312,39 @@ export default function AdminMonitor() {
                     {/* Filters */}
                     <div className="flex flex-col gap-2">
                         {/* Event type filter */}
-                        <div className="flex items-center gap-2 bg-black/20 rounded-xl border border-white/10 px-3 py-2">
-                            <Filter size={14} className="text-white/50 flex-shrink-0" />
+                        <div className="flex items-center gap-2 bg-canvas rounded-lg border border-line px-3 py-2">
+                            <Filter size={14} className="text-fg-3 flex-shrink-0" />
                             <select
                                 value={filterType}
                                 onChange={e => setFilterType(e.target.value)}
-                                className="flex-1 bg-transparent text-sm text-white outline-none appearance-none cursor-pointer"
+                                className="flex-1 bg-transparent text-sm text-fg outline-none appearance-none cursor-pointer"
                             >
-                                <option value="ALL" className="bg-slate-900">All Event Types</option>
-                                <option value="COPY_PASTE_ALERT" className="bg-slate-900">Paste Alerts</option>
-                                <option value="TAB_SWITCH" className="bg-slate-900">Tab Switches</option>
-                                <option value="FULLSCREEN_EXIT" className="bg-slate-900">Fullscreen Exits</option>
-                                <option value="EXECUTE" className="bg-slate-900">Executions</option>
-                                <option value="JOIN" className="bg-slate-900">Joins</option>
-                                <option value="SUSPICIOUS_BEHAVIOR" className="bg-slate-900">Removals</option>
+                                <option value="ALL" className="bg-surface">All event types</option>
+                                <option value="COPY_PASTE_ALERT" className="bg-surface">Paste alerts</option>
+                                <option value="TAB_SWITCH" className="bg-surface">Tab switches</option>
+                                <option value="FULLSCREEN_EXIT" className="bg-surface">Fullscreen exits</option>
+                                <option value="EXECUTE" className="bg-surface">Executions</option>
+                                <option value="JOIN" className="bg-surface">Joins</option>
+                                <option value="SUSPICIOUS_BEHAVIOR" className="bg-surface">Removals</option>
                             </select>
-                            <ChevronDown size={14} className="text-white/40 flex-shrink-0" />
+                            <ChevronDown size={14} className="text-fg-3 flex-shrink-0" />
                         </div>
 
                         {/* Student filter */}
                         {students.size > 0 && (
-                            <div className="flex items-center gap-2 bg-black/20 rounded-xl border border-white/10 px-3 py-2">
-                                <Users size={14} className="text-white/50 flex-shrink-0" />
+                            <div className="flex items-center gap-2 bg-canvas rounded-lg border border-line px-3 py-2">
+                                <Users size={14} className="text-fg-3 flex-shrink-0" />
                                 <select
                                     value={filterStudent}
                                     onChange={e => setFilterStudent(e.target.value)}
-                                    className="flex-1 bg-transparent text-sm text-white outline-none appearance-none cursor-pointer"
+                                    className="flex-1 bg-transparent text-sm text-fg outline-none appearance-none cursor-pointer"
                                 >
-                                    <option value="ALL" className="bg-slate-900">All Students</option>
+                                    <option value="ALL" className="bg-surface">All students</option>
                                     {Array.from(students.entries()).map(([id, name]) => (
-                                        <option key={id} value={id} className="bg-slate-900">{name}</option>
+                                        <option key={id} value={id} className="bg-surface">{name}</option>
                                     ))}
                                 </select>
-                                <ChevronDown size={14} className="text-white/40 flex-shrink-0" />
+                                <ChevronDown size={14} className="text-fg-3 flex-shrink-0" />
                             </div>
                         )}
                     </div>
@@ -367,8 +355,8 @@ export default function AdminMonitor() {
                     <AnimatePresence initial={false}>
                         {filteredLogs.map((log, index) => {
                             const meta = EVENT_META[log.eventType] || {
-                                label: log.eventType, color: 'text-white/70',
-                                bg: 'bg-white/5', border: 'border-white/10',
+                                label: log.eventType, color: 'text-fg-2',
+                                bg: 'bg-tint-1', border: 'border-line',
                                 icon: <Terminal size={15} />
                             };
                             let details: any = {};
@@ -384,23 +372,23 @@ export default function AdminMonitor() {
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: Math.min(index * 0.04, 0.5), duration: 0.3 }}
-                                    className={`p-3.5 rounded-xl border flex flex-col gap-2 ${meta.bg} ${meta.border}`}
+                                    className={`p-3.5 rounded-lg border flex flex-col gap-2 ${meta.bg} ${meta.border}`}
                                 >
                                     <div className="flex justify-between items-start">
                                         <div className="flex items-center gap-2">
-                                            <div className={`p-1.5 rounded-lg bg-black/30 ${meta.color}`}>
+                                            <div className={`p-1.5 rounded-lg bg-canvas ${meta.color}`}>
                                                 {meta.icon}
                                             </div>
                                             <div>
-                                                <div className="font-semibold text-sm text-white/90">
+                                                <div className="font-semibold text-sm text-fg">
                                                     {log.user?.username || log.userId.substring(0, 8)}
                                                 </div>
-                                                <div className={`text-xs font-bold uppercase tracking-wide ${meta.color}`}>
+                                                <div className={`text-xs font-semibold ${meta.color}`}>
                                                     {meta.label}
                                                 </div>
                                             </div>
                                         </div>
-                                        <span className="text-[11px] font-medium text-white/40 bg-black/30 px-2 py-1 rounded-lg flex-shrink-0">
+                                        <span className="text-[11px] font-medium text-fg-3 bg-canvas px-2 py-1 rounded-lg flex-shrink-0">
                                             {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                                         </span>
                                     </div>
@@ -410,9 +398,9 @@ export default function AdminMonitor() {
                                         {log.eventType === 'COPY_PASTE_ALERT' && (
                                             <span>
                                                 <strong>Mass paste detected:</strong>{' '}
-                                                <code className="bg-black/40 px-1.5 py-0.5 rounded text-xs">{details.pastedLength} chars</code>
+                                                <code className="bg-canvas px-1.5 py-0.5 rounded text-xs">{details.pastedLength} chars</code>
                                                 {log.codeSnapshot && (
-                                                    <div className="mt-2 bg-black/50 border border-white/5 rounded-lg p-2 text-xs font-mono text-white/60 whitespace-pre-wrap break-all">
+                                                    <div className="mt-2 bg-canvas border border-line-faint rounded-lg p-2 text-xs font-mono text-fg-2 whitespace-pre-wrap break-all">
                                                         {log.codeSnapshot.substring(0, 80)}{log.codeSnapshot.length > 80 ? '...' : ''}
                                                     </div>
                                                 )}
@@ -420,15 +408,15 @@ export default function AdminMonitor() {
                                         )}
                                         {log.eventType === 'TAB_SWITCH' && <span>Switched tabs during exam</span>}
                                         {log.eventType === 'FULLSCREEN_EXIT' && <span>Exited fullscreen mode</span>}
-                                        {log.eventType === 'JOIN' && <span className="text-emerald-300">{details.message || 'Joined the exam'}</span>}
+                                        {log.eventType === 'JOIN' && <span className="text-success-text">{details.message || 'Joined the exam'}</span>}
                                         {log.eventType === 'EXECUTE' && (
                                             <span>
                                                 Executed code{' '}
-                                                <code className="bg-black/40 px-1.5 py-0.5 rounded text-xs">exit: {details.exitCode ?? 'N/A'}</code>{' '}
-                                                <code className="bg-black/40 px-1.5 py-0.5 rounded text-xs">{details.executionTime ?? '?'}ms</code>
+                                                <code className="bg-canvas px-1.5 py-0.5 rounded text-xs">exit: {details.exitCode ?? 'N/A'}</code>{' '}
+                                                <code className="bg-canvas px-1.5 py-0.5 rounded text-xs">{details.executionTime ?? '?'}ms</code>
                                             </span>
                                         )}
-                                        {log.eventType === 'SUSPICIOUS_BEHAVIOR' && <span className="text-red-300">{details.message || 'Removed by admin'}</span>}
+                                        {log.eventType === 'SUSPICIOUS_BEHAVIOR' && <span className="text-danger-text">{details.message || 'Removed by admin'}</span>}
                                     </div>
                                 </motion.div>
                             );
@@ -436,7 +424,7 @@ export default function AdminMonitor() {
                     </AnimatePresence>
 
                     {filteredLogs.length === 0 && (
-                        <div className="h-32 flex items-center justify-center text-white/30 text-sm">
+                        <div className="h-32 flex items-center justify-center text-fg-3 text-sm">
                             No events to display
                         </div>
                     )}

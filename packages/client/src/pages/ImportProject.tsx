@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Github, Download, ArrowLeft, Loader2 } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cloneRepository, createSession } from '../api';
-import LiquidEther from '../components/ui/LiquidEther';
 import { useToast } from '../contexts/toast';
+import PageShell from '../components/ui/PageShell';
+import Card from '../components/ui/Card';
+import Field from '../components/ui/Field';
+import Button from '../components/ui/Button';
 
 function generateRoomId(): string {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -45,94 +48,59 @@ export default function ImportProject() {
     };
 
     return (
-        <div className="h-[100dvh] w-full bg-black text-white font-sans relative overflow-hidden">
-            <LiquidEther className="absolute inset-0 z-0 opacity-100" />
+        <PageShell
+            title="Import project"
+            subtitle="Clone a public GitHub repository into a collaborative workspace."
+            backTo={importing ? undefined : '/'}
+            backLabel="Hub"
+            width="sm"
+            centered
+        >
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            >
+                <Card padding="lg">
+                    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                        <Field
+                            label="GitHub repo URL"
+                            type="url"
+                            value={repoUrl}
+                            onChange={(e) => { setRepoUrl(e.target.value); setError(''); }}
+                            placeholder="https://github.com/username/repo.git"
+                            required
+                            disabled={importing}
+                        />
 
-            <div className="absolute top-6 left-6 z-20">
-                <button
-                    onClick={() => navigate('/')}
-                    disabled={importing}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 text-white hover:bg-white/10 hover:border-white/20 transition-all font-semibold shadow-sm group disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    <ArrowLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
-                    Back to Hub
-                </button>
-            </div>
-
-            <div className="absolute inset-0 z-10 overflow-x-hidden overflow-y-auto flex flex-col items-center p-4 md:p-8">
-            <div className="max-w-lg w-full relative my-auto pt-12 md:pt-0">
-                <motion.div
-                    className="text-center mb-8"
-                    initial={{ opacity: 0, y: -16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.55, ease: [0.34, 1.56, 0.64, 1] }}
-                >
-                    <motion.div
-                        className="w-16 h-16 bg-[#10b981]/90 rounded-2xl flex items-center justify-center shadow-[0_0_40px_rgba(16,185,129,0.4)] mx-auto mb-5"
-                        initial={{ scale: 0.5, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.1, duration: 0.5, type: 'spring', stiffness: 200 }}
-                    >
-                        <Github size={32} className="text-white" />
-                    </motion.div>
-                    <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white mb-3">
-                        Import Project
-                    </h1>
-                    <p className="font-medium text-white/50 text-base">
-                        Clone a public GitHub repository into a collaborative workspace
-                    </p>
-                </motion.div>
-
-                <motion.div
-                    className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[32px] p-8 shadow-2xl"
-                    initial={{ opacity: 0, y: 20, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ delay: 0.15, duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
-                >
-                    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-                        <div className="flex flex-col gap-2">
-                            <label className="text-xs font-bold text-white/60 uppercase tracking-widest pl-1">
-                                GitHub Repo URL
-                            </label>
-                            <input
-                                type="url"
-                                value={repoUrl}
-                                onChange={(e) => { setRepoUrl(e.target.value); setError(''); }}
-                                placeholder="https://github.com/username/repo.git"
-                                required
-                                disabled={importing}
-                                className="w-full bg-black/20 border border-white/10 text-white px-5 py-4 rounded-xl outline-none focus:border-[#10b981]/50 focus:ring-2 focus:ring-[#10b981]/20 transition-all text-base font-medium shadow-inner placeholder:text-white/30 disabled:opacity-50"
-                            />
-                        </div>
-
-                        <AnimatePresence>
+                        <AnimatePresence initial={false}>
                             {error && (
                                 <motion.div
                                     initial={{ opacity: 0, height: 0 }}
                                     animate={{ opacity: 1, height: 'auto' }}
                                     exit={{ opacity: 0, height: 0 }}
-                                    className="bg-red-500/20 border border-red-500/30 text-red-200 rounded-xl p-4 font-semibold text-center text-sm shadow-lg"
+                                    className="overflow-hidden"
                                 >
-                                    {error}
+                                    <div role="alert" className="rounded-lg bg-danger/15 px-3 py-2.5 text-[13px] text-danger-text">
+                                        {error}
+                                    </div>
                                 </motion.div>
                             )}
                         </AnimatePresence>
 
-                        <button
+                        <Button
                             type="submit"
-                            disabled={importing}
-                            className="mt-2 w-full h-[56px] rounded-xl bg-gradient-to-r from-[#10b981] to-[#059669] hover:from-[#059669] hover:to-[#047857] text-white font-bold text-base tracking-wide transition-all shadow-lg shadow-[#10b981]/20 flex items-center justify-center gap-3 disabled:opacity-70"
+                            variant="primary"
+                            size="lg"
+                            loading={importing}
+                            icon={<Download size={16} />}
+                            className="mt-1 w-full"
                         >
-                            {importing ? (
-                                <><Loader2 className="animate-spin" size={20} /> Cloning...</>
-                            ) : (
-                                <><Download size={20} /> Clone Repository</>
-                            )}
-                        </button>
+                            {importing ? 'Cloning…' : 'Clone repository'}
+                        </Button>
                     </form>
-                </motion.div>
-            </div>
-            </div>
-        </div>
+                </Card>
+            </motion.div>
+        </PageShell>
     );
 }

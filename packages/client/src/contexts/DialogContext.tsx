@@ -10,9 +10,9 @@ interface PendingDialog {
 }
 
 const ICON_TILE: Record<DialogTone, string> = {
-    primary: 'bg-white/10 border-white/15 text-white',
-    danger: 'bg-red-500/15 border-red-500/30 text-red-400',
-    success: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400',
+    primary: 'bg-accent/15 text-accent-text',
+    danger: 'bg-danger/15 text-danger-text',
+    success: 'bg-success/15 text-success-text',
 };
 
 let nextId = 0;
@@ -59,7 +59,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                 isOpen={!!current}
                 title={shown?.options.title ?? ''}
                 icon={shown?.options.icon && (
-                    <div className={`w-14 h-14 rounded-2xl border flex items-center justify-center ${ICON_TILE[tone]}`}>{shown.options.icon}</div>
+                    <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${ICON_TILE[tone]}`}>{shown.options.icon}</div>
                 )}
                 actions={actions}
                 onClose={() => settle(false)}

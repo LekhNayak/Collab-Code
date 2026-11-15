@@ -299,8 +299,7 @@ export default function Terminal({
                     return a.type === 'folder' ? -1 : 1;
                 });
                 for (const f of filtered) {
-                    const icon = f.type === 'folder' ? '📁' : '📄';
-                    appendLine('output', `  ${icon} ${f.name}`);
+                    appendLine('output', `  ${f.name}${f.type === 'folder' ? '/' : ''}`);
                 }
             }
             return;

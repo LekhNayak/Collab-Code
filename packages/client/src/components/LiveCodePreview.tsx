@@ -5,6 +5,7 @@ import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { MonacoBinding } from '../collab/monacoBinding';
 import { getLanguageFromFilename } from './Editor';
+import { MONACO_THEME } from '../monacoSetup';
 import { WS_BASE } from '../config';
 
 interface LiveCodePreviewProps {
@@ -87,7 +88,7 @@ export default function LiveCodePreview({ roomName, params, followUserId, onConn
     return (
         <Editor
             height="100%"
-            theme="vs-dark"
+            theme={MONACO_THEME}
             keepCurrentModel
             onMount={handleMount}
             options={{

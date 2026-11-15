@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import React, { useEffect, useEffectEvent, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { buttonClass } from './buttonStyles';
 
 interface ModalAction {
     label: string;
@@ -62,11 +63,11 @@ export default function Modal({ isOpen, title, icon, children, actions, onClose 
         <AnimatePresence>
             {isOpen && (
                 <motion.div
-                    className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+                    className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: 0.15 }}
                     onClick={onClose}
                 >
                     <motion.div
@@ -75,18 +76,18 @@ export default function Modal({ isOpen, title, icon, children, actions, onClose 
                         aria-modal="true"
                         aria-labelledby={titleId}
                         aria-describedby={hasMessage ? messageId : undefined}
-                        className="w-full max-w-md bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
-                        initial={{ opacity: 0, scale: 0.95, y: 16 }}
+                        className="w-full max-w-md overflow-hidden rounded-xl bg-raised shadow-float"
+                        initial={{ opacity: 0, scale: 0.97, y: 8 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 16 }}
-                        transition={{ duration: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
+                        exit={{ opacity: 0, scale: 0.97, y: 8 }}
+                        transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="p-8">
-                            {icon && <div className="mb-5 flex justify-center text-5xl">{icon}</div>}
-                            <h3 id={titleId} className="text-xl font-bold text-white mb-3">{title}</h3>
-                            {hasMessage && <div id={messageId} className="text-white/60 leading-relaxed text-sm">{children}</div>}
-                            <div className="mt-8 flex justify-end gap-3 flex-col-reverse sm:flex-row">
+                        <div className="p-6">
+                            {icon && <div className="mb-4 flex">{icon}</div>}
+                            <h3 id={titleId} className="mb-1.5 text-base font-semibold text-fg">{title}</h3>
+                            {hasMessage && <div id={messageId} className="text-sm leading-relaxed text-fg-2">{children}</div>}
+                            <div className="mt-6 flex flex-col-reverse justify-end gap-2 sm:flex-row">
                                 {actions.map((action) => (
                                     <button key={action.label} data-modal-action onClick={action.onClick} className={actionClass(action.variant)}>
                                         {action.label}
@@ -103,12 +104,12 @@ export default function Modal({ isOpen, title, icon, children, actions, onClose 
 }
 
 function actionClass(variant?: string) {
-    const base = 'px-6 py-2.5 rounded-xl font-semibold text-sm transition-all outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black';
+    // Same buttons as the rest of the product (components/ui/Button)
     switch (variant) {
-        case 'danger': return `${base} bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500 hover:text-white hover:border-red-500`;
-        case 'success': return `${base} bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500 hover:text-black hover:border-emerald-500`;
-        case 'primary': return `${base} bg-white/10 border border-white/20 text-white hover:bg-white/20`;
+        case 'danger': return buttonClass('danger');
+        case 'success': return buttonClass('success');
+        case 'primary': return buttonClass('primary');
         case 'ghost':
-        default: return `${base} border border-white/10 text-white/60 hover:bg-white/5 hover:text-white`;
+        default: return buttonClass('ghost');
     }
 }

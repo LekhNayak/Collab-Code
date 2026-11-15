@@ -1,25 +1,23 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Users, GraduationCap, Shield, ArrowRight, Code2, Github, Linkedin, Mail, Phone, Trophy,
+    Users, GraduationCap, Shield, ArrowRight, Github, Linkedin, Mail, Phone, Trophy,
     Plus, LogIn, Check, Clock, X, type LucideIcon,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import LiquidEther from '../components/ui/LiquidEther';
 import GitHubOnboarding from '../components/GitHubOnboarding';
+import Button from '../components/ui/Button';
+import Wordmark from '../components/ui/Wordmark';
 import { getRecent, removeRecent, timeAgo, type RecentItem } from '../recent';
 
 const staggerContainer = {
     hidden: { opacity: 0 },
-    show: {
-        opacity: 1,
-        transition: { staggerChildren: 0.12, delayChildren: 0.2 }
-    }
+    show: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.1 } },
 };
 
 const staggerItem = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.34, 1.56, 0.64, 1] as const } }
+    hidden: { opacity: 0, y: 10 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] as const } },
 };
 
 // Tells the destination page which form to focus (Room and Contests pages have both)
@@ -40,65 +38,37 @@ interface Pillar {
     icon: LucideIcon;
     primary: PillarAction;
     secondary: PillarAction;
-    // Full class names per accent: Tailwind can't see class names assembled at runtime
-    styles: { tile: string; eyebrow: string; hairline: string; check: string; card: string; primary: string };
 }
 
 const PILLARS: Pillar[] = [
     {
-        eyebrow: 'COLLABORATE',
+        eyebrow: 'Collaborate',
         title: 'Code together, live',
         pitch: 'Share a room and edit the same files in real time, like a shared doc for code.',
         bullets: ['Live cursors and presence', 'Terminal, Git and code runner built in', 'Autosaved, survives reloads'],
         icon: Users,
         primary: { label: 'New room', icon: Plus, to: '/collab', intent: 'create' },
         secondary: { label: 'Join room', icon: LogIn, to: '/collab', intent: 'join' },
-        styles: {
-            tile: 'bg-[#8B5CF6]/90 shadow-[0_0_30px_rgba(139,92,246,0.45)]',
-            eyebrow: 'text-violet-300',
-            hairline: 'via-violet-400/70',
-            check: 'text-violet-300',
-            card: 'hover:border-violet-400/40 hover:shadow-[0_24px_60px_-20px_rgba(139,92,246,0.5)]',
-            primary: 'bg-violet-500 hover:bg-violet-400 text-white focus-visible:ring-violet-300/70',
-        },
     },
     {
-        eyebrow: 'COMPETE',
+        eyebrow: 'Compete',
         title: 'Run coding contests',
         pitch: 'Problems with hidden test cases, automatic judging and a live leaderboard.',
         bullets: ['Partial credit per test case', 'Scheduled or instant start', 'Live organizer monitor'],
         icon: Trophy,
         primary: { label: 'Join contest', icon: LogIn, to: '/contests', intent: 'join' },
         secondary: { label: 'Host contest', icon: Plus, to: '/contests', intent: 'create' },
-        styles: {
-            tile: 'bg-[#f59e0b]/90 shadow-[0_0_30px_rgba(245,158,11,0.45)]',
-            eyebrow: 'text-amber-300',
-            hairline: 'via-amber-400/70',
-            check: 'text-amber-300',
-            card: 'hover:border-amber-400/40 hover:shadow-[0_24px_60px_-20px_rgba(245,158,11,0.45)]',
-            primary: 'bg-amber-500 hover:bg-amber-400 text-black focus-visible:ring-amber-300/70',
-        },
     },
     {
-        eyebrow: 'ASSESS',
+        eyebrow: 'Assess',
         title: 'Proctored exams',
         pitch: 'Isolated workspaces per student, anti-cheat rules and a live proctor view.',
         bullets: ['Fullscreen and tab-switch detection', 'Isolated code for every student', 'Live code monitoring'],
         icon: GraduationCap,
         primary: { label: 'Take exam', icon: LogIn, to: '/take-exam' },
         secondary: { label: 'Proctor area', icon: Shield, to: '/admin' },
-        styles: {
-            tile: 'bg-[#0ea5e9]/90 shadow-[0_0_30px_rgba(14,165,233,0.45)]',
-            eyebrow: 'text-sky-300',
-            hairline: 'via-sky-400/70',
-            check: 'text-sky-300',
-            card: 'hover:border-sky-400/40 hover:shadow-[0_24px_60px_-20px_rgba(14,165,233,0.45)]',
-            primary: 'bg-sky-500 hover:bg-sky-400 text-white focus-visible:ring-sky-300/70',
-        },
     },
 ];
-
-const actionButtonClass = 'flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-sm font-bold whitespace-nowrap transition-all focus-visible:outline-none focus-visible:ring-2';
 
 function PillarCard({ pillar, onAction }: { pillar: Pillar; onAction: (action: PillarAction) => void }) {
     const Icon = pillar.icon;
@@ -106,33 +76,32 @@ function PillarCard({ pillar, onAction }: { pillar: Pillar; onAction: (action: P
     const SecondaryIcon = pillar.secondary.icon;
     return (
         <motion.div variants={staggerItem} className="h-full">
-            <div className={`group relative h-full flex flex-col overflow-hidden rounded-3xl border border-white/10 bg-black/30 backdrop-blur-2xl p-8 shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:bg-black/40 ${pillar.styles.card}`}>
-                <div className={`absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent to-transparent ${pillar.styles.hairline}`} />
-                <div className="flex items-center gap-4 mb-6">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 ${pillar.styles.tile}`}>
-                        <Icon size={28} className="text-white" />
+            <div className="ui-card flex h-full flex-col p-6">
+                <div className="mb-5 flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent-text">
+                        <Icon size={20} />
                     </div>
                     <div className="min-w-0">
-                        <div className={`text-xs font-bold tracking-[0.2em] mb-1 ${pillar.styles.eyebrow}`}>{pillar.eyebrow}</div>
-                        <h2 className="text-2xl font-bold text-white leading-tight">{pillar.title}</h2>
+                        <div className="text-xs font-medium text-fg-3">{pillar.eyebrow}</div>
+                        <h2 className="text-lg font-semibold leading-tight text-fg">{pillar.title}</h2>
                     </div>
                 </div>
-                <p className="text-white/70 leading-relaxed mb-6">{pillar.pitch}</p>
-                <ul className="space-y-2.5 mb-8 flex-1">
+                <p className="mb-5 leading-relaxed text-fg-2">{pillar.pitch}</p>
+                <ul className="mb-6 flex-1 space-y-2.5">
                     {pillar.bullets.map(bullet => (
-                        <li key={bullet} className="flex items-start gap-2.5 text-sm text-white/80">
-                            <Check size={16} strokeWidth={3} className={`mt-0.5 shrink-0 ${pillar.styles.check}`} />
+                        <li key={bullet} className="flex items-start gap-2.5 text-[13px] text-fg">
+                            <Check size={15} className="mt-0.5 shrink-0 text-accent-text" />
                             {bullet}
                         </li>
                     ))}
                 </ul>
-                <div className="grid grid-cols-2 gap-3">
-                    <button onClick={() => onAction(pillar.primary)} className={`${actionButtonClass} ${pillar.styles.primary}`}>
-                        <PrimaryIcon size={17} strokeWidth={2.5} /> {pillar.primary.label}
-                    </button>
-                    <button onClick={() => onAction(pillar.secondary)} className={`${actionButtonClass} bg-white/5 hover:bg-white/10 border border-white/15 text-white focus-visible:ring-white/40`}>
-                        <SecondaryIcon size={17} strokeWidth={2.5} /> {pillar.secondary.label}
-                    </button>
+                <div className="grid grid-cols-2 gap-2">
+                    <Button variant="primary" onClick={() => onAction(pillar.primary)}>
+                        <PrimaryIcon size={15} /> {pillar.primary.label}
+                    </Button>
+                    <Button variant="secondary" onClick={() => onAction(pillar.secondary)}>
+                        <SecondaryIcon size={15} /> {pillar.secondary.label}
+                    </Button>
                 </div>
             </div>
         </motion.div>
@@ -149,31 +118,31 @@ function RecentStrip({ items, now, onOpen, onRemove }: {
     if (items.length === 0) return null;
     return (
         <motion.div
-            className="w-full max-w-6xl mx-auto mb-6"
-            initial={{ opacity: 0, y: 10 }}
+            className="mx-auto mb-8 w-full max-w-6xl"
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35, duration: 0.4 }}
+            transition={{ delay: 0.15, duration: 0.3 }}
         >
-            <div className="flex items-center gap-2 text-xs font-bold tracking-[0.2em] text-white/50 mb-3">
-                <Clock size={14} /> JUMP BACK IN
+            <div className="mb-3 flex items-center gap-2 text-xs font-medium text-fg-3">
+                <Clock size={13} /> Jump back in
             </div>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
                 {items.slice(0, 6).map(item => {
                     const isRoom = item.kind === 'room';
                     const Icon = isRoom ? Users : Trophy;
                     const label = item.title && item.title !== item.id ? item.title : isRoom ? 'Collab room' : 'Contest';
                     return (
-                        <div key={`${item.kind}:${item.id}`} className="flex items-center rounded-xl border border-white/10 bg-black/30 backdrop-blur-xl hover:border-white/25 transition-colors">
+                        <div key={`${item.kind}:${item.id}`} className="ui-card-interactive flex items-center">
                             <button
                                 onClick={() => onOpen(item)}
-                                className="flex items-center gap-3 pl-3 pr-2 py-2.5 text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                                className="flex items-center gap-3 rounded-xl py-2 pl-2.5 pr-2 text-left"
                             >
-                                <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isRoom ? 'bg-violet-500/20 text-violet-300' : 'bg-amber-500/20 text-amber-300'}`}>
-                                    <Icon size={16} />
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-tint-2 text-fg-2">
+                                    <Icon size={15} />
                                 </span>
                                 <span className="min-w-0">
-                                    <span className="block text-sm font-semibold text-white truncate max-w-[14rem]">{label}</span>
-                                    <span className="block text-xs text-white/45">
+                                    <span className="block max-w-[14rem] truncate text-[13px] font-medium text-fg">{label}</span>
+                                    <span className="block text-xs text-fg-3">
                                         <span className="font-mono">{item.id}</span> · {timeAgo(item.at, now)}
                                     </span>
                                 </span>
@@ -182,9 +151,9 @@ function RecentStrip({ items, now, onOpen, onRemove }: {
                                 onClick={() => onRemove(item)}
                                 aria-label={`Remove ${label} from recent`}
                                 title="Remove"
-                                className="p-2 mr-1 rounded-lg text-white/30 hover:text-white hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                                className="mr-1.5 rounded-md p-1.5 text-fg-3 transition-colors hover:bg-tint-2 hover:text-fg"
                             >
-                                <X size={14} />
+                                <X size={13} />
                             </button>
                         </div>
                     );
@@ -212,69 +181,45 @@ export default function Hub() {
 
     return (
         <>
-        <div className="h-[100dvh] w-full bg-black text-white font-sans relative overflow-hidden">
-            {/* Liquid Ether Animated Background Fixed in place */}
-            <LiquidEther className="absolute inset-0 z-0 opacity-100" />
-
-            {/* Fixed Top Header */}
-            <div className="absolute top-6 left-6 right-6 flex items-center justify-between z-30">
-                <motion.div
-                    className="w-auto h-auto px-6 py-2.5 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full flex flex-row items-center gap-3 shadow-[0_8px_32px_rgba(0,0,0,0.3)] shadow-inner"
-                    initial={{ scale: 0, y: -20 }}
-                    animate={{ scale: 1, y: 0 }}
-                    transition={{ delay: 0.2, duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
-                >
-                    <Code2 size={20} className="text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]" /> 
-                    <span className="font-semibold tracking-wider text-sm opacity-90">Collab Code</span>
-                </motion.div>
-
-                <button 
-                    className="px-6 py-2.5 rounded-full border border-red-500/30 text-red-500 font-bold bg-white/5 backdrop-blur-md hover:bg-white/10 hover:border-red-500/50 hover:text-red-400 transition-all shadow-[0_0_15px_rgba(239,68,68,0.15)]"
+        <div className="flex h-[100dvh] w-full flex-col overflow-y-auto overflow-x-hidden bg-canvas font-sans text-fg">
+            <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b border-line bg-canvas/90 px-5 backdrop-blur-md sm:px-8">
+                <Wordmark />
+                <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
                         localStorage.removeItem('token');
                         navigate('/login');
                     }}
                 >
-                    Logout
-                </button>
-            </div>
+                    Log out
+                </Button>
+            </header>
 
-            {/* Scrollable Content Container */}
-            <div className="absolute inset-0 z-10 overflow-x-hidden overflow-y-auto flex flex-col items-center">
-                <div className="max-w-7xl w-full flex-1 flex flex-col px-4 pt-24 md:pt-32 pb-16">
+            <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-5 pb-16 pt-14 sm:px-8 md:pt-20">
                 <motion.div
-                    className="text-center mb-16 flex flex-col items-center"
-                    initial={{ opacity: 0, y: 20 }}
+                    className="mx-auto mb-14 flex max-w-3xl flex-col items-center text-center"
+                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
+                    transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                 >
-                    <motion.h1
-                        className="text-5xl md:text-7xl xl:text-8xl font-black mb-7 tracking-tight text-white drop-shadow-lg leading-[1.1]"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3, duration: 0.5 }}
-                    >
-                        The coding environment,<br/> made fluid at your fingertips.
-                    </motion.h1>
-                    <motion.p
-                        className="font-medium text-lg md:text-xl max-w-3xl mx-auto tracking-wide text-indigo-100/70 leading-relaxed bg-black/20 backdrop-blur-md border border-white/5 rounded-2xl p-5 shadow-2xl"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.5, duration: 0.4 }}
-                    >
+                    <h1 className="mb-5 text-4xl font-semibold leading-[1.1] tracking-tight text-fg md:text-5xl">
+                        The coding environment,<br /> made fluid at your fingertips.
+                    </h1>
+                    <p className="max-w-2xl text-base leading-relaxed text-fg-2">
                         Choose your destination. Hop into a collaborative pair programming session, securely take an exam, monitor a live test, or host a coding contest.
-                    </motion.p>
+                    </p>
                 </motion.div>
 
                 <RecentStrip items={recent} now={now} onOpen={openRecent} onRemove={item => setRecent(removeRecent(item.kind, item.id))} />
 
                 <motion.div
-                    className="w-full max-w-6xl mx-auto"
+                    className="mx-auto w-full max-w-6xl"
                     variants={staggerContainer}
                     initial="hidden"
                     animate="show"
                 >
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                         {PILLARS.map(pillar => (
                             <PillarCard key={pillar.eyebrow} pillar={pillar} onAction={go} />
                         ))}
@@ -283,49 +228,45 @@ export default function Hub() {
                     <motion.button
                         variants={staggerItem}
                         onClick={() => navigate('/import')}
-                        className="group mt-6 w-full flex items-center gap-5 rounded-2xl border border-white/10 bg-black/30 backdrop-blur-2xl px-6 py-5 text-left shadow-2xl transition-all duration-300 hover:bg-black/40 hover:border-emerald-400/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+                        className="ui-card-interactive group mt-4 flex w-full items-center gap-4 px-5 py-4 text-left"
                     >
-                        <div className="w-12 h-12 rounded-xl bg-[#10b981]/90 shadow-[0_0_24px_rgba(16,185,129,0.4)] flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110">
-                            <Github size={24} className="text-white" />
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-tint-2 text-fg">
+                            <Github size={20} />
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="font-bold text-lg text-white">Import a GitHub repository</div>
-                            <div className="text-sm text-white/60">Clone any public repo into a new collaborative workspace and start coding together.</div>
+                        <div className="min-w-0 flex-1">
+                            <div className="text-[15px] font-semibold text-fg">Import a GitHub repository</div>
+                            <div className="text-[13px] text-fg-2">Clone any public repo into a new collaborative workspace and start coding together.</div>
                         </div>
-                        <span className="hidden sm:flex items-center gap-2 text-sm font-semibold text-emerald-300 shrink-0">
-                            Import <ArrowRight size={18} strokeWidth={2.5} className="group-hover:translate-x-1 transition-transform" />
+                        <span className="hidden shrink-0 items-center gap-1.5 text-[13px] font-medium text-accent-text sm:flex">
+                            Import <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
                         </span>
                     </motion.button>
                 </motion.div>
-                </div>
+            </main>
 
-                {/* Footer */}
-                <footer className="w-full bg-white/5 backdrop-blur-2xl border-t border-white/10 mt-auto relative z-20 py-8 px-6">
-                    <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-                        <div className="flex flex-col items-center md:items-start gap-1">
-                            <h3 className="text-xl font-black bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 to-purple-300 tracking-wide">
-                                Lekh Sanatan Nayak
-                            </h3>
-                            <p className="text-white/40 text-sm font-medium">Creator & Lead Developer</p>
-                        </div>
-                        <div className="flex flex-wrap items-center justify-center gap-6">
-                            <a href="mailto:lekh.nayak23@spit.ac.in" className="flex items-center gap-2 text-white/60 hover:text-indigo-300 transition-colors font-medium">
-                                <Mail size={18} /> lekh.nayak23@spit.ac.in
-                            </a>
-                            <a href="tel:9326456576" className="flex items-center gap-2 text-white/60 hover:text-indigo-300 transition-colors font-medium">
-                                <Phone size={18} /> 9326456576
-                            </a>
-                            <div className="h-6 w-px bg-white/10 hidden md:block"></div>
-                            <a href="https://github.com/LekhNayak" target="_blank" rel="noopener noreferrer" className="p-2.5 bg-white/5 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-all border border-white/10 hover:border-white/20 shadow-lg">
-                                <Github size={20} />
-                            </a>
-                            <a href="https://linkedin.com/" target="_blank" rel="noopener noreferrer" className="p-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 rounded-full text-indigo-400 hover:text-indigo-300 transition-all border border-indigo-500/20 hover:border-indigo-500/40 shadow-lg">
-                                <Linkedin size={20} />
-                            </a>
-                        </div>
+            <footer className="mt-auto shrink-0 border-t border-line px-5 py-8 sm:px-8">
+                <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 md:flex-row">
+                    <div className="flex flex-col items-center gap-0.5 md:items-start">
+                        <h3 className="text-sm font-semibold text-fg">Lekh Sanatan Nayak</h3>
+                        <p className="text-[13px] text-fg-3">Creator & lead developer</p>
                     </div>
-                </footer>
-            </div>
+                    <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
+                        <a href="mailto:lekh.nayak23@spit.ac.in" className="flex items-center gap-2 text-[13px] text-fg-2 transition-colors hover:text-fg">
+                            <Mail size={15} /> lekh.nayak23@spit.ac.in
+                        </a>
+                        <a href="tel:9326456576" className="flex items-center gap-2 text-[13px] text-fg-2 transition-colors hover:text-fg">
+                            <Phone size={15} /> 9326456576
+                        </a>
+                        <div className="hidden h-5 w-px bg-line md:block" />
+                        <a href="https://github.com/LekhNayak" target="_blank" rel="noopener noreferrer" aria-label="GitHub" className="rounded-lg p-2 text-fg-2 transition-colors hover:bg-tint-2 hover:text-fg">
+                            <Github size={18} />
+                        </a>
+                        <a href="https://linkedin.com/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="rounded-lg p-2 text-fg-2 transition-colors hover:bg-tint-2 hover:text-fg">
+                            <Linkedin size={18} />
+                        </a>
+                    </div>
+                </div>
+            </footer>
         </div>
 
         {showOnboarding && <GitHubOnboarding onComplete={dismissOnboarding} />}

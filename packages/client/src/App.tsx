@@ -7,7 +7,6 @@ import Hub from './pages/Hub';
 import CollabAdmin from './pages/CollabAdmin';
 import ExamEntry from './pages/ExamEntry';
 import ImportProject from './pages/ImportProject';
-import { ThemeProvider } from './contexts/ThemeContext';
 import { DialogProvider } from './contexts/DialogContext';
 import { ToastProvider } from './contexts/ToastContext';
 
@@ -26,11 +25,10 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
   return (
-    <ThemeProvider>
       <ToastProvider>
       <DialogProvider>
       <Router>
-        <Suspense fallback={<div style={{ minHeight: '100vh', background: '#000', color: '#969696', padding: 20 }}>Loading...</div>}>
+        <Suspense fallback={<div className="flex h-full items-center justify-center bg-canvas text-sm text-fg-3">Loading…</div>}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
@@ -90,7 +88,6 @@ function App() {
       </Router>
       </DialogProvider>
       </ToastProvider>
-    </ThemeProvider>
   );
 }
 

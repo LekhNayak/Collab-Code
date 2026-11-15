@@ -1,97 +1,107 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+/* ==========================================================================
+   Design system
+   One look for every screen: quiet gray surfaces, hairline lines, one blue
+   accent, status colors only for status, a 6 / 8 / 12px radius scale and one
+   type family. Depth comes from a lighter surface, not from shadow or glow.
+
+   Colors are RGB triplets so Tailwind opacity modifiers work (bg-accent/20).
+   ========================================================================== */
 
 :root {
-  /* Neo-Brutalist Light Theme */
-  --neo-bg: #f5f0e8;
-  --neo-surface: #ffffff;
-  --neo-surface-alt: #faf8f4;
-  --neo-text: #111111;
-  --neo-text-secondary: #444444;
-  --neo-border: #000000;
-  --neo-shadow: #000000;
-  --neo-accent: #D6F843;
-  --neo-accent-text: #000000;
-  --neo-error: #FF5E00;
-  --neo-success: #00C853;
-  --neo-info: #2979FF;
-  --neo-warning: #FFD600;
+  color-scheme: dark;
 
-  /* VS Code Dark+ Theme Colors (Fallback/Original) */
-  --bg-primary: #1e1e1e;
-  --bg-secondary: #252526;
-  --bg-tertiary: #2d2d2d;
-  --bg-hover: #2a2d2e;
-  --bg-active: #37373d;
-  --bg-selection: #094771;
+  /* Surfaces, darkest to lightest */
+  --well: 10 10 11;
+  --canvas: 17 17 19;
+  --surface: 26 26 29;
+  --chrome: 29 29 32;
+  --raised: 38 38 42;
 
-  --border-color: #3c3c3c;
-  --border-active: #007acc;
+  /* Text */
+  --fg: 236 236 238;
+  --fg-2: 157 157 161;
+  --fg-3: 122 122 127;
 
-  --text-primary: #cccccc;
-  --text-secondary: #969696;
-  --text-muted: #6a6a6a;
-  --text-bright: #ffffff;
+  /* One accent. accent-solid is the filled-button color, dark enough for white text. */
+  --accent: 59 130 246;
+  --accent-solid: 37 99 235;
+  --accent-text: 118 167 248;
 
-  --accent-primary: #007acc;
-  --accent-hover: #1a8ad4;
-  --accent-success: #4ec9b0;
-  --accent-warning: #dcdcaa;
-  --accent-error: #f44747;
-  --accent-info: #569cd6;
+  /* Status */
+  --success: 34 197 94;
+  --success-solid: 21 128 61;
+  --success-text: 74 222 128;
+  --danger: 239 68 68;
+  --danger-solid: 220 38 38;
+  --danger-text: 248 113 113;
+  --warning: 245 158 11;
+  --warning-solid: 180 83 9;
+  --warning-text: 251 191 36;
 
-  --activity-bar-width: 48px;
-  --sidebar-width: 260px;
-  --tab-height: 35px;
-  --status-bar-height: 22px;
-  --panel-height: 200px;
+  /* Shape */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
 
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'Space Mono', 'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace;
+  /* Type */
+  --font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Cascadia Code', 'SF Mono', ui-monospace, Consolas, monospace;
   --font-size-sm: 11px;
   --font-size-base: 13px;
   --font-size-lg: 14px;
 
-  /* Motion tokens */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
-  --spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Motion: short, eased out, never bouncy */
+  --transition-fast: 120ms cubic-bezier(0.22, 1, 0.36, 1);
+  --transition-normal: 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  --transition-slow: 320ms cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* IDE layout */
+  --activity-bar-width: 48px;
+  --sidebar-width: 260px;
+  --tab-height: 36px;
+  --status-bar-height: 24px;
+  --panel-height: 200px;
+
+  /* IDE colors. Theme extensions override these names at runtime (IDELayout), so
+     they stay as solid values; the defaults are this design system's grays. */
+  --bg-primary: #141416;
+  --bg-secondary: #1a1a1d;
+  --bg-tertiary: #1d1d20;
+  --bg-elevated: #232327;
+  --bg-hover: #222226;
+  --bg-active: #2a2a2f;
+  --bg-selection: #1d2c4a;
+
+  --border-color: #2a2a2e;
+  --border-subtle: #26262a;
+  --border-active: #3b82f6;
+
+  --text-primary: #d4d4d8;
+  --text-secondary: #9d9da1;
+  --text-muted: #76767b;
+  --text-bright: #f4f4f5;
+
+  --accent-primary: #3b82f6;
+  --accent-primary-rgb: 59, 130, 246;
+  --accent-hover: #5b9bf8;
+  --accent-secondary: #76a7f8;
+  --accent-success: #4ade80;
+  --accent-warning: #fbbf24;
+  --accent-error: #f87171;
+  --accent-info: #76a7f8;
 }
 
-[data-theme='dark'] {
-  /* Neo-Brutalist Dark Theme — vibrant & readable */
-  --neo-bg: #0a0a0a;
-  --neo-surface: #161616;
-  --neo-surface-alt: #1c1c1c;
-  --neo-text: #f0f0f0;
-  --neo-text-secondary: #a0a0a0;
-  --neo-border: #e0e0e0;
-  --neo-shadow: #D6F843;
-  /* Neon green shadows in dark mode = signature brutalist contrast */
-  --neo-accent: #D6F843;
-  --neo-accent-text: #000000;
-  --neo-error: #FF6B6B;
-  --neo-success: #69F0AE;
-  --neo-info: #448AFF;
-  --neo-warning: #FFD740;
-}
-
-/* Editor Isolation */
-.editor-root {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  /* Reset neo brutalist styles in editor */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 html,
@@ -100,23 +110,29 @@ body,
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: var(--neo-bg);
-  color: var(--neo-text);
+  background-color: rgb(var(--canvas));
+  color: rgb(var(--fg));
   font-family: var(--font-family);
   font-size: var(--font-size-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* ===== Dark mode overrides for subtle patterns ===== */
-[data-theme='dark'] body,
-[data-theme='dark'] #root {
-  background-image: radial-gradient(circle at 1px 1px, rgba(214, 248, 67, 0.03) 1px, transparent 0);
-  background-size: 32px 32px;
+/* The IDE keeps its own palette so theme extensions can restyle it */
+.editor-root {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }
 
-/* ===== Scrollbar Styles ===== */
+/* ===== Scrollbars ===== */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.16) transparent;
+}
+
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -124,155 +140,68 @@ body,
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(121, 121, 121, 0.4);
-  border-radius: 4px;
+  background: rgb(255 255 255 / 0.14);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(121, 121, 121, 0.7);
+  background: rgb(255 255 255 / 0.26);
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
 
-/* ===== Neo-Brutalist Animation Utilities ===== */
-@keyframes neo-shake {
-
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-
-  25% {
-    transform: translateX(-3px) rotate(-1deg);
-  }
-
-  75% {
-    transform: translateX(3px) rotate(1deg);
-  }
-}
-
-@keyframes neo-bounce-in {
-  0% {
-    transform: scale(0.9) translateY(10px);
-    opacity: 0;
-  }
-
-  60% {
-    transform: scale(1.02) translateY(-3px);
-    opacity: 1;
-  }
-
-  100% {
-    transform: scale(1) translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes neo-slide-up {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes neo-stamp {
-  0% {
-    transform: scale(1.1) rotate(-2deg);
-    opacity: 0;
-  }
-
-  50% {
-    transform: scale(0.98) rotate(1deg);
-    opacity: 1;
-  }
-
-  100% {
-    transform: scale(1) rotate(0deg);
-    opacity: 1;
-  }
-}
-
-@keyframes neo-pulse-border {
-
-  0%,
-  100% {
-    box-shadow: 4px 4px 0px 0px var(--neo-shadow);
-  }
-
-  50% {
-    box-shadow: 6px 6px 0px 0px var(--neo-shadow);
-  }
-}
-
-@keyframes neo-glow {
-
-  0%,
-  100% {
-    filter: brightness(1);
-  }
-
-  50% {
-    filter: brightness(1.15);
-  }
-}
-
-@keyframes gradient-shift {
-  0% {
-    background-position: 0% 50%;
-  }
-
-  50% {
-    background-position: 100% 50%;
-  }
-
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-@keyframes float {
-
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-
-  50% {
-    transform: translateY(-6px);
-  }
-}
-
-@keyframes wiggle {
-
-  0%,
-  100% {
-    transform: rotate(0deg);
-  }
-
-  25% {
-    transform: rotate(-3deg);
-  }
-
-  75% {
-    transform: rotate(3deg);
-  }
-}
-
-/* ===== Focus States ===== */
+/* ===== Focus: a ring that never moves the layout ===== */
 *:focus-visible {
-  outline: 3px solid var(--neo-accent);
+  outline: 2px solid rgb(var(--accent) / 0.75);
   outline-offset: 2px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
 }
 
 /* ===== Selection ===== */
 ::selection {
-  background: var(--neo-accent);
-  color: var(--neo-accent-text);
+  background: rgb(var(--accent) / 0.35);
+  color: rgb(var(--fg));
+}
+
+/* ===== Shared building blocks =====
+   Small classes the primitives in components/ui and the pages share, so a
+   control looks the same wherever it appears. */
+@layer components {
+  .ui-card {
+    @apply rounded-xl border border-line bg-surface;
+  }
+
+  .ui-card-interactive {
+    @apply ui-card transition-[background-color,border-color,transform] duration-200 ease-out hover:border-line-strong hover:bg-chrome;
+  }
+
+  .ui-field {
+    @apply min-h-9 w-full rounded-lg py-2 bg-canvas px-3 text-[13px] text-fg shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.12)] outline-none transition-shadow placeholder:text-fg-3;
+  }
+
+  .ui-field:focus {
+    @apply shadow-[inset_0_0_0_1px_rgb(var(--accent)),0_0_0_3px_rgb(var(--accent)_/_0.2)];
+  }
+
+  .ui-field:disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
+
+  .ui-label {
+    @apply text-xs font-medium text-fg;
+  }
+
+  .ui-muted {
+    @apply text-fg-2;
+  }
 }

@@ -22,8 +22,12 @@ import {
     FolderArchive,
     Download, // Added Download icon
     LogOut,
+    Lock,
+    ShieldOff,
 } from 'lucide-react';
 import FileExplorer, { type FileNode } from './FileExplorer';
+import IconTile from './ui/IconTile';
+import Button from './ui/Button';
 import EditorTabs, { type TabInfo } from './EditorTabs';
 import CodeEditor, { getLanguageFromFilename } from './Editor';
 import StatusBar from './StatusBar';
@@ -437,6 +441,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             root.style.removeProperty('--text-secondary');
             root.style.removeProperty('--text-muted');
             root.style.removeProperty('--accent-primary');
+            root.style.removeProperty('--accent-primary-rgb');
             root.style.removeProperty('--accent-secondary');
             root.style.removeProperty('--accent-error');
             root.style.removeProperty('--border-subtle');
@@ -455,7 +460,12 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
         if (config.textPrimary) root.style.setProperty('--text-primary', config.textPrimary);
         if (config.textSecondary) root.style.setProperty('--text-secondary', config.textSecondary);
         if (config.textMuted) root.style.setProperty('--text-muted', config.textMuted);
-        if (config.accentPrimary) root.style.setProperty('--accent-primary', config.accentPrimary);
+        if (config.accentPrimary) {
+            root.style.setProperty('--accent-primary', config.accentPrimary);
+            // The tinted fills (rgba(var(--accent-primary-rgb), .1)) follow the theme's accent
+            const hex = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(config.accentPrimary);
+            if (hex) root.style.setProperty('--accent-primary-rgb', hex.slice(1).map(h => parseInt(h, 16)).join(', '));
+        }
         if (config.accentSecondary) root.style.setProperty('--accent-secondary', config.accentSecondary);
         if (config.accentError) root.style.setProperty('--accent-error', config.accentError);
         if (config.borderSubtle) root.style.setProperty('--border-subtle', config.borderSubtle);
@@ -764,34 +774,21 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
     // ── Room type mismatch / exam block screen ──
     if (roomBlocked) {
         return (
-            <div className="w-full h-screen flex items-center justify-center p-8 bg-black relative overflow-hidden">
-                <div className="absolute top-[-15%] left-[-10%] w-[40%] h-[40%] bg-red-500/10 blur-[120px] rounded-full pointer-events-none" />
-                <div className="absolute bottom-[-15%] right-[-10%] w-[40%] h-[40%] bg-orange-500/10 blur-[120px] rounded-full pointer-events-none" />
-
+            <div className="flex h-screen w-full items-center justify-center bg-canvas p-8">
                 <motion.div
-                    className="max-w-md w-full bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl p-10 text-center shadow-2xl"
-                    initial={{ opacity: 0, scale: 0.95, y: 16 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+                    className="ui-card w-full max-w-md p-8 text-center"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                 >
-                    <motion.div
-                        className="text-5xl mb-5"
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: 0.15, type: 'spring', stiffness: 200 }}
-                    >
-                        ⛔
-                    </motion.div>
-                    <h1 className="text-2xl font-black text-red-400 mb-3 tracking-tight">Access Denied</h1>
-                    <p className="text-white/60 text-sm leading-relaxed mb-8">
+                    <IconTile tone="danger" size={48} className="mx-auto mb-5"><ShieldOff size={22} /></IconTile>
+                    <h1 className="mb-2 text-lg font-semibold tracking-tight text-fg">Access denied</h1>
+                    <p className="mb-7 text-sm leading-relaxed text-fg-2">
                         {roomBlockReason}
                     </p>
-                    <button
-                        onClick={() => navigate('/')}
-                        className="w-full py-3 rounded-xl bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500 hover:text-white font-semibold text-sm transition-all"
-                    >
-                        Return to Hub
-                    </button>
+                    <Button variant="secondary" size="lg" className="w-full" onClick={() => navigate('/')}>
+                        Return to hub
+                    </Button>
                 </motion.div>
             </div>
         );
@@ -802,22 +799,11 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
 
             {/* Exam timer bar */}
             {isExamMode && timeLeft && (
-                <div style={{
-                    background: 'linear-gradient(90deg, #dc2626, #b91c1c)',
-                    color: 'white',
-                    fontWeight: '700',
-                    textAlign: 'center',
-                    padding: '5px 16px',
-                    fontSize: '13px',
-                    letterSpacing: '0.5px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                }}>
-                    <span style={{ opacity: 0.8 }}>🔒 EXAM IN PROGRESS</span>
-                    <span style={{ opacity: 0.5 }}>|</span>
-                    <span>Time Remaining: {timeLeft}</span>
+                <div className="exam-banner" role="status">
+                    <Lock size={13} />
+                    <span>Exam in progress</span>
+                    <span className="exam-banner-sep">·</span>
+                    <span>Time remaining: <strong>{timeLeft}</strong></span>
                 </div>
             )}
 
@@ -848,8 +834,8 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                         type="button"
                         className={`activity-bar-icon${activePanel === 'git' && sidebarVisible ? ' active' : ''}`}
                         onClick={() => toggleSidebar('git')}
-                        title="Source Control"
-                        aria-label="Source Control"
+                        title="Source control"
+                        aria-label="Source control"
                         aria-pressed={activePanel === 'git' && sidebarVisible}
                     >
                         <GitBranch size={24} />
@@ -891,12 +877,12 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                         <div className="sidebar-header">
                             {activePanel === 'explorer' && 'Explorer'}
                             {activePanel === 'search' && 'Search'}
-                            {activePanel === 'git' && 'Source Control'}
+                            {activePanel === 'git' && 'Source control'}
                             {activePanel === 'users' && 'Collaborators'}
                             {activePanel === 'extensions' && 'Extensions'}
                             {isExamMode && (
-                                <div className="sidebar-header-actions" style={{ color: 'red', fontWeight: 'bold' }}>
-                                    EXAM MODE
+                                <div className="sidebar-header-actions exam-mode-label">
+                                    Exam mode
                                 </div>
                             )}
                             {roomId && !isExamMode && (
@@ -920,7 +906,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                                 style={{
                                                     height: 16,
                                                     marginBottom: 10,
-                                                    borderRadius: 2,
+                                                    borderRadius: 4,
                                                     background: 'var(--bg-active)',
                                                     width: `${Math.max(40, 100 - i * 10)}%`
                                                 }}
@@ -937,14 +923,14 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                             <button
                                                 className="explorer-action-btn"
                                                 onClick={() => { setCreatingFile('file'); setNewFileName(''); }}
-                                                title="New File"
+                                                title="New file"
                                             >
                                                 <FilePlus2 size={14} />
                                             </button>
                                             <button
                                                 className="explorer-action-btn"
                                                 onClick={() => { setCreatingFile('folder'); setNewFileName(''); }}
-                                                title="New Folder"
+                                                title="New folder"
                                             >
                                                 <FolderPlus size={14} />
                                             </button>
@@ -953,7 +939,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                             <button
                                                 className="explorer-action-btn"
                                                 onClick={() => handleDownloadFile()}
-                                                title="Download Workspace"
+                                                title="Download workspace"
                                             >
                                                 <Download size={14} />
                                             </button>
@@ -961,7 +947,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                                 <button
                                                     className="explorer-action-btn"
                                                     onClick={() => setUploadMenuOpen(v => !v)}
-                                                    title="Upload Folder or ZIP"
+                                                    title="Upload folder or ZIP"
                                                 >
                                                     <Upload size={14} />
                                                 </button>
@@ -1182,7 +1168,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                             <button
                                                 className="panel-terminal-tab-close"
                                                 onClick={(e) => { e.stopPropagation(); closeTerminal(t.id); }}
-                                                title="Close Terminal"
+                                                title="Close terminal"
                                             >
                                                 <X size={12} />
                                             </button>
@@ -1191,7 +1177,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                     <button
                                         className="panel-terminal-add"
                                         onClick={addTerminal}
-                                        title="New Terminal"
+                                        title="New terminal"
                                     >
                                         <Plus size={14} />
                                     </button>
@@ -1199,7 +1185,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                 <button
                                     className="panel-toggle"
                                     onClick={() => setPanelOpen(false)}
-                                    title="Close Panel"
+                                    title="Close panel"
                                 >
                                     <PanelBottomClose size={16} />
                                 </button>
@@ -1240,8 +1226,8 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                             <button
                                 className="panel-toggle"
                                 onClick={() => setPanelOpen(true)}
-                                title="Open Terminal"
-                                style={{ background: 'var(--bg-tertiary)', padding: '4px 8px', borderRadius: 4, border: '1px solid var(--border-color)' }}
+                                title="Open terminal"
+                                style={{ background: 'var(--bg-tertiary)', padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border-color)' }}
                             >
                                 <PanelBottomOpen size={16} />
                             </button>
@@ -1265,8 +1251,8 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             {/* ── Editor alert (copy/paste violation) ── */}
             <Modal
                 isOpen={!!editorAlert}
-                title="Exam Restriction"
-                icon="🚫"
+                title="Exam restriction"
+                icon={<IconTile tone="warning"><ShieldOff size={20} /></IconTile>}
                 actions={[{ label: 'Dismiss', variant: 'primary', onClick: () => setEditorAlert(null) }]}
                 onClose={() => setEditorAlert(null)}
             >

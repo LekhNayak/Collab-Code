@@ -5,7 +5,7 @@ import type * as Y from 'yjs';
 import type { WebsocketProvider } from 'y-websocket';
 import { sendExamAlert } from '../api';
 import { MonacoBinding } from '../collab/monacoBinding';
-import '../monacoSetup';
+import { MONACO_THEME } from '../monacoSetup';
 
 interface CodeEditorProps {
     path: string;                  // active file
@@ -266,11 +266,11 @@ export default function CodeEditor({
     return (
         <Editor
             height="100%"
-            theme="vs-dark"
+            theme={MONACO_THEME}
             keepCurrentModel
             onMount={handleMount}
             loading={
-                <div style={{ color: '#969696', padding: 20, fontFamily: 'var(--font-mono)' }}>
+                <div style={{ color: 'var(--text-secondary)', padding: 20, fontFamily: 'var(--font-mono)' }}>
                     Loading editor...
                 </div>
             }

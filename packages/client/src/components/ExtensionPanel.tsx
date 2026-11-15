@@ -254,7 +254,7 @@ export default function ExtensionPanel({ sessionId, installedExtensions, onExten
             {showCreateForm && (
                 <div className="ext-create-form">
                     <div className="ext-form-header">
-                        <span>Create Extension</span>
+                        <span>Create extension</span>
                         <button className="ext-form-close" onClick={resetForm}><X size={12} /></button>
                     </div>
                     <input className="ext-form-input" placeholder="Extension ID (e.g. custom-my-theme)" value={formId} onChange={e => setFormId(e.target.value)} />
@@ -354,7 +354,7 @@ export default function ExtensionPanel({ sessionId, installedExtensions, onExten
                 {showAvailable && (
                     <div className="ext-list">
                         {available.length === 0 && (
-                            <p className="ext-hint">All extensions installed! 🎉</p>
+                            <p className="ext-hint">All extensions installed.</p>
                         )}
                         {available.map(ext => (
                             <ExtensionCard

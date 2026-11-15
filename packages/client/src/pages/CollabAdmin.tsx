@@ -1,9 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, RefreshCw, Clock, Code2, Puzzle, Circle } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Users, RefreshCw, Clock, Code2, Puzzle, Circle } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { getSessions, type SessionInfo } from '../api';
-import LiquidEther from '../components/ui/LiquidEther';
+import PageShell from '../components/ui/PageShell';
+import Button from '../components/ui/Button';
+import Badge from '../components/ui/Badge';
+import IconTile from '../components/ui/IconTile';
 
 // ─────────────────────────────────────────────────────
 // CollabAdmin — Admin view for a collaboration room
@@ -55,199 +58,118 @@ export default function CollabAdmin() {
         return diff < 300000; // 5 minutes
     };
 
+    const stats = [
+        { label: 'Total sessions', value: sessions.length, icon: <Users size={16} /> },
+        { label: 'Active now', value: sessions.filter(s => isRecentlyActive(s.updatedAt)).length, icon: <Circle size={14} className="fill-current" /> },
+        { label: 'Open files', value: sessions.reduce((a, s) => a + s.openTabs.length, 0), icon: <Code2 size={16} /> },
+    ];
+
     return (
-        <div className="h-[100dvh] w-full bg-black text-white font-sans relative overflow-hidden">
-            <LiquidEther className="absolute inset-0 z-0 opacity-100" />
-
-            <div className="absolute inset-0 z-10 overflow-x-hidden overflow-y-auto w-full h-full p-6 md:p-10">
-                <div className="max-w-4xl mx-auto relative z-10">
-                {/* Header */}
-                <motion.div
-                    className="flex items-center gap-4 mb-8"
-                    initial={{ opacity: 0, y: -16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                >
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="p-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/15 rounded-xl transition-all group"
+        <PageShell
+            title="Room presence"
+            subtitle={<><code className="rounded-md bg-accent/15 px-1.5 py-0.5 font-mono text-[13px] text-accent-text">{roomId}</code>{' '}· Collab room user activity</>}
+            backTo={-1}
+            width="lg"
+            actions={
+                <>
+                    <span className="hidden text-xs text-fg-3 sm:inline">Updated {lastUpdated.toLocaleTimeString()}</span>
+                    <Button
+                        size="sm"
+                        onClick={() => fetchSessions(true)}
+                        icon={<RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />}
                     >
-                        <ArrowLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" />
-                    </button>
-                    <div className="flex-1">
-                        <h1 className="text-3xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70">
-                            Room Presence
-                        </h1>
-                        <p className="text-white/50 text-sm mt-1">
-                            <code className="font-mono text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-lg">{roomId}</code>
-                            {' '}— Collab room user activity
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <span className="text-xs text-white/40">
-                            Updated {lastUpdated.toLocaleTimeString()}
-                        </span>
-                        <button
-                            onClick={() => fetchSessions(true)}
-                            className={`p-2.5 bg-white/10 hover:bg-white/20 border border-white/15 rounded-xl transition-all ${refreshing ? 'animate-spin text-indigo-300' : 'text-white/60 hover:text-white'}`}
-                            title="Refresh"
-                        >
-                            <RefreshCw size={18} />
-                        </button>
-                    </div>
-                </motion.div>
-
-                {/* Stats */}
-                <motion.div
-                    className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1, duration: 0.4 }}
-                >
-                    {[
-                        { label: 'Total Sessions', value: sessions.length, icon: <Users size={18} />, color: 'text-indigo-300' },
-                        { label: 'Active Now', value: sessions.filter(s => isRecentlyActive(s.updatedAt)).length, icon: <Circle size={18} className="fill-current" />, color: 'text-emerald-300' },
-                        { label: 'Open Files', value: sessions.reduce((a, s) => a + s.openTabs.length, 0), icon: <Code2 size={18} />, color: 'text-cyan-300' },
-                    ].map(stat => (
-                        <div key={stat.label} className="bg-white/10 backdrop-blur-xl border border-white/15 rounded-2xl p-4 flex items-center gap-3">
-                            <div className={stat.color}>{stat.icon}</div>
-                            <div>
-                                <div className={`text-2xl font-black ${stat.color}`}>{stat.value}</div>
-                                <div className="text-xs text-white/50">{stat.label}</div>
-                            </div>
+                        Refresh
+                    </Button>
+                </>
+            }
+        >
+            <div className="mb-6 grid grid-cols-3 gap-3">
+                {stats.map(stat => (
+                    <div key={stat.label} className="ui-card flex items-center gap-3 p-4">
+                        <div className="text-fg-3">{stat.icon}</div>
+                        <div>
+                            <div className="text-2xl font-semibold leading-none text-fg">{stat.value}</div>
+                            <div className="mt-1.5 text-xs text-fg-3">{stat.label}</div>
                         </div>
-                    ))}
-                </motion.div>
-
-                {/* Enter Room button */}
-                <motion.div
-                    className="mb-6"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                >
-                    <button
-                        onClick={() => navigate(`/room/${roomId}`)}
-                        className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold tracking-wide flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20 transition-all"
-                    >
-                        <Code2 size={20} /> Open Room in IDE
-                    </button>
-                </motion.div>
-
-                {/* Session list */}
-                {loading ? (
-                    <div className="space-y-4">
-                        {[1, 2, 3].map(i => (
-                            <motion.div
-                                key={i}
-                                className="h-24 bg-white/5 border border-white/10 rounded-2xl"
-                                animate={{ opacity: [0.3, 0.6, 0.3] }}
-                                transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.15 }}
-                            />
-                        ))}
                     </div>
-                ) : sessions.length === 0 ? (
-                    <motion.div
-                        className="bg-white/5 border border-dashed border-white/15 rounded-3xl p-16 text-center"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.3 }}
-                    >
-                        <Users size={48} className="mx-auto mb-4 text-white/20" />
-                        <h3 className="text-xl font-bold text-white/50 mb-2">No sessions found</h3>
-                        <p className="text-white/30 text-sm">Sessions appear when users create or join this room.</p>
-                    </motion.div>
-                ) : (
-                    <AnimatePresence>
+                ))}
+            </div>
+
+            <Button variant="primary" size="lg" className="mb-8 w-full" icon={<Code2 size={16} />} onClick={() => navigate(`/room/${roomId}`)}>
+                Open room in IDE
+            </Button>
+
+            {loading ? (
+                <div className="space-y-3">
+                    {[1, 2, 3].map(i => (
                         <motion.div
-                            className="space-y-4"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.2 }}
-                        >
-                            {sessions.map((session, index) => {
-                                const active = isRecentlyActive(session.updatedAt);
-                                return (
-                                    <motion.div
-                                        key={session.id}
-                                        initial={{ opacity: 0, y: 12 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: index * 0.07, duration: 0.35 }}
-                                        className={`bg-white/10 backdrop-blur-xl border rounded-2xl p-5 flex items-start gap-4 transition-all ${
-                                            active ? 'border-emerald-500/25 hover:border-emerald-500/40' : 'border-white/15 hover:border-white/25'
-                                        }`}
-                                    >
-                                        {/* Activity indicator */}
-                                        <div className="mt-1 flex-shrink-0">
-                                            <motion.div
-                                                className={`w-3 h-3 rounded-full ${active ? 'bg-emerald-400' : 'bg-white/20'}`}
-                                                animate={active ? { scale: [1, 1.3, 1], opacity: [1, 0.7, 1] } : {}}
-                                                transition={{ duration: 2, repeat: Infinity }}
-                                            />
+                            key={i}
+                            className="h-24 rounded-xl bg-surface"
+                            animate={{ opacity: [0.4, 0.8, 0.4] }}
+                            transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.15 }}
+                        />
+                    ))}
+                </div>
+            ) : sessions.length === 0 ? (
+                <div className="ui-card flex flex-col items-center gap-4 px-6 py-14 text-center">
+                    <IconTile size={48}><Users size={22} /></IconTile>
+                    <div>
+                        <h3 className="mb-1 text-base font-semibold text-fg">No sessions found</h3>
+                        <p className="text-sm text-fg-2">Sessions appear when users create or join this room.</p>
+                    </div>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {sessions.map((session, index) => {
+                        const active = isRecentlyActive(session.updatedAt);
+                        return (
+                            <motion.div
+                                key={session.id}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.04, duration: 0.25 }}
+                                className="ui-card flex items-start gap-4 p-5"
+                            >
+                                <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${active ? 'bg-success' : 'bg-tint-5'}`} />
+
+                                <div className="min-w-0 flex-1">
+                                    <div className="mb-2 flex items-start justify-between gap-4">
+                                        <div className="min-w-0">
+                                            <h3 className="truncate text-[15px] font-semibold leading-tight text-fg">{session.name}</h3>
+                                            <p className="mt-0.5 text-[13px] text-fg-3">
+                                                Owner: <span className="font-medium text-fg-2">{session.owner}</span>
+                                            </p>
                                         </div>
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            {active && <Badge tone="success" dot>Active</Badge>}
+                                            <Badge>{formatDate(session.updatedAt)}</Badge>
+                                        </div>
+                                    </div>
 
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between gap-4 mb-2">
-                                                <div>
-                                                    <h3 className="font-bold text-white text-lg leading-tight">{session.name}</h3>
-                                                    <p className="text-white/50 text-sm">
-                                                        Owner: <span className="text-indigo-300 font-medium">{session.owner}</span>
-                                                    </p>
-                                                </div>
-                                                <div className="flex items-center gap-2 flex-shrink-0">
-                                                    {active && (
-                                                        <span className="text-xs bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 px-2.5 py-1 rounded-full font-bold">
-                                                            Active
-                                                        </span>
-                                                    )}
-                                                    <span className="text-xs text-white/40 bg-white/5 px-2.5 py-1 rounded-full border border-white/10">
-                                                        {formatDate(session.updatedAt)}
-                                                    </span>
-                                                </div>
-                                            </div>
+                                    <div className="flex flex-wrap items-center gap-4 text-xs text-fg-3">
+                                        <span className="flex items-center gap-1.5"><Clock size={12} /> Created {new Date(session.createdAt).toLocaleDateString()}</span>
+                                        <span className="flex items-center gap-1.5"><Code2 size={12} /> {session.openTabs.length} open files</span>
+                                        <span className="flex items-center gap-1.5"><Puzzle size={12} /> {session.extensions.length} extensions</span>
+                                    </div>
 
-                                            <div className="flex items-center gap-4 text-xs text-white/50 flex-wrap">
-                                                <span className="flex items-center gap-1.5">
-                                                    <Clock size={12} />
-                                                    Created {new Date(session.createdAt).toLocaleDateString()}
+                                    {session.openTabs.length > 0 && (
+                                        <div className="mt-3 flex flex-wrap gap-1.5">
+                                            {session.openTabs.slice(0, 6).map(tab => (
+                                                <span key={tab} className="rounded-md bg-canvas px-2 py-0.5 font-mono text-xs text-fg-2">
+                                                    {tab.split('/').pop()}
                                                 </span>
-                                                <span className="flex items-center gap-1.5">
-                                                    <Code2 size={12} />
-                                                    {session.openTabs.length} open files
-                                                </span>
-                                                <span className="flex items-center gap-1.5">
-                                                    <Puzzle size={12} />
-                                                    {session.extensions.length} extensions
-                                                </span>
-                                            </div>
-
-                                            {/* Open tabs */}
-                                            {session.openTabs.length > 0 && (
-                                                <div className="mt-3 flex flex-wrap gap-1.5">
-                                                    {session.openTabs.slice(0, 6).map(tab => (
-                                                        <span
-                                                            key={tab}
-                                                            className="text-xs font-mono bg-black/30 border border-white/10 text-white/60 px-2 py-0.5 rounded-lg"
-                                                        >
-                                                            {tab.split('/').pop()}
-                                                        </span>
-                                                    ))}
-                                                    {session.openTabs.length > 6 && (
-                                                        <span className="text-xs text-white/40 px-2 py-0.5">
-                                                            +{session.openTabs.length - 6} more
-                                                        </span>
-                                                    )}
-                                                </div>
+                                            ))}
+                                            {session.openTabs.length > 6 && (
+                                                <span className="px-2 py-0.5 text-xs text-fg-3">+{session.openTabs.length - 6} more</span>
                                             )}
                                         </div>
-                                    </motion.div>
-                                );
-                            })}
-                        </motion.div>
-                    </AnimatePresence>
-                )}
+                                    )}
+                                </div>
+                            </motion.div>
+                        );
+                    })}
                 </div>
-            </div>
-        </div>
+            )}
+        </PageShell>
     );
 }

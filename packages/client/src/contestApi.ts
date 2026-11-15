@@ -270,18 +270,23 @@ export const VERDICT_LABEL: Record<Verdict, string> = {
     SKIPPED: 'Skipped',
 };
 
-// Tailwind classes per verdict (text + background + border)
+// Tailwind classes per verdict (text + background). Status colors only: green passed, red failed,
+// amber partial or out of budget, gray for the judge's own states.
+const OK = 'text-success-text bg-success/15';
+const WARN = 'text-warning-text bg-warning/15';
+const FAIL = 'text-danger-text bg-danger/15';
+const QUIET = 'text-fg-2 bg-tint-2';
 export const VERDICT_STYLE: Record<Verdict, string> = {
-    AC: 'text-emerald-300 bg-emerald-500/15 border-emerald-500/30',
-    PARTIAL: 'text-amber-300 bg-amber-500/15 border-amber-500/30',
-    WA: 'text-red-300 bg-red-500/15 border-red-500/30',
-    TLE: 'text-orange-300 bg-orange-500/15 border-orange-500/30',
-    MLE: 'text-orange-300 bg-orange-500/15 border-orange-500/30',
-    RE: 'text-rose-300 bg-rose-500/15 border-rose-500/30',
-    CE: 'text-fuchsia-300 bg-fuchsia-500/15 border-fuchsia-500/30',
-    OLE: 'text-orange-300 bg-orange-500/15 border-orange-500/30',
-    IE: 'text-slate-300 bg-slate-500/15 border-slate-500/30',
-    SKIPPED: 'text-white/40 bg-white/5 border-white/10',
+    AC: OK,
+    PARTIAL: WARN,
+    WA: FAIL,
+    TLE: WARN,
+    MLE: WARN,
+    RE: FAIL,
+    CE: FAIL,
+    OLE: WARN,
+    IE: QUIET,
+    SKIPPED: 'text-fg-3 bg-tint-1',
 };
 
 export const PHASE_LABEL: Record<Phase, string> = {
@@ -292,10 +297,10 @@ export const PHASE_LABEL: Record<Phase, string> = {
 };
 
 export const PHASE_STYLE: Record<Phase, string> = {
-    DRAFT: 'text-white/60 bg-white/5 border-white/15',
-    SCHEDULED: 'text-sky-300 bg-sky-500/10 border-sky-500/30',
-    LIVE: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/30',
-    ENDED: 'text-white/50 bg-white/5 border-white/10',
+    DRAFT: QUIET,
+    SCHEDULED: 'text-accent-text bg-accent/15',
+    LIVE: OK,
+    ENDED: 'text-fg-3 bg-tint-1',
 };
 
 export function formatDuration(ms: number): string {

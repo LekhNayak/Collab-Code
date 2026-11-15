@@ -227,10 +227,10 @@ export default function GitPanel({ workspaceId, username, onRefreshTree }: GitPa
         return (
             <div className="git-panel">
                 <div className="git-section" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '24px 16px', gap: '12px' }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Github size={22} style={{ color: '#818cf8' }} />
+                    <div style={{ width: 44, height: 44, borderRadius: 8, background: 'rgba(var(--accent-primary-rgb), 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Github size={22} style={{ color: 'var(--accent-secondary)' }} />
                     </div>
-                    <p style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600, fontSize: 13, margin: 0 }}>GitHub not connected</p>
+                    <p style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 13, margin: 0 }}>GitHub not connected</p>
                     <p className="git-hint" style={{ margin: 0, lineHeight: 1.6 }}>
                         Connect your GitHub account to use Git features — init, commit, push, and pull.
                     </p>
@@ -382,7 +382,7 @@ export default function GitPanel({ workspaceId, username, onRefreshTree }: GitPa
                     <button
                         className="git-icon-btn git-stage-all"
                         onClick={(e) => { e.stopPropagation(); handleStageAll(); }}
-                        title="Stage All"
+                        title="Stage all"
                     >
                         <Plus size={13} />
                     </button>
@@ -491,12 +491,12 @@ export default function GitPanel({ workspaceId, username, onRefreshTree }: GitPa
             </div>
 
             {/* GitHub credentials footer */}
-            <div className="git-section" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8 }}>
+            <div className="git-section" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 8 }}>
                 <button
                     className="git-hint"
                     style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', background: 'none', border: 'none', padding: '4px 8px', width: '100%', textAlign: 'left', borderRadius: 6, transition: 'color 0.15s' }}
                     onClick={() => setShowGitHubConnect(true)}
-                    onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}
+                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
                     onMouseLeave={e => (e.currentTarget.style.color = '')}
                 >
                     <Github size={12} /> Update GitHub credentials
