@@ -4,5 +4,3 @@
 postgres_data/
 .env
 /brag-output
-/.claude
-/.agents
