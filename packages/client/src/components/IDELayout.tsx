@@ -42,7 +42,7 @@ import CommentsPanel from './CommentsPanel';
 import { useRoomAccess } from '../collab/useRoomAccess';
 import { ROLE_LABEL } from '../roomApi';
 import { useDialog } from '../contexts/dialog';
-import { useCollabWorkspace, useDirtyPaths, openCollabFile } from '../collab/useCollabWorkspace';
+import { useCollabWorkspace, useDirtyPaths, useOnlineCount, useTreeChanges, openCollabFile } from '../collab/useCollabWorkspace';
 import { getTokenUser } from '../auth';
 import { recordRecent } from '../recent';
 import { useProctoring } from '../hooks/useProctoring';
@@ -530,6 +530,10 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
             console.error('Failed to refresh tree:', err);
         }
     }, [workspaceId]);
+
+    // Other people's file changes show up here without a reload, and so does the head count in the status bar
+    useTreeChanges(collab, refreshTree);
+    const onlineCount = useOnlineCount(collab);
 
     const handleCreateFile = useCallback(async (name: string, isFolder: boolean) => {
         if (!name.trim()) return;
@@ -1336,7 +1340,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                     line={cursorPos.line}
                     column={cursorPos.column}
                     branch="main"
-                    connectedUsers={1}
+                    connectedUsers={onlineCount}
                 />
             </div>
 

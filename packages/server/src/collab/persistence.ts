@@ -263,6 +263,15 @@ export function openFile(ws: string, filePath: string): OpenResult {
     return { ok: true };
 }
 
+// Tells everyone connected to a workspace that its files or folders changed (created, deleted, renamed, uploaded, pulled…),
+// so their file trees refetch. Clients watch `meta.treeRev`; only its changing matters, not the value.
+export function announceTreeChange(ws: string): void {
+    const doc = liveDoc(ws);
+    if (!doc) return;
+    const meta = doc.getMap<number>('meta');
+    doc.transact(() => meta.set('treeRev', (meta.get('treeRev') ?? 0) + 1), DISK_ORIGIN);
+}
+
 // Saves pending edits of a workspace now. Resolves to false if something couldn't be saved.
 export async function flushWorkspace(ws: string): Promise<boolean> {
     const doc = liveDoc(ws);

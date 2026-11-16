@@ -5,7 +5,7 @@
 //   saved: path -> SavedMeta hash of the last version the server saved to disk and the database
 // The server autosaves edits, so the client never writes file contents itself.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { WS_BASE } from '../config';
@@ -123,6 +123,58 @@ export async function openCollabFile(
         throw err;
     }
     await arrival.promise;
+}
+
+// How many people are in the workspace right now. A person with two tabs open counts once.
+export function useOnlineCount(ws: CollabWorkspace | null): number {
+    const [count, setCount] = useState(1);
+
+    useEffect(() => {
+        if (!ws) return;
+        const { awareness } = ws.provider;
+        const recount = () => {
+            const people = new Set<string>();
+            awareness.getStates().forEach((state, clientId) => {
+                if (!state.user) return;
+                people.add(state.user.id ? `u:${state.user.id}` : `c:${clientId}`);
+            });
+            setCount(Math.max(1, people.size));
+        };
+        awareness.on('change', recount);
+        recount();
+        return () => awareness.off('change', recount);
+    }, [ws]);
+
+    return count;
+}
+
+// Calls `onChange` whenever anyone (including this client) adds, removes, moves or uploads files, as announced by the
+// server through `meta.treeRev`. The first value that arrives on connect is a change too: it covers anything that
+// happened between loading the tree over HTTP and the live connection coming up.
+export function useTreeChanges(ws: CollabWorkspace | null, onChange: () => void): void {
+    const latest = useRef(onChange);
+    useEffect(() => {
+        latest.current = onChange;
+    });
+
+    useEffect(() => {
+        if (!ws) return;
+        const meta = ws.doc.getMap<number>('meta');
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        const observer = () => {
+            // Bursts (an upload, a pull) arrive as several bumps; refetch once
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(() => {
+                timer = null;
+                latest.current();
+            }, 200);
+        };
+        meta.observe(observer);
+        return () => {
+            meta.unobserve(observer);
+            if (timer) clearTimeout(timer);
+        };
+    }, [ws]);
 }
 
 const sameSet = (a: Set<string>, b: Set<string>) => a.size === b.size && [...a].every(x => b.has(x));

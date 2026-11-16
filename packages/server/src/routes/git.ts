@@ -4,7 +4,7 @@ import * as store from '../services/WorkspaceStore';
 import { withLock } from '../collab/lock';
 import { inWorkspace, persist, canAccessWorkspace } from '../collab/workspace';
 import { filesAccessError } from '../collab/rooms';
-import { openFile, flushWorkspace, liveContent, detachPaths, writeDetached, reloadFromDisk } from '../collab/persistence';
+import { openFile, flushWorkspace, liveContent, detachPaths, writeDetached, reloadFromDisk, announceTreeChange } from '../collab/persistence';
 import { cloneLimiter } from '../middleware/rateLimiter';
 import prisma from '../db';
 import multer from 'multer';
@@ -33,12 +33,21 @@ function workspaceAccessError(req: Request, id: unknown): string | null {
 // into the live doc and flushing it are POSTs but only read the room's files, so they count as reading.
 const readsOnly = (req: Request) => req.method === 'GET' || req.method === 'HEAD' || /^\/(open|flush)\//.test(req.path);
 
+// Routes that can add, remove or move files and folders
+const TREE_CHANGING = /^\/(file|upload|pull|checkout)\//;
+
 router.param('workspaceId', async (req, res, next, id) => {
     const error = workspaceAccessError(req, id);
     if (error) return res.status(error.startsWith('Invalid') ? 400 : 403).json({ error });
     try {
         const denied = await filesAccessError(id, (req as any).user?.id, !readsOnly(req));
         if (denied) return res.status(403).json({ error: denied });
+        // Once a change to the files has gone through, let everyone else in the workspace know to refresh their tree
+        if (TREE_CHANGING.test(req.path) && !readsOnly(req)) {
+            res.once('finish', () => {
+                if (res.statusCode < 400) announceTreeChange(id);
+            });
+        }
         next();
     } catch (err) {
         next(err);
