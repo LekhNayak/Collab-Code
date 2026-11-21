@@ -5,6 +5,7 @@ import { saveGithubCredentials } from '../api';
 import Button from './ui/Button';
 import Field from './ui/Field';
 import IconTile from './ui/IconTile';
+import { useDialogPanel } from './ui/useDialog';
 
 interface GitHubOnboardingProps {
     onComplete: () => void;
@@ -17,6 +18,8 @@ export default function GitHubOnboarding({ onComplete, isUpdate = false }: GitHu
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [saved, setSaved] = useState(false);
+    // A real dialog: announced, focus moves in and stays, Esc skips (or cancels), focus goes back afterwards
+    const dialog = useDialogPanel<HTMLDivElement>(isUpdate ? 'Update GitHub credentials' : 'Connect GitHub', onComplete);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -41,7 +44,8 @@ export default function GitHubOnboarding({ onComplete, isUpdate = false }: GitHu
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
             <motion.div
-                className="w-full max-w-md overflow-hidden rounded-xl bg-raised shadow-float"
+                {...dialog.props}
+                className="w-full max-w-md overflow-hidden rounded-xl bg-raised shadow-float focus:outline-none"
                 initial={{ opacity: 0, scale: 0.97, y: 8 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
@@ -65,7 +69,8 @@ export default function GitHubOnboarding({ onComplete, isUpdate = false }: GitHu
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-accent-text transition-colors hover:text-fg"
                         >
-                            personal access token <ExternalLink size={11} />
+                            personal access token <ExternalLink size={11} aria-hidden />
+                            <span className="sr-only"> (opens in a new tab)</span>
                         </a>{' '}
                         (classic, <code className="rounded bg-tint-3 px-1.5 py-0.5 font-mono text-xs text-fg">repo</code> scope).
                         Your token is stored in your account and only used for Git operations.

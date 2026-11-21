@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ChevronRight, FilePlus2, FolderPlus, Trash2, Pencil, Download } from 'lucide-react';
+import { ChevronRight, FilePlus2, FolderPlus, FolderInput, Trash2, Pencil, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import FileIcon from './FileIcon';
 
@@ -65,6 +65,8 @@ export default function FileExplorer({
     const [inlineName, setInlineName] = useState('');
     const [renamingPath, setRenamingPath] = useState<string | null>(null);
     const [renameValue, setRenameValue] = useState('');
+    // The same inline box renames ('name') or moves ('path'): moving must not need drag and drop (WCAG 2.5.7)
+    const [renameMode, setRenameMode] = useState<'name' | 'path'>('name');
     const menuRef = useRef<HTMLDivElement>(null);
 
     // Close context menu on outside click
@@ -90,9 +92,18 @@ export default function FileExplorer({
 
     const startRename = useCallback((node: FileNode) => {
         if (!onRenameFile) return; // read-only: no rename
+        setRenameMode('name');
         setRenamingPath(node.path);
         setRenameValue(node.name);
     }, [onRenameFile]);
+
+    // Move: edit the full path, e.g. "utils/helpers.py" -> "lib/helpers.py"
+    const startMove = useCallback((node: FileNode) => {
+        if (!onMoveFile) return;
+        setRenameMode('path');
+        setRenamingPath(node.path);
+        setRenameValue(node.path.replace(/^\/+/, ''));
+    }, [onMoveFile]);
 
     // A menu opened from the keyboard takes focus; Esc or Tab puts it back on the row it came from
     useEffect(() => {
@@ -143,10 +154,15 @@ export default function FileExplorer({
     const handleRenameSubmit = useCallback((e: React.FormEvent) => {
         e.preventDefault();
         if (!renamingPath || !renameValue.trim()) return;
-        onRenameFile?.(renamingPath, renameValue.trim());
+        if (renameMode === 'path') {
+            const target = '/' + renameValue.trim().replace(/^\/+/, '').replace(/\/+$/, '');
+            if (target !== renamingPath && !target.startsWith(renamingPath + '/')) onMoveFile?.(renamingPath, target);
+        } else {
+            onRenameFile?.(renamingPath, renameValue.trim());
+        }
         setRenamingPath(null);
         setRenameValue('');
-    }, [renamingPath, renameValue, onRenameFile]);
+    }, [renamingPath, renameValue, renameMode, onRenameFile, onMoveFile]);
 
     return (
         <div
@@ -177,6 +193,7 @@ export default function FileExplorer({
                     onInlineSubmit={handleInlineSubmit}
                     onInlineCancel={() => { setInlineCreate(null); setInlineName(''); }}
                     renamingPath={renamingPath}
+                    renameLabel={renameMode === 'path' ? 'Move to: path from the workspace root' : 'New name'}
                     renameValue={renameValue}
                     onRenameValueChange={setRenameValue}
                     onRenameSubmit={handleRenameSubmit}
@@ -238,6 +255,14 @@ export default function FileExplorer({
                             <Pencil size={13} /> Rename
                         </button>
                     )}
+                    {onMoveFile && (
+                        <button role="menuitem" onClick={() => {
+                            startMove(contextMenu.node);
+                            setContextMenu(null);
+                        }}>
+                            <FolderInput size={13} /> Move to…
+                        </button>
+                    )}
                     <button role="menuitem" onClick={() => {
                         onDownloadFile?.(contextMenu.node.path);
                         setContextMenu(null);
@@ -271,6 +296,7 @@ interface TreeItemProps {
     onInlineSubmit: (e: React.FormEvent) => void;
     onInlineCancel: () => void;
     renamingPath: string | null;
+    renameLabel: string;
     renameValue: string;
     onRenameValueChange: (v: string) => void;
     onRenameSubmit: (e: React.FormEvent) => void;
@@ -291,6 +317,7 @@ function TreeItem({
     onInlineSubmit,
     onInlineCancel,
     renamingPath,
+    renameLabel,
     renameValue,
     onRenameValueChange,
     onRenameSubmit,
@@ -436,7 +463,7 @@ function TreeItem({
                     <form onSubmit={onRenameSubmit} className="inline-rename-form">
                         <input
                             autoFocus
-                            aria-label="New name"
+                            aria-label={renameLabel}
                             className="inline-create-input"
                             value={renameValue}
                             onChange={(e) => onRenameValueChange(e.target.value)}
@@ -499,6 +526,7 @@ function TreeItem({
                                     onInlineSubmit={onInlineSubmit}
                                     onInlineCancel={onInlineCancel}
                                     renamingPath={renamingPath}
+                                    renameLabel={renameLabel}
                                     renameValue={renameValue}
                                     onRenameValueChange={onRenameValueChange}
                                     onRenameSubmit={onRenameSubmit}

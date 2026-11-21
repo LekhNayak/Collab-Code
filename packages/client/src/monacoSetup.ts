@@ -22,19 +22,37 @@ self.MonacoEnvironment = {
 
 loader.config({ monaco });
 
+// Tab inside the editor indents, so the way out has to be told (WCAG 2.1.2): Monaco's own "Tab moves focus" toggle.
+// Its keybinding is Ctrl+M, and Ctrl+Shift+M on a Mac.
+const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+export const TAB_FOCUS_SHORTCUT = IS_MAC ? 'Ctrl+Shift+M' : 'Ctrl+M';
+export const editorAriaLabel = (what: string) =>
+    `${what}. Press ${IS_MAC ? 'Control Shift M' : 'Control M'} to switch the Tab key between indenting and moving focus out of the editor.`;
+
 // The editor surface in the product's own grays: the same canvas, hairlines and blue accent as the chrome around it
 export const MONACO_DARK = 'colab-dark';
 export const MONACO_LIGHT = 'colab-light';
 export const monacoThemeFor = (theme: 'light' | 'dark') => (theme === 'dark' ? MONACO_DARK : MONACO_LIGHT);
 
+// Token colors Monaco's own themes ship below 4.5:1 on our editor background or current-line highlight (WCAG 1.4.3),
+// nudged lighter (dark) or darker (light) just far enough to pass on both
 monaco.editor.defineTheme(MONACO_DARK, {
     base: 'vs-dark',
     inherit: true,
-    rules: [],
+    rules: [
+        { token: 'variable.predefined', foreground: '7086bc' },
+        { token: 'comment', foreground: '699258' },
+        { token: 'regexp', foreground: 'b86f9b' },
+        { token: 'delimiter.html', foreground: '848484' },
+        { token: 'delimiter.xml', foreground: '848484' },
+        { token: 'tag.id.pug', foreground: '6386b6' },
+        { token: 'tag.class.pug', foreground: '6386b6' },
+        { token: 'string.sql', foreground: 'ff2b2b' },
+    ],
     colors: {
         'editor.background': '#141416',
         'editor.foreground': '#d4d4d8',
-        'editorLineNumber.foreground': '#56565b',
+        'editorLineNumber.foreground': '#8e8e94',
         'editorLineNumber.activeForeground': '#a1a1a6',
         'editor.lineHighlightBackground': '#1a1a1d',
         'editor.lineHighlightBorder': '#00000000',
@@ -69,11 +87,29 @@ monaco.editor.defineTheme(MONACO_DARK, {
 monaco.editor.defineTheme(MONACO_LIGHT, {
     base: 'vs',
     inherit: true,
-    rules: [],
+    rules: [
+        { token: 'number', foreground: '087a50' },
+        { token: 'annotation', foreground: '6b6b6b' },
+        { token: 'type', foreground: '007878' },
+        { token: 'tag.id.pug', foreground: '486c9d' },
+        { token: 'tag.class.pug', foreground: '486c9d' },
+        { token: 'metatag', foreground: 'd90000' },
+        { token: 'metatag.content.html', foreground: 'd40000' },
+        { token: 'metatag.html', foreground: '6b6b6b' },
+        { token: 'metatag.xml', foreground: '6b6b6b' },
+        { token: 'attribute.name', foreground: 'd40000' },
+        { token: 'attribute.value.number', foreground: '087a50' },
+        { token: 'attribute.value.unit', foreground: '087a50' },
+        { token: 'string.sql', foreground: 'd40000' },
+        { token: 'operator.sql', foreground: '5d6b78' },
+        { token: 'predefined.sql', foreground: 'bb00bb' },
+    ],
     colors: {
         'editor.background': '#ffffff',
         'editor.foreground': '#2a2a2d',
-        'editorLineNumber.foreground': '#b0b0b6',
+        'editorLineNumber.foreground': '#64646b',
+        // the second bracket-pair color ships at 3.9:1 on white
+        'editorBracketHighlight.foreground2': '#297a29',
         'editorLineNumber.activeForeground': '#55555b',
         'editor.lineHighlightBackground': '#f1f0ee',
         'editor.lineHighlightBorder': '#00000000',

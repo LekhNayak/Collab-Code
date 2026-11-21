@@ -198,9 +198,10 @@
   --accent-primary-rgb: 37, 99, 235;
   --accent-hover: #1d4ed8;
   --accent-secondary: #3b82f6;
-  --accent-success: #16a34a;
+  /* Status colors are also text here (terminal prompt, exam banner), so they need 4.5:1 on white and the warm grays */
+  --accent-success: #15803d;
   --accent-warning: #b45309;
-  --accent-error: #dc2626;
+  --accent-error: #b91c1c;
   --accent-info: #2563eb;
 }
 
@@ -267,7 +268,8 @@ body,
   outline-offset: 2px;
 }
 
-input:focus-visible,
+/* Text fields draw their own focus ring (.ui-field). Checkboxes and radios keep the outline: they have no other one. */
+input:not([type='checkbox']):not([type='radio']):focus-visible,
 textarea:focus-visible,
 select:focus-visible {
   outline: none;
@@ -350,6 +352,16 @@ html.theme-switching *::after {
 
   .ui-field:disabled {
     @apply cursor-not-allowed opacity-50;
+  }
+
+  /* A field built from a wrapper (an icon beside a bare select): the wrapper carries the edge and the focus ring */
+  .ui-field-shell {
+    box-shadow: inset 0 0 0 1px rgb(var(--ink) / var(--input-a));
+    transition: box-shadow 180ms var(--ease-arrive);
+  }
+
+  .ui-field-shell:focus-within {
+    box-shadow: inset 0 0 0 1px rgb(var(--focus)), 0 0 0 3px rgb(var(--accent) / 0.25);
   }
 
   .ui-label {
@@ -594,6 +606,32 @@ html.theme-switching *::after {
 .pd-paused *::before,
 .pd-paused *::after {
   animation-play-state: paused !important;
+}
+
+/* ===== Code editor: what Tab does, shown while the editor has focus (components/EditorKeyboardHint) ===== */
+.editor-host {
+  position: relative;
+  height: 100%;
+}
+
+.editor-kbd-hint {
+  position: absolute;
+  right: 18px;
+  bottom: 10px;
+  z-index: 5;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: rgb(var(--raised));
+  box-shadow: 0 0 0 1px rgb(var(--ink) / var(--line-strong-a));
+  color: rgb(var(--fg-2));
+  font-family: var(--font-family);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.editor-kbd-hint kbd {
+  font-family: var(--font-mono);
+  color: rgb(var(--fg));
 }
 
 /* ===== Forced colors: box-shadow rings vanish there, so fields get a real outline ===== */

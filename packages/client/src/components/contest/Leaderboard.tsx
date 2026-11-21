@@ -49,7 +49,7 @@ export default function Leaderboard({ rows, problems, startsAt, highlightUserId,
                                 </td>
                                 <td className="py-2.5 px-3 text-fg font-medium">
                                     {row.username}
-                                    {highlighted && <span className="text-accent-text/80 text-xs ml-2">(you)</span>}
+                                    {highlighted && <span className="text-accent-text text-xs ml-2">(you)</span>}
                                     {row.status === 'BLOCKED' && <span className="text-danger-text text-xs ml-2">blocked</span>}
                                 </td>
                                 <td className="py-2.5 px-3 text-right font-semibold text-fg tabular-nums">{formatScore(row.total)}</td>

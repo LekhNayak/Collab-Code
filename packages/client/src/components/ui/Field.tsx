@@ -11,6 +11,8 @@ interface FieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
 export default function Field({ label, hint, error, icon, className = '', id, ...rest }: FieldProps) {
     const autoId = useId();
     const inputId = id ?? autoId;
+    // The error (or hint) is tied to the input, so it is read along with the field's name
+    const noteId = error || hint ? `${inputId}-note` : undefined;
     return (
         <div className="group/field flex w-full flex-col gap-1.5">
             {label && <label htmlFor={inputId} className="ui-label group-focus-within/field:text-accent-text">{label}</label>}
@@ -19,11 +21,12 @@ export default function Field({ label, hint, error, icon, className = '', id, ..
                 <input
                     id={inputId}
                     aria-invalid={error ? true : undefined}
+                    aria-describedby={noteId}
                     className={`ui-field ${icon ? 'pl-9' : ''} ${error ? '!shadow-[inset_0_0_0_1px_rgb(var(--danger)),0_0_0_3px_rgb(var(--danger)_/_0.2)]' : ''} ${className}`}
                     {...rest}
                 />
             </div>
-            {error ? <p className="text-xs text-danger-text">{error}</p> : hint ? <p className="text-xs text-fg-3">{hint}</p> : null}
+            {error ? <p id={noteId} className="text-xs text-danger-text">{error}</p> : hint ? <p id={noteId} className="text-xs text-fg-3">{hint}</p> : null}
         </div>
     );
 }

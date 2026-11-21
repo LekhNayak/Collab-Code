@@ -414,7 +414,8 @@ export default function Terminal({
             className="terminal-container"
             onClick={() => inputRef.current?.focus()}
         >
-            <div className="terminal-lines">
+            {/* A log: new output is read out as it arrives */}
+            <div className="terminal-lines" role="log" aria-label="Terminal output">
                 {lines.map((line, i) => (
                     <div key={`${id}-${i}`} className={`terminal-line terminal-line--${line.type}`}>
                         {line.content || '\u00A0'}

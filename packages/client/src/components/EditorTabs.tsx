@@ -61,7 +61,6 @@ export default function EditorTabs({ tabs, activeTab, onTabSelect, onTabClose }:
                             role="tab"
                             aria-selected={active}
                             aria-keyshortcuts="Delete"
-                            aria-label={tab.isModified ? `${tab.name}, unsaved changes` : tab.name}
                             tabIndex={active || (!hasActive && index === 0) ? 0 : -1}
                             className={`editor-tab${active ? ' active' : ''}`}
                             onClick={() => onTabSelect(tab.path)}
@@ -70,11 +69,16 @@ export default function EditorTabs({ tabs, activeTab, onTabSelect, onTabClose }:
                             <span className="tab-icon" aria-hidden>
                                 <FileIcon name={tab.name} size={14} />
                             </span>
+                            {/* The name is the tab's accessible name, so what is read matches what is shown (WCAG 2.5.3) */}
                             <span className="tab-name">{tab.name}</span>
-                            {tab.isModified && <span className="tab-modified" aria-hidden />}
-                            <motion.span
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
+                            {tab.isModified && (
+                                <>
+                                    <span className="tab-modified" aria-hidden />
+                                    <span className="sr-only">, unsaved changes</span>
+                                </>
+                            )}
+                            {/* Mouse only, so it stays out of the tab order (a motion element with whileTap would add itself to it) */}
+                            <span
                                 className="tab-close"
                                 title={`Close ${tab.name}`}
                                 aria-hidden
@@ -84,7 +88,7 @@ export default function EditorTabs({ tabs, activeTab, onTabSelect, onTabClose }:
                                 }}
                             >
                                 <X size={14} />
-                            </motion.span>
+                            </span>
                         </motion.div>
                     );
                 })}

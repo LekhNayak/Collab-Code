@@ -433,14 +433,14 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                 <button onClick={() => navigate('/contests')} className="p-2 rounded-lg hover:bg-tint-3 text-fg-2" title="Leave" aria-label="Leave the contest"><ArrowLeft size={18} /></button>
                 <Trophy size={18} className="text-accent-text shrink-0" />
                 <div className="font-semibold truncate">{contest.title}</div>
-                {isOwner && <span className="inline-flex h-5 items-center rounded-full px-2 text-[11px] font-medium  bg-accent/10 text-accent-text flex items-center gap-1 shrink-0"><FlaskConical size={12} /> Organizer test mode: not ranked</span>}
+                {isOwner && <span className="inline-flex h-5 items-center rounded-full px-2 text-[11px] font-medium  bg-accent/10 text-accent-text gap-1 shrink-0"><FlaskConical size={12} /> Organizer test mode: not ranked</span>}
                 <div className="flex-1" />
                 <div className="flex items-center gap-2 text-sm">
                     <Clock size={16} className="text-fg-3" />
                     {contest.phase === 'LIVE' ? <Countdown target={contest.endsAt} offsetMs={offsetMs} className="font-semibold text-success-text" /> : <span className="text-fg-3">{PHASE_LABEL[contest.phase]}</span>}
                 </div>
                 <div className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-tint-2 tabular-nums">
-                    {formatScore(totalScore)} <span className="text-fg-3">/ {maxScore}</span>
+                    {formatScore(totalScore)} <span className="text-fg-2">/ {maxScore}</span>
                 </div>
                 <ThemeToggle />
                 <button onClick={() => setShowBoard(true)} className={`${panelButton} bg-accent/15  text-accent-text hover:bg-accent/25`}>
@@ -515,7 +515,7 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                                 value={language?.id ?? ''}
                                 onChange={e => chooseLanguage(e.target.value)}
                                 disabled={readOnly}
-                                className="bg-canvas border border-line rounded-lg px-2.5 py-1.5 text-sm outline-none "
+                                className="ui-field w-auto min-h-0 px-2.5 py-1.5 text-sm"
                             >
                                 {contest.languages.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
                             </select>
@@ -586,7 +586,7 @@ function Arena({ info, offsetMs, onReload }: { info: ResolveResponse; offsetMs: 
                                             value={customInput}
                                             onChange={e => setCustomInput(e.target.value)}
                                             placeholder={isSql ? 'INSERT statements to run after the schema (the sample data is not included)' : 'Input (stdin)'}
-                                            className="flex-1 min-h-[90px] bg-canvas border border-line rounded-lg p-2.5 font-mono text-xs outline-none "
+                                            className="ui-field flex-1 min-h-[90px] p-2.5 font-mono text-xs"
                                         />
                                         <button onClick={runCustom} disabled={!ytext || running || readOnly} className={`${panelButton} self-start bg-tint-2 hover:bg-tint-3`}>
                                             {running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />} {isSql ? 'Run on this data' : 'Run with this input'}

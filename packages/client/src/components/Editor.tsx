@@ -5,7 +5,8 @@ import type * as Y from 'yjs';
 import type { WebsocketProvider } from 'y-websocket';
 import { sendExamAlert } from '../api';
 import { MonacoBinding } from '../collab/monacoBinding';
-import { monacoThemeFor } from '../monacoSetup';
+import { editorAriaLabel, monacoThemeFor } from '../monacoSetup';
+import EditorKeyboardHint from './EditorKeyboardHint';
 import { useTheme } from '../contexts/theme';
 
 interface CodeEditorProps {
@@ -81,6 +82,8 @@ export default function CodeEditor({
     const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
     const monacoRef = useRef<typeof Monaco | null>(null);
     const [ready, setReady] = useState(false);
+    // The mounted editor, for the keyboard hint (refs can't be read while rendering)
+    const [mounted, setMounted] = useState<{ editor: Monaco.editor.IStandaloneCodeEditor; monaco: typeof Monaco } | null>(null);
     const models = useRef(new Map<string, OpenModel>());
     const viewStates = useRef(new Map<string, Monaco.editor.ICodeEditorViewState | null>());
     const shownPath = useRef('');
@@ -162,7 +165,7 @@ export default function CodeEditor({
                     top: -18px;
                     left: -1px;
                     background: ${uColor};
-                    color: #fff;
+                    color: #111113;
                     font-size: 10px;
                     font-weight: 700;
                     font-family: system-ui, sans-serif;
@@ -263,9 +266,12 @@ export default function CodeEditor({
         editor.setModel(null);
         placeholder?.dispose();
         setReady(true);
+        setMounted({ editor, monaco });
     };
 
+    const fileName = path ? path.split('/').pop() : '';
     return (
+        <div className="editor-host">
         <Editor
             height="100%"
             theme={monacoThemeFor(appTheme)}
@@ -294,7 +300,10 @@ export default function CodeEditor({
                 // Never let Monaco rewrite a file's line terminators on open (that would mark it unsaved)
                 unusualLineTerminators: 'off',
                 readOnly,
+                ariaLabel: editorAriaLabel(`${readOnly ? 'Read-only code' : 'Code'} editor${fileName ? `, ${fileName}` : ''}`),
             }}
         />
+        <EditorKeyboardHint editor={mounted?.editor ?? null} monaco={mounted?.monaco ?? null} />
+        </div>
     );
 }

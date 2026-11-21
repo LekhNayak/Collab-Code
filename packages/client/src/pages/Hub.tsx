@@ -162,7 +162,7 @@ function RecentStrip({ items, now, onOpen, onRemove }: {
                                 onClick={() => onRemove(item)}
                                 aria-label={`Remove ${label} from recent`}
                                 title="Remove"
-                                className="mr-1.5 rounded-md p-1.5 text-fg-3 transition-colors hover:bg-tint-2 hover:text-fg"
+                                className="mr-1.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-fg-3 transition-colors hover:bg-tint-2 hover:text-fg"
                             >
                                 <X size={13} />
                             </button>

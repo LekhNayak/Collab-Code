@@ -122,11 +122,11 @@ export default function ContestManage() {
     return (
         // Below xl the page scrolls as one column; from xl up it's a fixed bento where each column scrolls on its own
         <div className="h-[100dvh] w-full bg-canvas text-fg overflow-y-auto xl:overflow-hidden">
-            <div className="max-w-[1920px] mx-auto px-5 md:px-8 py-6 xl:h-full xl:flex xl:flex-col">
+            <main id="main-content" tabIndex={-1} className="max-w-[1920px] mx-auto px-5 md:px-8 py-6 xl:h-full xl:flex xl:flex-col focus:outline-none">
                 {/* Header */}
                 <div className="flex flex-wrap items-center gap-4 justify-between mb-6 shrink-0">
                     <div className="flex items-center gap-4 min-w-0">
-                        <button onClick={() => navigate('/contests')} className="p-2.5 rounded-lg bg-tint-2 hover:bg-tint-3" title="All contests">
+                        <button onClick={() => navigate('/contests')} className="p-2.5 rounded-lg bg-tint-2 hover:bg-tint-3" title="All contests" aria-label="All contests">
                             <ArrowLeft size={18} />
                         </button>
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent-text"><Trophy size={20} /></div>
@@ -296,7 +296,7 @@ export default function ContestManage() {
                                         >
                                             <span className="font-semibold mr-1.5">{p.index}</span>{p.title}
                                             {p.kind === 'SQL' && <span className="ml-2 px-1.5 py-0.5 rounded bg-accent/15 text-accent-text text-[10px] font-semibold">SQL</span>}
-                                            <span className={`ml-2 text-xs ${p.tests.length === 0 ? 'text-danger-text' : 'text-fg-3'}`}>{p.tests.length} tests</span>
+                                            <span className={`ml-2 text-xs ${p.tests.length === 0 ? 'text-danger-text' : 'text-fg-2'}`}>{p.tests.length} tests</span>
                                         </button>
                                     ))}
                                 </div>
@@ -318,7 +318,7 @@ export default function ContestManage() {
                         )}
                     </div>
                 </div>
-            </div>
+            </main>
         </div>
     );
 }
@@ -508,7 +508,7 @@ function ProblemEditor({ contest, problem, judge, busy, act, onError, refresh }:
             <div>
                 <div className="flex items-center justify-between mb-1.5">
                     <label htmlFor="cm-statement" className={`${labelClass} mb-0`}>Statement (markdown)</label>
-                    <button onClick={() => setPreview(p => !p)} className="text-xs text-accent-text/80 hover:text-accent-text flex items-center gap-1">
+                    <button onClick={() => setPreview(p => !p)} className="text-xs text-accent-text hover:text-fg flex items-center gap-1">
                         {preview ? <><Pencil size={12} /> Edit</> : <><Eye size={12} /> Preview</>}
                     </button>
                 </div>
@@ -766,7 +766,7 @@ function TestsPanel({ contest, problem, judge, onError, refresh }: {
                                 <th className="text-left py-2 px-3">{isSql ? 'Dataset' : 'Input'}</th>
                                 <th className="text-left py-2 px-3">{isSql ? 'Expected result' : 'Expected output'}</th>
                                 <th className="text-center py-2 px-3 w-20">Sample</th>
-                                <th className="py-2 px-3 w-20" />
+                                <th className="py-2 px-3 w-20"><span className="sr-only">Actions</span></th>
                             </tr>
                         </thead>
                         <tbody>

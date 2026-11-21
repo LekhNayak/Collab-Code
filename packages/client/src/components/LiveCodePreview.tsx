@@ -5,7 +5,7 @@ import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { MonacoBinding } from '../collab/monacoBinding';
 import { getLanguageFromFilename } from './Editor';
-import { monacoThemeFor } from '../monacoSetup';
+import { editorAriaLabel, monacoThemeFor } from '../monacoSetup';
 import { useTheme } from '../contexts/theme';
 import { WS_BASE } from '../config';
 
@@ -99,6 +99,7 @@ export default function LiveCodePreview({ roomName, params, followUserId, onConn
                 scrollBeyondLastLine: false,
                 padding: { top: 10 },
                 readOnly: true,
+                ariaLabel: editorAriaLabel('Live read-only view of the code'),
             }}
         />
     );

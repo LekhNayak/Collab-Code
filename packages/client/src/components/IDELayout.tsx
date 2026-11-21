@@ -9,6 +9,8 @@ import {
     GitBranch,
     PanelBottomOpen,
     PanelBottomClose,
+    Maximize2,
+    Minimize2,
     Users,
     Share2,
     Copy,
@@ -52,6 +54,10 @@ import { getFileTree, readFile, flushWorkspace, initWorkspace, createFile as api
 import '../ide.css';
 
 type SidebarPanel = 'explorer' | 'search' | 'git' | 'users' | 'comments' | 'extensions';
+
+// Bottom panel height limits, for dragging, the keyboard and maximize
+const PANEL_MIN = 100;
+const PANEL_MAX = 600;
 
 export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?: boolean }) {
     const { roomId } = useParams<{ roomId?: string }>();
@@ -124,6 +130,9 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
 
     const [examData, setExamData] = useState<ExamRoom | null>(null);
     const [timeLeft, setTimeLeft] = useState<string>('');
+    // Spoken at a few milestones only; the visible clock ticks every second and is not a live region
+    const [timeNotice, setTimeNotice] = useState('');
+    const lastTimeNotice = useRef<number | null>(null);
 
     // Session & Extensions state
     const [sessionData, setSessionData] = useState<SessionInfo | null>(null);
@@ -166,8 +175,22 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
 
             if (diff <= 0) {
                 setTimeLeft('00:00:00 - Time is up!');
+                if (lastTimeNotice.current !== 0) {
+                    lastTimeNotice.current = 0;
+                    setTimeNotice('Time is up.');
+                }
                 if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
                 return;
+            }
+
+            // Milestones at 30, 10, 5 and 1 minute(s) left; one already passed when the page loaded isn't spoken
+            const minutesLeft = Math.ceil(diff / 60000);
+            const milestone = [1, 5, 10, 30].find(m => minutesLeft <= m) ?? Infinity;
+            if (lastTimeNotice.current === null) {
+                lastTimeNotice.current = milestone;
+            } else if (milestone < lastTimeNotice.current) {
+                lastTimeNotice.current = milestone;
+                setTimeNotice(`${milestone} minute${milestone === 1 ? '' : 's'} left in the exam.`);
             }
 
             const hours = Math.floor(diff / (1000 * 60 * 60));
@@ -268,7 +291,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
         const handleMouseMove = (ev: MouseEvent) => {
             if (!isDraggingPanel.current) return;
             const delta = dragStartY.current - ev.clientY;
-            const newHeight = Math.max(100, Math.min(600, dragStartHeight.current + delta));
+            const newHeight = Math.max(PANEL_MIN, Math.min(PANEL_MAX, dragStartHeight.current + delta));
             setPanelHeight(newHeight);
         };
 
@@ -810,6 +833,17 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
         setTimeout(() => setCopied(false), 2000);
     };
 
+    // Panel size from the keyboard (the handle is a separator) and with one click (maximize/restore), not only by dragging
+    const resizePanelBy = (delta: number) => setPanelHeight(h => Math.max(PANEL_MIN, Math.min(PANEL_MAX, h + delta)));
+    const panelMaximized = panelHeight >= PANEL_MAX;
+    const sidebarTitle =
+        activePanel === 'explorer' ? 'Explorer'
+        : activePanel === 'search' ? 'Search'
+        : activePanel === 'git' ? 'Source control'
+        : activePanel === 'users' ? 'Collaborators'
+        : activePanel === 'comments' ? 'Comments'
+        : 'Extensions';
+
     const activeYText = (activeTab && collab?.files.get(activeTab)) || null;
     const activeLanguage = tabs.find((t) => t.path === activeTab)?.language || 'plaintext';
 
@@ -869,17 +903,18 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
 
             {/* Exam timer bar */}
             {isExamMode && timeLeft && (
-                <div className="exam-banner" role="status">
-                    <Lock size={13} />
+                <header className="exam-banner">
+                    <Lock size={13} aria-hidden />
                     <span>Exam in progress</span>
-                    <span className="exam-banner-sep">·</span>
+                    <span className="exam-banner-sep" aria-hidden>·</span>
                     <span>Time remaining: <strong>{timeLeft}</strong></span>
-                </div>
+                </header>
             )}
+            {isExamMode && <div className="sr-only" role="status">{timeNotice}</div>}
 
             <div className={`ide-layout${!sidebarVisible ? ' sidebar-collapsed' : ''}`} style={{ height: isExamMode && timeLeft ? 'calc(100% - 32px)' : '100%' }}>
                 {/* Activity Bar */}
-                <div className="activity-bar">
+                <nav className="activity-bar" aria-label="Views">
                     <button
                         type="button"
                         className={`activity-bar-icon${activePanel === 'explorer' && sidebarVisible ? ' active' : ''}`}
@@ -951,18 +986,13 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                     <div className="activity-bar-bottom">
                         <ThemeToggle variant="bare" className="activity-bar-icon" />
                     </div>
-                </div>
+                </nav>
 
                 {/* Sidebar */}
                 {sidebarVisible && (
-                    <div className="sidebar">
+                    <aside className="sidebar" aria-labelledby="sidebar-title">
                         <div className="sidebar-header">
-                            {activePanel === 'explorer' && 'Explorer'}
-                            {activePanel === 'search' && 'Search'}
-                            {activePanel === 'git' && 'Source control'}
-                            {activePanel === 'users' && 'Collaborators'}
-                            {activePanel === 'comments' && 'Comments'}
-                            {activePanel === 'extensions' && 'Extensions'}
+                            <h2 id="sidebar-title" className="sidebar-title">{sidebarTitle}</h2>
                             {isExamMode && (
                                 <div className="sidebar-header-actions exam-mode-label">
                                     Exam mode
@@ -970,9 +1000,10 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                             )}
                             {roomId && !isExamMode && (
                                 <div className="sidebar-header-actions">
-                                    <button onClick={handleCopyRoomLink} title="Copy room link">
-                                        {copied ? <span style={{ fontSize: 10 }}>Copied!</span> : <Share2 size={14} />}
+                                    <button onClick={handleCopyRoomLink} title="Copy room link" aria-label="Copy room link">
+                                        {copied ? <span style={{ fontSize: 10 }}>Copied!</span> : <Share2 size={14} aria-hidden />}
                                     </button>
+                                    <span className="sr-only" role="status">{copied ? 'Room link copied' : ''}</span>
                                 </div>
                             )}
                         </div>
@@ -1009,6 +1040,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                                 className="explorer-action-btn"
                                                 onClick={() => { setCreatingFile('file'); setNewFileName(''); }}
                                                 title="New file"
+                                                aria-label="New file"
                                             >
                                                 <FilePlus2 size={14} />
                                             </button>
@@ -1016,6 +1048,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                                 className="explorer-action-btn"
                                                 onClick={() => { setCreatingFile('folder'); setNewFileName(''); }}
                                                 title="New folder"
+                                                aria-label="New folder"
                                             >
                                                 <FolderPlus size={14} />
                                             </button>
@@ -1027,6 +1060,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                                 className="explorer-action-btn"
                                                 onClick={() => handleDownloadFile()}
                                                 title="Download workspace"
+                                                aria-label="Download workspace"
                                             >
                                                 <Download size={14} />
                                             </button>
@@ -1036,11 +1070,24 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                                     className="explorer-action-btn"
                                                     onClick={() => setUploadMenuOpen(v => !v)}
                                                     title="Upload folder or ZIP"
+                                                    aria-label="Upload folder or ZIP"
+                                                    aria-haspopup="true"
+                                                    aria-expanded={uploadMenuOpen}
+                                                    aria-controls="upload-menu"
                                                 >
                                                     <Upload size={14} />
                                                 </button>
                                                 {uploadMenuOpen && (
-                                                    <div className="upload-dropdown">
+                                                    <div
+                                                        id="upload-menu"
+                                                        className="upload-dropdown"
+                                                        onKeyDown={(e) => {
+                                                            if (e.key !== 'Escape') return;
+                                                            e.stopPropagation();
+                                                            setUploadMenuOpen(false);
+                                                            uploadMenuRef.current?.querySelector<HTMLButtonElement>('.explorer-action-btn')?.focus();
+                                                        }}
+                                                    >
                                                         <button
                                                             className="upload-dropdown-item"
                                                             onClick={() => { setUploadMenuOpen(false); folderInputRef.current?.click(); }}
@@ -1079,14 +1126,17 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                             />
                                         </div>
                                         {/* Upload status bar */}
-                                        {uploadStatus && (
-                                            <div className={`upload-status upload-status--${uploadStatus.type}`}>
-                                                {uploadStatus.type === 'uploading' && (
-                                                    <span className="upload-spinner" />
-                                                )}
-                                                {uploadStatus.message}
-                                            </div>
-                                        )}
+                                        {/* Always present, so a new message is announced */}
+                                        <div role="status">
+                                            {uploadStatus && (
+                                                <div className={`upload-status upload-status--${uploadStatus.type}`}>
+                                                    {uploadStatus.type === 'uploading' && (
+                                                        <span className="upload-spinner" aria-hidden />
+                                                    )}
+                                                    {uploadStatus.message}
+                                                </div>
+                                            )}
+                                        </div>
                                         {creatingFile && (
                                             <form
                                                 className="new-file-form"
@@ -1167,11 +1217,14 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                 </>
                             )}
                         </div>
-                    </div>
+                    </aside>
                 )}
 
                 {/* Main Editor Area */}
                 <div className="main-area" id="main-content" role="main" tabIndex={-1} style={{ outline: 'none' }}>
+                    <h1 className="sr-only">
+                        {isExamMode ? `Exam${examData?.title ? `: ${examData.title}` : ''}` : `Room ${sessionName || roomId || ''}`}
+                    </h1>
                     <div className="editor-topbar">
                         <EditorTabs
                             tabs={displayTabs}
@@ -1180,7 +1233,7 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                             onTabClose={handleTabClose}
                         />
                         <div className="user-badge">
-                            <div className="user-badge-avatar">
+                            <div className="user-badge-avatar" aria-hidden>
                                 {username.charAt(0).toUpperCase()}
                             </div>
                             <span className="user-badge-name">{username}</span>
@@ -1250,10 +1303,24 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                     {/* Bottom Panel */}
                     {panelOpen && (
                         <div className="bottom-panel" style={{ height: panelHeight }}>
-                            {/* Drag resize handle */}
+                            {/* Resize: drag it, or focus it and use the arrow keys (Home/End for the extremes) */}
                             <div
                                 className="panel-resize-handle"
+                                role="separator"
+                                aria-orientation="horizontal"
+                                aria-label="Resize terminal panel"
+                                aria-valuenow={panelHeight}
+                                aria-valuemin={PANEL_MIN}
+                                aria-valuemax={PANEL_MAX}
+                                tabIndex={0}
                                 onMouseDown={handlePanelDragStart}
+                                onKeyDown={(e) => {
+                                    const step = e.shiftKey ? 80 : 20;
+                                    if (e.key === 'ArrowUp') { e.preventDefault(); resizePanelBy(step); }
+                                    else if (e.key === 'ArrowDown') { e.preventDefault(); resizePanelBy(-step); }
+                                    else if (e.key === 'Home') { e.preventDefault(); setPanelHeight(PANEL_MIN); }
+                                    else if (e.key === 'End') { e.preventDefault(); setPanelHeight(PANEL_MAX); }
+                                }}
                             />
                             <div className="panel-header">
                                 <div className="panel-terminal-tabs">
@@ -1261,32 +1328,53 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                                         <div
                                             key={t.id}
                                             className={`panel-terminal-tab${t.id === activeTerminal ? ' active' : ''}`}
-                                            onClick={() => setActiveTerminal(t.id)}
                                         >
-                                            <span>{t.label}</span>
                                             <button
+                                                type="button"
+                                                className="panel-terminal-tab-label"
+                                                aria-pressed={t.id === activeTerminal}
+                                                onClick={() => setActiveTerminal(t.id)}
+                                            >
+                                                {t.label}
+                                            </button>
+                                            <button
+                                                type="button"
                                                 className="panel-terminal-tab-close"
                                                 onClick={(e) => { e.stopPropagation(); closeTerminal(t.id); }}
                                                 title="Close terminal"
+                                                aria-label={`Close ${t.label}`}
                                             >
-                                                <X size={12} />
+                                                <X size={12} aria-hidden />
                                             </button>
                                         </div>
                                     ))}
                                     <button
+                                        type="button"
                                         className="panel-terminal-add"
                                         onClick={addTerminal}
                                         title="New terminal"
+                                        aria-label="New terminal"
                                     >
-                                        <Plus size={14} />
+                                        <Plus size={14} aria-hidden />
                                     </button>
                                 </div>
                                 <button
+                                    type="button"
+                                    className="panel-toggle"
+                                    onClick={() => setPanelHeight(panelMaximized ? 200 : PANEL_MAX)}
+                                    title={panelMaximized ? 'Restore panel size' : 'Maximize panel'}
+                                    aria-label={panelMaximized ? 'Restore panel size' : 'Maximize panel'}
+                                >
+                                    {panelMaximized ? <Minimize2 size={14} aria-hidden /> : <Maximize2 size={14} aria-hidden />}
+                                </button>
+                                <button
+                                    type="button"
                                     className="panel-toggle"
                                     onClick={() => setPanelOpen(false)}
                                     title="Close panel"
+                                    aria-label="Close panel"
                                 >
-                                    <PanelBottomClose size={16} />
+                                    <PanelBottomClose size={16} aria-hidden />
                                 </button>
                             </div>
                             <div className="panel-content">
@@ -1323,9 +1411,11 @@ export default function IDELayout({ isExamMode: manualExamMode }: { isExamMode?:
                             }}
                         >
                             <button
+                                type="button"
                                 className="panel-toggle"
                                 onClick={() => setPanelOpen(true)}
                                 title="Open terminal"
+                                aria-label="Open terminal"
                                 style={{ background: 'var(--bg-tertiary)', padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border-color)' }}
                             >
                                 <PanelBottomOpen size={16} />

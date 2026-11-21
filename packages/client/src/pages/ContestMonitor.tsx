@@ -265,7 +265,7 @@ export default function ContestMonitor() {
                                                 <th className="text-left py-2 px-2">Status</th>
                                                 <th className="text-left py-2 px-2">Tab switches</th>
                                                 <th className="text-left py-2 px-2">Joined</th>
-                                                <th className="py-2 px-2" />
+                                                <th className="py-2 px-2"><span className="sr-only">Actions</span></th>
                                             </tr>
                                         </thead>
                                         <tbody>

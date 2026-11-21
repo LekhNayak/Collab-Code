@@ -240,7 +240,7 @@ export default function RoomPage() {
                                         <Plus size={20} />
                                     </div>
                                     <div>
-                                        <h3 className="text-[15px] font-semibold leading-tight text-fg">Create session</h3>
+                                        <h2 className="text-[15px] font-semibold leading-tight text-fg">Create session</h2>
                                         <p className="text-[13px] text-fg-3">Start a new room</p>
                                     </div>
                                 </div>
@@ -285,7 +285,7 @@ export default function RoomPage() {
                                         <LogIn size={20} />
                                     </div>
                                     <div>
-                                        <h3 className="text-[15px] font-semibold leading-tight text-fg">Join room</h3>
+                                        <h2 className="text-[15px] font-semibold leading-tight text-fg">Join room</h2>
                                         <p className="text-[13px] text-fg-3">Enter a room ID</p>
                                     </div>
                                 </div>
@@ -320,7 +320,7 @@ export default function RoomPage() {
                                 >
                                     <div className="flex items-center gap-2.5">
                                         <Clock size={16} className="text-fg-3" />
-                                        <h3 className="text-[15px] font-semibold text-fg">Previous sessions</h3>
+                                        <h2 className="text-[15px] font-semibold text-fg">Previous sessions</h2>
                                     </div>
                                     <Badge>{sessions.length}</Badge>
                                 </button>

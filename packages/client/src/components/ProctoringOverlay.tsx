@@ -3,6 +3,9 @@ import { Lock, AlertTriangle } from 'lucide-react';
 import type { ProctoringOverlayState } from '../hooks/useProctoring';
 import IconTile from './ui/IconTile';
 import Button from './ui/Button';
+import { useDialogPanel } from './ui/useDialog';
+
+const noop = () => {};
 
 // Full-screen warning shown after leaving fullscreen or switching tabs during a proctored session
 export default function ProctoringOverlay({ overlay, onDismiss, label = 'exam', maxStrikes = 3 }: {
@@ -21,16 +24,10 @@ export default function ProctoringOverlay({ overlay, onDismiss, label = 'exam', 
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.15 }}
                 >
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.97, y: 8 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.97, y: 8 }}
-                        transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                        className="w-full max-w-md rounded-xl bg-raised p-8 text-center shadow-float"
-                    >
+                    <WarningPanel title={overlay.type === 'fullscreen' ? 'Fullscreen required' : 'Tab switch detected'}>
                         {overlay.type === 'fullscreen' ? (
                             <>
-                                <IconTile tone="danger" size={48} className="mx-auto mb-5"><Lock size={22} /></IconTile>
+                                <IconTile tone="danger" size={48} className="mx-auto mb-5"><Lock size={22} aria-hidden /></IconTile>
                                 <h2 className="mb-2 text-lg font-semibold tracking-tight text-fg">
                                     Fullscreen required
                                 </h2>
@@ -55,7 +52,7 @@ export default function ProctoringOverlay({ overlay, onDismiss, label = 'exam', 
                             </>
                         ) : (
                             <>
-                                <IconTile tone="warning" size={48} className="mx-auto mb-5"><AlertTriangle size={22} /></IconTile>
+                                <IconTile tone="warning" size={48} className="mx-auto mb-5"><AlertTriangle size={22} aria-hidden /></IconTile>
                                 <h2 className="mb-2 text-lg font-semibold tracking-tight text-fg">
                                     Tab switch detected
                                 </h2>
@@ -80,9 +77,28 @@ export default function ProctoringOverlay({ overlay, onDismiss, label = 'exam', 
                                 </Button>
                             </>
                         )}
-                    </motion.div>
+                    </WarningPanel>
                 </motion.div>
             )}
         </AnimatePresence>
+    );
+}
+
+// The warning itself is an alert dialog: announced when it appears, focus moves to its button and stays in it.
+// Esc does nothing here: the only way on is the button, which also restores fullscreen.
+function WarningPanel({ title, children }: { title: string; children: React.ReactNode }) {
+    const { props } = useDialogPanel<HTMLDivElement>(title, noop);
+    return (
+        <motion.div
+            {...props}
+            role="alertdialog"
+            initial={{ opacity: 0, scale: 0.97, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.97, y: 8 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            className="w-full max-w-md rounded-xl bg-raised p-8 text-center shadow-float focus:outline-none"
+        >
+            {children}
+        </motion.div>
     );
 }

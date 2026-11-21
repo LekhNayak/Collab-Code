@@ -114,7 +114,7 @@ export default function CollabAdmin() {
                 <div className="ui-card flex flex-col items-center gap-4 px-6 py-14 text-center">
                     <IconTile size={48}><Users size={22} /></IconTile>
                     <div>
-                        <h3 className="mb-1 text-base font-semibold text-fg">No sessions found</h3>
+                        <h2 className="mb-1 text-base font-semibold text-fg">No sessions found</h2>
                         <p className="text-sm text-fg-2">Sessions appear when users create or join this room.</p>
                     </div>
                 </div>
@@ -135,7 +135,7 @@ export default function CollabAdmin() {
                                 <div className="min-w-0 flex-1">
                                     <div className="mb-2 flex items-start justify-between gap-4">
                                         <div className="min-w-0">
-                                            <h3 className="truncate text-[15px] font-semibold leading-tight text-fg">{session.name}</h3>
+                                            <h2 className="truncate text-[15px] font-semibold leading-tight text-fg">{session.name}</h2>
                                             <p className="mt-0.5 text-[13px] text-fg-3">
                                                 Owner: <span className="font-medium text-fg-2">{session.owner}</span>
                                             </p>

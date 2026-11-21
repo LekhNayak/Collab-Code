@@ -10,7 +10,7 @@ interface StatusBarProps {
 
 export default function StatusBar({ language, line, column, branch, connectedUsers }: StatusBarProps) {
     return (
-        <div className="status-bar">
+        <footer className="status-bar" aria-label="Status bar">
             <div className="status-bar-left">
                 <span className="status-item">
                     <GitBranch size={14} />
@@ -36,6 +36,6 @@ export default function StatusBar({ language, line, column, branch, connectedUse
                 <span className="status-item">{language || 'Plain Text'}</span>
                 <span className="status-item">UTF-8</span>
             </div>
-        </div>
+        </footer>
     );
 }

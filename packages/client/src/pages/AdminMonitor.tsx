@@ -301,7 +301,7 @@ export default function AdminMonitor() {
             </main>
 
             {/* ── Right Panel: Event Log Console ── */}
-            <div className="relative z-10 flex w-[420px] flex-col border-l border-line bg-surface">
+            <aside aria-label="Event console" className="relative z-10 flex w-[420px] flex-col border-l border-line bg-surface">
                 {/* Console Header */}
                 <div className="flex flex-col gap-4 border-b border-line p-5">
                     <h2 className="flex items-center gap-2.5 text-base font-semibold tracking-tight">
@@ -315,7 +315,7 @@ export default function AdminMonitor() {
                     {/* Filters */}
                     <div className="flex flex-col gap-2">
                         {/* Event type filter */}
-                        <div className="flex items-center gap-2 bg-canvas rounded-lg border border-line px-3 py-2">
+                        <div className="ui-field-shell flex items-center gap-2 bg-canvas rounded-lg px-3 py-2">
                             <Filter size={14} className="text-fg-3 flex-shrink-0" />
                             <select
                                 aria-label="Filter by event type"
@@ -336,7 +336,7 @@ export default function AdminMonitor() {
 
                         {/* Student filter */}
                         {students.size > 0 && (
-                            <div className="flex items-center gap-2 bg-canvas rounded-lg border border-line px-3 py-2">
+                            <div className="ui-field-shell flex items-center gap-2 bg-canvas rounded-lg px-3 py-2">
                                 <Users size={14} className="text-fg-3 flex-shrink-0" />
                                 <select
                                     aria-label="Filter by student"
@@ -434,7 +434,7 @@ export default function AdminMonitor() {
                         </div>
                     )}
                 </div>
-            </div>
+            </aside>
         </div>
     );
 }
