@@ -862,6 +862,10 @@
     cursor: pointer;
     display: flex;
     align-items: center;
+    justify-content: center;
+    /* a 24px target around the small glyph (WCAG 2.5.8) */
+    min-width: 24px;
+    min-height: 24px;
     padding: 1px;
     border-radius: 4px;
     opacity: 0;
@@ -911,6 +915,9 @@
     padding: 2px 4px;
     display: flex;
     align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    min-height: 24px;
     flex-shrink: 0;
 }
 
@@ -2105,7 +2112,8 @@
     font-size: 12px;
     font-weight: 500;
     color: var(--accent-error);
-    background: color-mix(in srgb, var(--accent-error) 14%, var(--bg-secondary));
+    /* a light tint, so the red text keeps 4.5:1 on it in both themes */
+    background: color-mix(in srgb, var(--accent-error) 10%, var(--bg-secondary));
     border-bottom: 1px solid color-mix(in srgb, var(--accent-error) 30%, transparent);
 }
 

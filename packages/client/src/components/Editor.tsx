@@ -83,7 +83,7 @@ export default function CodeEditor({
     const monacoRef = useRef<typeof Monaco | null>(null);
     const [ready, setReady] = useState(false);
     // The mounted editor, for the keyboard hint (refs can't be read while rendering)
-    const [mounted, setMounted] = useState<{ editor: Monaco.editor.IStandaloneCodeEditor; monaco: typeof Monaco } | null>(null);
+    const [mounted, setMounted] = useState<{ editor: Monaco.editor.IStandaloneCodeEditor } | null>(null);
     const models = useRef(new Map<string, OpenModel>());
     const viewStates = useRef(new Map<string, Monaco.editor.ICodeEditorViewState | null>());
     const shownPath = useRef('');
@@ -266,7 +266,7 @@ export default function CodeEditor({
         editor.setModel(null);
         placeholder?.dispose();
         setReady(true);
-        setMounted({ editor, monaco });
+        setMounted({ editor });
     };
 
     const fileName = path ? path.split('/').pop() : '';
@@ -303,7 +303,7 @@ export default function CodeEditor({
                 ariaLabel: editorAriaLabel(`${readOnly ? 'Read-only code' : 'Code'} editor${fileName ? `, ${fileName}` : ''}`),
             }}
         />
-        <EditorKeyboardHint editor={mounted?.editor ?? null} monaco={mounted?.monaco ?? null} />
+        <EditorKeyboardHint editor={mounted?.editor ?? null} />
         </div>
     );
 }

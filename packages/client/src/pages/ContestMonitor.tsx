@@ -191,7 +191,7 @@ export default function ContestMonitor() {
                     </div>
                 </div>
 
-                {error && <div role="alert" className="mb-4 flex shrink-0 justify-between rounded-lg bg-danger/10 px-4 py-3 text-danger-text">{error}<button onClick={() => setError('')} aria-label="Dismiss error" className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-tint-3"><X size={16} /></button></div>}
+                {error && <div role="alert" className="mb-4 flex shrink-0 justify-between rounded-lg bg-danger/10 px-4 py-3 text-danger-text">{error}<button onClick={() => setError('')} aria-label="Dismiss error" className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-md hover:bg-tint-3"><X size={16} /></button></div>}
 
                 {/* Stats */}
                 <div className="mb-4 grid shrink-0 grid-cols-2 gap-4 md:grid-cols-4">
