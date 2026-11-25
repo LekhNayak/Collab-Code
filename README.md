@@ -1,3 +1,5 @@
+![Colab Code: Choose your destination.](docs/brag-new-version-1.jpg)
+
 # Colab Code Editor
 
 A **collaborative, in-browser code editor** with real-time multi-user editing, isolated exam rooms, GitHub authentication, code execution, and Git integration. Think of it as a lightweight, self-hosted alternative to shared coding environments — great for pair programming, remote interviews, and live coding assessments.
