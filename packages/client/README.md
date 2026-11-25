@@ -1,6 +1,6 @@
-# Colab Code Editor — Client
+# Colab Code: client
 
-React 19 + Vite frontend for the Colab Code Editor: the Hub, collab and exam IDE, admin dashboard, and live exam monitor. See the [root README](../../README.md) for setup, deployment and the full feature list.
+React 19 + Vite frontend for Colab Code: the Hub, collab and exam IDE, admin dashboard, and live exam monitor. See the [root README](../../README.md) for the full feature list, and [docs](../../docs) for setup and deployment.
 
 ## Scripts
 
